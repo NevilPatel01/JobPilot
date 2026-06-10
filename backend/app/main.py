@@ -4,10 +4,11 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.routes import auth
+from app.api.routes import auth, scraper
 from app.api.schemas import HealthResponse
 from app.core.config import settings
 from app.core.database import Base, engine
+from app.core.scheduler import start_scheduler
 
 health_router = APIRouter()
 
@@ -26,6 +27,7 @@ async def init_db() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    start_scheduler()
     yield
 
 
@@ -41,3 +43,4 @@ app.add_middleware(
 
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(scraper.router, prefix="/api/v1/scraper", tags=["scraper"])
