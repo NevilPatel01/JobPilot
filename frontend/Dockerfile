@@ -3,6 +3,15 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 
+# Dev image: keeps node_modules for `docker compose` hot-reload workflow.
+FROM node:20-alpine AS dev
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+ENV NODE_ENV=development
+EXPOSE 3000
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0"]
+
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
