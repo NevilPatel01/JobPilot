@@ -1,14 +1,16 @@
 from contextlib import asynccontextmanager
 
+import socketio
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.routes import auth, scraper
+from app.api.routes import analytics, applications, auth, jobs, profile, scraper
 from app.api.schemas import HealthResponse
 from app.core.config import settings
 from app.core.database import Base, engine
 from app.core.scheduler import start_scheduler
+from app.sockets.chat import sio
 
 health_router = APIRouter()
 
@@ -43,4 +45,10 @@ app.add_middleware(
 
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
+app.include_router(applications.router, prefix="/api/v1/applications", tags=["applications"])
 app.include_router(scraper.router, prefix="/api/v1/scraper", tags=["scraper"])
+app.include_router(profile.router, prefix="/api/v1/profile", tags=["profile"])
+app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
+
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
