@@ -1,0 +1,11 @@
+# Default owner for all files
+* @NevilPatel01
+
+# Backend
+/backend/ @NevilPatel01
+
+# Frontend
+/frontend/ @NevilPatel01
+
+# GitHub config and CI
+/.github/ @NevilPatel01

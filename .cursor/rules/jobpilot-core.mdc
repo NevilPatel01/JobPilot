@@ -1,10 +1,6 @@
 ---
-description: JobPilot security and repo conventions
+description: Local security reminder only
 alwaysApply: true
 ---
 
-# JobPilot
-
-- Monorepo: `backend/` (FastAPI), `frontend/` (Next.js 14), `docker-compose.yml`
-- Never commit `.env` files, API keys, or the `docs/` folder
-- UI palette: zinc-950 canvas, zinc-900 panels, indigo-600 accent
+Never commit `.env` files, API keys, or the `docs/` folder. For PR and review standards, see `.github/copilot-instructions.md`.
