@@ -40,14 +40,24 @@ EOF
 
 ### Request Copilot code review
 
-After the PR is open:
+After the PR is open, request a review using one of these methods:
 
-1. Go to the PR on GitHub
-2. Click **Reviewers** in the sidebar
-3. Select **Copilot** to request an automated review
-4. Fix any issues Copilot flags, then push updates
+**GitHub CLI v2.88+:**
+```bash
+gh pr edit --add-reviewer @copilot
+```
 
-Copilot reviews use the instruction files on the **base branch** (`main`), so keep those files up to date when adding new conventions.
+**GitHub API (works on any gh version):**
+```bash
+gh api --method POST repos/NevilPatel01/JobPilot/pulls/PR_NUMBER/requested_reviewers \
+  -f 'reviewers[]=copilot-pull-request-reviewer[bot]'
+```
+
+**GitHub web UI:**
+1. Open the PR → click **Reviewers**
+2. Select **Copilot**
+
+Fix any issues Copilot flags, then push updates. Copilot reviews use instruction files on the **base branch** (`main`).
 
 ### CI must pass before merge
 
