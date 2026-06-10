@@ -26,3 +26,10 @@ class User(Base):
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     applications = relationship("UserApplication", back_populates="user", cascade="all, delete-orphan")
+    structured_profile = relationship(
+        "UserProfileStructured", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
+    api_keys = relationship("UserApiKey", back_populates="user", cascade="all, delete-orphan")
+    api_tokens = relationship("UserApiToken", back_populates="user", cascade="all, delete-orphan")
+    resumes = relationship("ResumeDocument", back_populates="user", cascade="all, delete-orphan")
+    cover_letters = relationship("CoverLetterDocument", back_populates="user", cascade="all, delete-orphan")
