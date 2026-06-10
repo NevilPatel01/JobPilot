@@ -44,6 +44,7 @@ services:
       NEXTAUTH_URL: http://localhost:3000
       NEXTAUTH_SECRET: dev-nextauth-secret
       AUTH_DISABLED: "true"
+      NEXT_PUBLIC_AUTH_DISABLED: "true"
     depends_on:
       - backend
 

@@ -12,7 +12,7 @@
 - [x] Analytics dashboard (Chart.js)
 - [x] Premium dark UI (Linear/Supabase inspired)
 - [x] Docker Compose dev environment
-- [ ] Google + GitHub OAuth (v0.1.1)
+- [x] Google + GitHub OAuth (v0.1.1) — configure credentials in `.env.local`
 
 ## v0.2.0 — Community
 

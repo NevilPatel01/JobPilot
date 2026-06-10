@@ -1,9 +1,9 @@
 import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
-import { api, setAuthToken } from "./api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-const authDisabled = process.env.AUTH_DISABLED === "true";
+export const authDisabled = process.env.AUTH_DISABLED === "true";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -32,15 +32,22 @@ export const authOptions: NextAuthOptions = {
         const oauthId = account.providerAccountId;
         const email = profile.email || user?.email || `${oauthId}@${provider}.local`;
         try {
-          const result = await api.authCallback({
-            email,
-            name: profile.name || user?.name,
-            avatar_url: (profile as { image?: string }).image,
-            oauth_provider: provider,
-            oauth_id: oauthId,
+          const res = await fetch(`${API_URL}/api/v1/auth/callback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              name: profile.name || user?.name,
+              avatar_url: (profile as { image?: string }).image,
+              oauth_provider: provider,
+              oauth_id: oauthId,
+            }),
           });
-          token.accessToken = result.access_token;
-          token.userId = result.user.id;
+          if (res.ok) {
+            const result = await res.json();
+            token.accessToken = result.access_token;
+            token.userId = result.user.id;
+          }
         } catch (e) {
           console.error("Auth callback failed:", e);
         }
@@ -50,12 +57,9 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (token.accessToken) {
         session.accessToken = token.accessToken as string;
-        setAuthToken(token.accessToken as string);
       }
       return session;
     },
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
-
-export { authDisabled };
