@@ -11,6 +11,8 @@ from app.models.job import Job
 from app.models.user import User
 from app.scrapers.url_importer import import_from_url
 from app.services.dedup import upsert_jobs
+from app.services.job_filters import apply_canada_filter
+from app.services.location import is_canadian_job
 from app.scrapers.base import RawJob
 
 router = APIRouter()
@@ -26,8 +28,8 @@ async def list_jobs(
     limit: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Job).where(Job.is_active == True)  # noqa: E712
-    count_query = select(func.count(Job.id)).where(Job.is_active == True)  # noqa: E712
+    query = apply_canada_filter(select(Job).where(Job.is_active == True))  # noqa: E712
+    count_query = apply_canada_filter(select(func.count(Job.id)).where(Job.is_active == True))  # noqa: E712
 
     if q:
         pattern = f"%{q}%"
@@ -86,6 +88,12 @@ async def import_job_url(
         raw = await import_from_url(body.url)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not load URL: {e}")
+
+    if not is_canadian_job(raw.location, raw.description, raw.title):
+        raise HTTPException(
+            status_code=422,
+            detail="This job does not appear to be a Canadian position. JobPilot only tracks Canada-eligible roles.",
+        )
 
     await upsert_jobs(db, [raw], "custom")
     result = await db.execute(select(Job).where(Job.url == body.url))

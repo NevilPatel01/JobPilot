@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.models.application import UserApplication
 from app.models.job import Job
 from app.models.user import User
+from app.services.job_filters import apply_canada_filter
 
 router = APIRouter()
 
@@ -29,7 +30,9 @@ async def analytics_summary(
     interviewing = [a for a in apps if a.status in ("interviewing", "offer")]
     interview_rate = round(len(interviewing) / max(len(applied), 1) * 100, 1)
 
-    active_jobs = (await db.execute(select(func.count(Job.id)).where(Job.is_active == True))).scalar() or 0  # noqa: E712
+    active_jobs = (
+        await db.execute(apply_canada_filter(select(func.count(Job.id)).where(Job.is_active == True)))  # noqa: E712
+    ).scalar() or 0
 
     status_breakdown: dict[str, int] = Counter(a.status for a in apps)
 

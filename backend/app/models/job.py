@@ -20,6 +20,7 @@ class Job(Base):
     salary_max: Mapped[int | None] = mapped_column(Integer)
     salary_currency: Mapped[str] = mapped_column(String(8), default="USD")
     location: Mapped[str | None] = mapped_column(String(255))
+    country: Mapped[str | None] = mapped_column(String(2), index=True)
     is_remote: Mapped[bool] = mapped_column(Boolean, default=True)
     tech_stack: Mapped[list[str] | None] = mapped_column(ARRAY(String))
     employment_type: Mapped[str | None] = mapped_column(String(50))

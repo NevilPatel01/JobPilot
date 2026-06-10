@@ -1,6 +1,7 @@
 import httpx
 
 from app.scrapers.base import JobSource, RawJob
+from app.services.location import is_canadian_job
 
 
 class RemoteOKScraper(JobSource):
@@ -19,16 +20,24 @@ class RemoteOKScraper(JobSource):
 
         jobs: list[RawJob] = []
         for item in data:
-            if item.get("position") and item.get("company"):
-                jobs.append(
-                    RawJob(
-                        title=item["position"],
-                        company=item["company"],
-                        url=item.get("url", f"https://remoteok.com/jobs/{item['id']}"),
-                        description=item.get("description", "") or "",
-                        tech_stack=item.get("tags", []) or [],
-                        source_id=str(item["id"]),
-                        location=item.get("location") or "Remote",
-                    )
+            if not item.get("position") or not item.get("company"):
+                continue
+
+            location = item.get("location") or "Remote"
+            description = item.get("description", "") or ""
+            title = item["position"]
+            if not is_canadian_job(location, description, title):
+                continue
+
+            jobs.append(
+                RawJob(
+                    title=title,
+                    company=item["company"],
+                    url=item.get("url", f"https://remoteok.com/jobs/{item['id']}"),
+                    description=description,
+                    tech_stack=item.get("tags", []) or [],
+                    source_id=str(item["id"]),
+                    location=location,
                 )
+            )
         return jobs

@@ -4,6 +4,7 @@ import re
 from bs4 import BeautifulSoup
 
 from app.scrapers.base import RawJob
+from app.services.location import detect_country
 
 
 def extract_job_fields(soup: BeautifulSoup, url: str) -> RawJob:
@@ -30,7 +31,12 @@ def extract_job_fields(soup: BeautifulSoup, url: str) -> RawJob:
                 if isinstance(loc, dict):
                     addr = loc.get("address", {})
                     if isinstance(addr, dict):
-                        location = addr.get("addressLocality") or location
+                        locality = addr.get("addressLocality")
+                        region = addr.get("addressRegion")
+                        country = addr.get("addressCountry")
+                        parts = [p for p in (locality, region, country) if p]
+                        if parts:
+                            location = ", ".join(parts)
                 if data.get("jobLocationType") == "TELECOMMUTE":
                     is_remote = True
         except (json.JSONDecodeError, TypeError):
@@ -86,6 +92,7 @@ def extract_job_fields(soup: BeautifulSoup, url: str) -> RawJob:
         salary_min=salary_min,
         salary_max=salary_max,
         is_remote=is_remote,
+        country=detect_country(location, description, title),
     )
 
 
