@@ -1,0 +1,14 @@
+---
+description: FastAPI and Python backend conventions
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Backend Python Rules
+
+- Use async SQLAlchemy sessions via `get_db` dependency
+- All routes mounted under `/api/v1/` prefix in `app/main.py`
+- Pydantic schemas live in `app/api/schemas.py`
+- New scrapers: inherit `JobSource`, implement `fetch()`, register in `app/services/scraper_runner.py`
+- Handle scraper failures gracefully — return empty list, never crash the runner
+- Deduplication uses SHA-256 hash of normalized title+company (`get_dedup_hash`)

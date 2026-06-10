@@ -1,0 +1,40 @@
+# secrets
+.env
+.env.*
+!.env.example
+!.env.local.example
+backend/.env
+frontend/.env.local
+
+# private planning docs (local only)
+docs/
+
+# dependencies & builds
+node_modules/
+frontend/.next/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# testing & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / IDE (keep .cursor/ tracked)
+.DS_Store
+.idea/
+*.swp
+*.swo
+
+# logs
+*.log
+npm-debug.log*
+
+# playwright
+playwright-report/
+test-results/
