@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: jobpilot
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: jobpilot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobpilot"]
+      interval: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    command: uvicorn app.main:socket_app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://jobpilot:password@postgres:5432/jobpilot
+      SECRET_KEY: dev-secret-change-in-production
+      ALLOWED_ORIGINS: http://localhost:3000
+      AUTH_DISABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    command: npm run dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: dev-nextauth-secret
+      AUTH_DISABLED: "true"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
