@@ -26,8 +26,14 @@ class WeWorkRemotelyScraper(JobSource):
                         link_el = item.find("link")
                         region_el = item.find("region")
                         desc_el = item.find("description")
-                        if title_el is not None and title_el.text and "|" in title_el.text:
-                            company, job_title = title_el.text.split("|", 1)
+                        if title_el is not None and title_el.text:
+                            raw_title = title_el.text.strip()
+                            if ": " in raw_title:
+                                company, job_title = raw_title.split(": ", 1)
+                            elif "|" in raw_title:
+                                company, job_title = raw_title.split("|", 1)
+                            else:
+                                company, job_title = "Unknown", raw_title
                             jobs.append(
                                 RawJob(
                                     title=job_title.strip(),
