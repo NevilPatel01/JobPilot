@@ -12,15 +12,23 @@ import {
   MessageSquare,
   LogOut,
   Sparkles,
+  FileText,
+  Mail,
+  Settings,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { HireMeButton } from "@/components/ui/HireMeButton";
 
 const navItems = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/scraper", label: "Scraper", icon: Search },
+  { href: "/", label: "Home", icon: LayoutDashboard },
+  { href: "/profile", label: "User Profile", icon: User },
+  { href: "/resumes", label: "My Resumes", icon: FileText },
+  { href: "/cover-letters", label: "My Cover Letters", icon: Mail },
+  { href: "/scraper", label: "Canadian Jobs", icon: Search },
   { href: "/tracker", label: "Tracker", icon: Columns3 },
-  { href: "/profile", label: "Profile", icon: User },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/settings", label: "API Settings", icon: Settings },
   { href: "/community", label: "Community", icon: MessageSquare },
 ];
 
@@ -41,9 +49,16 @@ export function Sidebar() {
             <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-600">Job Search OS</p>
           </div>
         </div>
+        <Link
+          href="/resumes/new"
+          className="btn-primary mt-4 flex w-full items-center justify-center gap-2 text-sm"
+        >
+          <Plus className="h-4 w-4" />
+          Create New
+        </Link>
       </div>
 
-      <nav className="flex-1 space-y-0.5 px-3 py-4">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== "/" && pathname.startsWith(href));
           return (
@@ -64,7 +79,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-zinc-800/80 p-4">
+      <div className="space-y-3 border-t border-zinc-800/80 p-4">
+        <HireMeButton />
         {session?.user ? (
           <div className="flex items-center gap-3 rounded-lg bg-zinc-800/40 p-2">
             {session.user.image && (

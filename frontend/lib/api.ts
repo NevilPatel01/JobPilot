@@ -99,4 +99,175 @@ export const api = {
   getMatchScores: () => request<import("@/types").MatchScore[]>("/api/v1/profile/match-scores"),
 
   getAnalytics: () => request<import("@/types").AnalyticsSummary>("/api/v1/analytics/summary"),
+
+  // Structured profile
+  getStructuredProfile: () =>
+    request<import("@/types/resume").StructuredProfile>("/api/v1/profile/structured"),
+
+  updateStructuredProfile: (content: import("@/types/resume").ResumeContent) =>
+    request<import("@/types/resume").StructuredProfile>("/api/v1/profile/structured", {
+      method: "PUT",
+      body: JSON.stringify({ content }),
+    }),
+
+  uploadResumePdf: async (file: File) => {
+    const token = getAuthToken();
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_URL}/api/v1/profile/upload-resume`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    if (!res.ok) throw new Error("Upload failed");
+    return res.json() as Promise<{ content: import("@/types/resume").ResumeContent; warnings: string[] }>;
+  },
+
+  // Settings / BYOK
+  getApiKeys: () => request<import("@/types/resume").ApiKeyConfig[]>("/api/v1/settings/api-keys"),
+
+  upsertApiKey: (data: {
+    provider: string;
+    api_key: string;
+    base_url?: string;
+    model_name?: string;
+    embedding_model?: string;
+    is_default?: boolean;
+  }) =>
+    request<import("@/types/resume").ApiKeyConfig>("/api/v1/settings/api-keys", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  testApiKey: (data: {
+    provider: string;
+    api_key: string;
+    base_url?: string;
+    model_name?: string;
+    embedding_model?: string;
+  }) =>
+    request<{ ok: boolean }>("/api/v1/settings/api-keys/test", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  deleteApiKey: (id: string) =>
+    request<{ ok: boolean }>(`/api/v1/settings/api-keys/${id}`, { method: "DELETE" }),
+
+  getApiTokens: () => request<import("@/types/resume").ApiToken[]>("/api/v1/settings/api-tokens"),
+
+  createApiToken: (name: string) =>
+    request<import("@/types/resume").ApiToken & { token: string }>("/api/v1/settings/api-tokens", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+
+  deleteApiToken: (id: string) =>
+    request<{ ok: boolean }>(`/api/v1/settings/api-tokens/${id}`, { method: "DELETE" }),
+
+  // Resumes
+  getResumes: (search?: string) => {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+    return request<{ resumes: import("@/types/resume").ResumeDocument[]; total: number }>(
+      `/api/v1/resumes${qs}`
+    );
+  },
+
+  getResume: (id: string) =>
+    request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}`),
+
+  createResume: (data: {
+    title: string;
+    job_description: string;
+    company_url?: string;
+    source_type?: string;
+    content_json?: import("@/types/resume").ResumeContent;
+    create_cover_letter?: boolean;
+    cover_letter_meta?: import("@/types/resume").CoverLetterMeta;
+  }) =>
+    request<import("@/types/resume").ResumeDocument>("/api/v1/resumes", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateResume: (
+    id: string,
+    data: Partial<{
+      title: string;
+      content_json: import("@/types/resume").ResumeContent;
+      latex_source: string;
+      application_id: string;
+    }>
+  ) =>
+    request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteResume: (id: string) =>
+    request<{ ok: boolean }>(`/api/v1/resumes/${id}`, { method: "DELETE" }),
+
+  getResumePreviewHtml: async (id: string): Promise<string> => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_URL}/api/v1/resumes/${id}/preview`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return res.text();
+  },
+
+  getResumeLatex: (id: string) =>
+    request<{ latex: string }>(`/api/v1/resumes/${id}/preview?format=latex`),
+
+  downloadResumePdf: async (id: string): Promise<Blob> => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_URL}/api/v1/resumes/${id}/pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("PDF export failed");
+    return res.blob();
+  },
+
+  getResumeMessages: (id: string) =>
+    request<import("@/types/resume").ChatMessage[]>(`/api/v1/resumes/${id}/messages`),
+
+  sendResumeChat: (id: string, message: string) =>
+    request<import("@/types/resume").ChatMessage>(`/api/v1/resumes/${id}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
+
+  handleResumeChange: (id: string, change_id: string, action: "accept" | "reject") =>
+    request<{ ok: boolean; content_json: import("@/types/resume").ResumeContent }>(
+      `/api/v1/resumes/${id}/changes`,
+      { method: "POST", body: JSON.stringify({ change_id, action }) }
+    ),
+
+  runATSScore: (id: string) =>
+    request<import("@/types/resume").ATSScore>(`/api/v1/resumes/${id}/ats-score`, { method: "POST" }),
+
+  getATSScore: (id: string) =>
+    request<import("@/types/resume").ATSScore | null>(`/api/v1/resumes/${id}/ats-score`),
+
+  // Cover letters
+  getCoverLetters: () =>
+    request<{ cover_letters: import("@/types/resume").CoverLetterDocument[]; total: number }>(
+      "/api/v1/cover-letters"
+    ),
+
+  getCoverLetter: (id: string) =>
+    request<import("@/types/resume").CoverLetterDocument>(`/api/v1/cover-letters/${id}`),
+
+  updateCoverLetter: (id: string, data: { title?: string; content_json?: Record<string, unknown> }) =>
+    request<import("@/types/resume").CoverLetterDocument>(`/api/v1/cover-letters/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  getCoverLetterPreviewHtml: async (id: string): Promise<string> => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_URL}/api/v1/cover-letters/${id}/preview`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    return res.text();
+  },
 };
