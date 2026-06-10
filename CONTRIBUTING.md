@@ -11,6 +11,54 @@ Thank you for your interest in contributing! JobPilot is free and open-source �
 5. Run tests and linting (see below)
 6. Open a pull request against `main`
 
+## Pull requests with GitHub Copilot
+
+JobPilot uses **GitHub Copilot** for PR workflows and code review. Copilot reads project rules from:
+
+- `.github/copilot-instructions.md` — repo-wide standards
+- `.github/instructions/*.instructions.md` — path-specific rules (backend, frontend, CI)
+
+### Opening a PR (GitHub CLI)
+
+```bash
+git push -u origin feat/your-feature
+
+gh pr create --title "feat(backend): short description" --body "$(cat <<'EOF'
+## Summary
+- What changed and why
+
+## Test plan
+- [ ] docker compose up
+- [ ] Relevant API or UI tested
+
+## Checklist
+- [ ] No secrets committed
+- [ ] CI passes
+EOF
+)"
+```
+
+### Request Copilot code review
+
+After the PR is open:
+
+1. Go to the PR on GitHub
+2. Click **Reviewers** in the sidebar
+3. Select **Copilot** to request an automated review
+4. Fix any issues Copilot flags, then push updates
+
+Copilot reviews use the instruction files on the **base branch** (`main`), so keep those files up to date when adding new conventions.
+
+### CI must pass before merge
+
+GitHub Actions runs on every PR:
+
+- Backend import verification
+- Frontend `npm run lint` and `npm run build`
+- Docker image builds
+
+Check status: `gh pr checks <PR_NUMBER>`
+
 ## Branch Naming
 
 | Prefix | Use for |
@@ -40,6 +88,7 @@ The most impactful contribution type:
 - [ ] Backend changes tested via API or pytest
 - [ ] Frontend changes pass `npm run lint` and `npm run build`
 - [ ] PR description includes summary and test plan
+- [ ] Copilot code review requested and feedback addressed
 
 ## Code Style
 

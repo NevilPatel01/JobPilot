@@ -117,7 +117,9 @@ See [ROADMAP.md](ROADMAP.md) — community forums, real-time chat, job expiry ch
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The most impactful contribution is adding a new job scraper source.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Pull requests use **GitHub Copilot** for automated code review — request Copilot as a reviewer on any PR. Project rules for Copilot live in `.github/copilot-instructions.md`.
+
+The most impactful contribution is adding a new job scraper source.
 
 ## License
 
