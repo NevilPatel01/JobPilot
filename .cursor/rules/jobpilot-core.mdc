@@ -1,31 +1,10 @@
 ---
-description: JobPilot monorepo conventions and security rules
+description: JobPilot security and repo conventions
 alwaysApply: true
 ---
 
-# JobPilot Core Rules
+# JobPilot
 
-## Repository layout
-
-- `backend/` — FastAPI (Python 3.11+), SQLAlchemy 2.0, PostgreSQL
-- `frontend/` — Next.js 14 App Router, Tailwind CSS, TypeScript
-- `docker-compose.yml` — local dev stack (postgres, backend, frontend)
-
-## Security (never violate)
-
-- Never commit `.env`, `.env.local`, `backend/.env`, or API keys
-- Never commit the `docs/` folder (private planning docs)
-- Use `.env.example` / `.env.local.example` with empty placeholder values only
-
-## Workflow
-
-- Use feature branches: `feat/<area>-<description>`
-- Conventional commits: `feat(backend):`, `feat(frontend):`, `chore:`, `ci:`
-- Open PRs into `main`; do not push secrets or docs/
-
-## Stack conventions
-
-- Backend routers under `/api/v1/`
-- Job scrapers inherit from `JobSource` in `backend/app/scrapers/base.py`
-- Frontend API client in `frontend/lib/api.ts`
-- Dark UI: zinc-950 canvas, zinc-900 panels, indigo-600 accent
+- Monorepo: `backend/` (FastAPI), `frontend/` (Next.js 14), `docker-compose.yml`
+- Never commit `.env` files, API keys, or the `docs/` folder
+- UI palette: zinc-950 canvas, zinc-900 panels, indigo-600 accent

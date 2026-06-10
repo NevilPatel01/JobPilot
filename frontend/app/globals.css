@@ -4,13 +4,45 @@
 
 :root {
   --font-inter: 'Inter', system-ui, sans-serif;
+  --accent: #6366f1;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  --surface: #18181b;
+  --surface-elevated: #1c1c21;
+  --border-subtle: rgba(63, 63, 70, 0.6);
 }
 
 body {
   @apply bg-zinc-950 text-zinc-300 antialiased;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-glow), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(99, 102, 241, 0.06), transparent);
 }
 
 * {
   scrollbar-width: thin;
   scrollbar-color: #3f3f46 transparent;
+}
+
+@layer components {
+  .glass-panel {
+    @apply rounded-xl border border-zinc-800/80 bg-zinc-900/80 backdrop-blur-sm;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  }
+
+  .glass-panel-hover {
+    @apply glass-panel transition-all duration-200 hover:border-zinc-700/80 hover:-translate-y-0.5;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 4px 24px -4px rgba(0, 0, 0, 0.4);
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/20 transition-all duration-200 hover:bg-indigo-500 hover:shadow-indigo-500/25 disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-zinc-300 transition-all duration-200 hover:border-zinc-600 hover:bg-zinc-800 hover:text-white;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-300 placeholder:text-zinc-600 transition-colors focus:border-indigo-600/60 focus:outline-none focus:ring-1 focus:ring-indigo-600/30;
+  }
 }

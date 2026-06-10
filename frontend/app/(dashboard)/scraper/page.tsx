@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, Inbox } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Job, MatchScore } from "@/types";
 import { JobCard } from "@/components/scraper/JobCard";
 import { SkeletonLoader } from "@/components/scraper/SkeletonLoader";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function ScraperPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -67,7 +68,7 @@ export default function ScraperPage() {
     setTrackingId(jobId);
     try {
       await api.quickSaveJob(jobId);
-      setToast("Job added to tracker!");
+      setToast("Added to tracker");
     } catch (e) {
       setToast(e instanceof Error ? e.message : "Failed to track job");
     } finally {
@@ -78,53 +79,42 @@ export default function ScraperPage() {
 
   return (
     <div>
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Remote Jobs</h1>
-          <p className="text-sm text-zinc-400">{jobs.length} listings</p>
-        </div>
-        <button
-          onClick={handleScrape}
-          disabled={scraping}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
-        >
-          <RefreshCw className={`h-4 w-4 ${scraping ? "animate-spin" : ""}`} />
-          Scrape Now
-        </button>
-      </div>
+      <PageHeader
+        title="Remote Jobs"
+        description={`${jobs.length} active listings`}
+        action={
+          <button onClick={handleScrape} disabled={scraping} className="btn-primary">
+            <RefreshCw className={`h-4 w-4 ${scraping ? "animate-spin" : ""}`} />
+            Scrape Now
+          </button>
+        }
+      />
 
       <div className="mb-6 flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
           <input
             type="text"
-            placeholder="Search by title or company..."
+            placeholder="Search title or company..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && loadJobs()}
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-900 py-2 pl-10 pr-4 text-sm text-zinc-300 placeholder:text-zinc-500 focus:border-indigo-600 focus:outline-none"
+            className="input-field pl-10"
           />
         </div>
-        <select
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-          className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 focus:border-indigo-600 focus:outline-none"
-        >
+        <select value={source} onChange={(e) => setSource(e.target.value)} className="input-field w-auto min-w-[140px]">
           <option value="">All sources</option>
           <option value="remoteok">RemoteOK</option>
           <option value="weworkremotely">WeWorkRemotely</option>
           <option value="hackernews">Hacker News</option>
         </select>
-        <button
-          onClick={loadJobs}
-          className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:border-zinc-600 transition-colors"
-        >
+        <button onClick={loadJobs} className="btn-secondary">
           Filter
         </button>
       </div>
 
       {toast && (
-        <div className="mb-4 rounded-lg border border-indigo-600/50 bg-indigo-600/10 px-4 py-2 text-sm text-indigo-400">
+        <div className="mb-4 rounded-lg border border-indigo-500/30 bg-indigo-600/10 px-4 py-2.5 text-sm text-indigo-300">
           {toast}
         </div>
       )}
@@ -132,8 +122,10 @@ export default function ScraperPage() {
       {loading || scraping ? (
         <SkeletonLoader />
       ) : jobs.length === 0 ? (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-12 text-center">
-          <p className="text-zinc-400">No jobs yet. Click &quot;Scrape Now&quot; to fetch listings.</p>
+        <div className="glass-panel flex flex-col items-center py-16 text-center">
+          <Inbox className="h-10 w-10 text-zinc-700" />
+          <p className="mt-4 font-medium text-zinc-400">No jobs yet</p>
+          <p className="mt-1 text-sm text-zinc-600">Click Scrape Now to pull remote listings</p>
         </div>
       ) : (
         <div className="space-y-3">

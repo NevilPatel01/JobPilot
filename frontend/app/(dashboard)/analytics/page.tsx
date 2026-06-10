@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Briefcase, Send, TrendingUp, Database } from "lucide-react";
 import { api } from "@/lib/api";
 import type { AnalyticsSummary } from "@/types";
-import { StatCard } from "@/components/analytics/StatCard";
 import { AnalyticsCharts } from "@/components/analytics/Charts";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatCard } from "@/components/ui/StatCard";
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
@@ -14,21 +16,27 @@ export default function AnalyticsPage() {
   }, []);
 
   if (!data) {
-    return <div className="text-zinc-400">Loading analytics...</div>;
+    return (
+      <div>
+        <PageHeader title="Analytics" description="Loading..." />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass-panel h-28 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Analytics</h1>
-        <p className="text-sm text-zinc-400">Track your job search progress</p>
-      </div>
+      <PageHeader title="Analytics" description="Application trends and pipeline insights" />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Tracked" value={data.total_tracked} />
-        <StatCard label="Applications Sent" value={data.total_applied} />
-        <StatCard label="Interview Rate" value={`${data.interview_rate}%`} />
-        <StatCard label="Active Jobs in DB" value={data.active_jobs_in_db} />
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Jobs Tracked" value={data.total_tracked} icon={Briefcase} accent="text-indigo-400" />
+        <StatCard label="Applications Sent" value={data.total_applied} icon={Send} accent="text-sky-400" />
+        <StatCard label="Interview Rate" value={`${data.interview_rate}%`} icon={TrendingUp} accent="text-emerald-400" />
+        <StatCard label="Active Listings" value={data.active_jobs_in_db} icon={Database} accent="text-amber-400" />
       </div>
 
       <AnalyticsCharts data={data} />
