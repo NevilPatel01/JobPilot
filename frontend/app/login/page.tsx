@@ -5,6 +5,8 @@ import { Sparkles } from "lucide-react";
 
 export default function LoginPage() {
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+  const hasGoogle = !!process.env.NEXT_PUBLIC_HAS_GOOGLE;
+  const hasGithub = !!process.env.NEXT_PUBLIC_HAS_GITHUB;
 
   if (authDisabled) {
     return (
@@ -23,6 +25,8 @@ export default function LoginPage() {
     );
   }
 
+  const noProviders = !hasGoogle && !hasGithub;
+
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="glass-panel w-full max-w-sm p-8">
@@ -34,20 +38,24 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-zinc-500">Sign in to track applications and save jobs</p>
         </div>
 
-        <div className="mt-8 space-y-3">
-          <button
-            onClick={() => signIn("google", { callbackUrl: "/" })}
-            className="btn-secondary w-full"
-          >
-            Sign in with Google
-          </button>
-          <button
-            onClick={() => signIn("github", { callbackUrl: "/" })}
-            className="btn-primary w-full"
-          >
-            Sign in with GitHub
-          </button>
-        </div>
+        {noProviders ? (
+          <p className="mt-8 text-center text-sm text-zinc-500">
+            Configure Google or GitHub OAuth in <code className="text-zinc-400">.env.local</code> to enable sign-in.
+          </p>
+        ) : (
+          <div className="mt-8 space-y-3">
+            {hasGoogle && (
+              <button onClick={() => signIn("google", { callbackUrl: "/" })} className="btn-secondary w-full">
+                Sign in with Google
+              </button>
+            )}
+            {hasGithub && (
+              <button onClick={() => signIn("github", { callbackUrl: "/" })} className="btn-primary w-full">
+                Sign in with GitHub
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

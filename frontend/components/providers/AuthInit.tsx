@@ -1,11 +1,19 @@
 "use client";
 
 import { useEffect } from "react";
-import { getAuthToken } from "@/lib/api";
+import { useSession } from "next-auth/react";
+import { getAuthToken, setAuthToken } from "@/lib/api";
 
 export function AuthInit() {
+  const { data: session } = useSession();
+
   useEffect(() => {
-    getAuthToken();
-  }, []);
+    if (session?.accessToken) {
+      setAuthToken(session.accessToken);
+    } else {
+      getAuthToken();
+    }
+  }, [session?.accessToken]);
+
   return null;
 }
