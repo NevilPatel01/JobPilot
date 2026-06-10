@@ -31,10 +31,10 @@ export default function DashboardPage() {
   }, []);
 
   const steps = [
-    { label: "Scrape remote jobs", href: "/scraper", desc: "Pull listings from RemoteOK, WWR, and HN" },
+    { label: "Build your profile", href: "/profile", desc: "Structured resume data powers AI tailoring and match scores" },
+    { label: "Create tailored resume", href: "/resumes/new", desc: "Multi-agent AI tailors your resume and cover letter per job" },
+    { label: "Scrape Canadian jobs", href: "/scraper", desc: "Pull Canada-eligible listings from RemoteOK, WWR, and HN" },
     { label: "Track applications", href: "/tracker", desc: "Manage your pipeline on the Kanban board" },
-    { label: "Paste your resume", href: "/profile", desc: "Enable match scoring on every listing" },
-    { label: "Review analytics", href: "/analytics", desc: "Track interview rate and trends" },
   ];
 
   return (
