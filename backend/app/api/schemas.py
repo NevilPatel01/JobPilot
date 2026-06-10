@@ -45,6 +45,7 @@ class JobResponse(BaseModel):
     salary_max: int | None
     salary_currency: str
     location: str | None
+    country: str | None
     is_remote: bool
     tech_stack: list[str] | None
     source: str
@@ -135,3 +136,194 @@ class AnalyticsSummary(BaseModel):
     status_breakdown: dict[str, int]
     top_companies: list[dict]
     source_distribution: dict[str, int]
+
+
+# --- Structured profile & resume ---
+
+class StructuredProfileResponse(BaseModel):
+    content: dict
+    updated_at: datetime | None = None
+
+
+class StructuredProfileUpdate(BaseModel):
+    content: dict
+
+
+class ApiKeyCreate(BaseModel):
+    provider: str
+    api_key: str
+    base_url: str | None = None
+    model_name: str | None = None
+    embedding_model: str | None = None
+    is_default: bool = False
+
+
+class ApiKeyResponse(BaseModel):
+    id: UUID
+    provider: str
+    api_key_masked: str
+    base_url: str | None
+    model_name: str | None
+    embedding_model: str | None
+    is_default: bool
+
+    model_config = {"from_attributes": True}
+
+
+class ApiTokenCreate(BaseModel):
+    name: str
+
+
+class ApiTokenResponse(BaseModel):
+    id: UUID
+    name: str
+    token_prefix: str
+    created_at: datetime
+    last_used_at: datetime | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ApiTokenCreatedResponse(ApiTokenResponse):
+    token: str
+
+
+class CoverLetterMeta(BaseModel):
+    hiring_manager_name: str | None = None
+    hiring_manager_email: str | None = None
+    street_address: str | None = None
+    city: str | None = None
+    state_province: str | None = None
+    postal_code: str | None = None
+    letter_date: str | None = None
+    additional_context: str | None = None
+
+
+class ResumeCreate(BaseModel):
+    title: str
+    job_description: str
+    company_url: str | None = None
+    source_type: str = "profile"
+    content_json: dict | None = None
+    create_cover_letter: bool = False
+    cover_letter_meta: CoverLetterMeta | None = None
+
+
+class ResumeUpdate(BaseModel):
+    title: str | None = None
+    content_json: dict | None = None
+    latex_source: str | None = None
+    application_id: UUID | None = None
+
+
+class ResumeResponse(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    job_description: str | None
+    company_url: str | None
+    company_name: str | None
+    source_type: str
+    content_json: dict
+    latex_source: str | None
+    insights_json: dict | None
+    create_cover_letter: bool
+    cover_letter_meta: dict | None
+    application_id: UUID | None
+    created_at: datetime
+    updated_at: datetime
+    cover_letter_id: UUID | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class ResumeListResponse(BaseModel):
+    resumes: list[ResumeResponse]
+    total: int
+
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+class PendingChangeResponse(BaseModel):
+    id: UUID
+    path: str
+    old_value: str | None
+    new_value: str | None
+    status: str
+
+    model_config = {"from_attributes": True}
+
+
+class ChatMessageResponse(BaseModel):
+    id: UUID
+    role: str
+    content: str
+    pending_changes: list[PendingChangeResponse] = []
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChangeActionRequest(BaseModel):
+    change_id: UUID
+    action: str = Field(pattern="^(accept|reject)$")
+
+
+class ATSScoreResponse(BaseModel):
+    id: UUID
+    overall_score: int
+    keyword_match: int
+    formatting_score: int
+    missing_keywords: list[str] | None
+    suggestions: list[str] = []
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CoverLetterCreate(BaseModel):
+    title: str
+    resume_id: UUID | None = None
+    hiring_manager_name: str | None = None
+    hiring_manager_email: str | None = None
+    street_address: str | None = None
+    city: str | None = None
+    state_province: str | None = None
+    postal_code: str | None = None
+    letter_date: str | None = None
+    additional_context: str | None = None
+    content_json: dict | None = None
+
+
+class CoverLetterUpdate(BaseModel):
+    title: str | None = None
+    content_json: dict | None = None
+    latex_source: str | None = None
+
+
+class CoverLetterResponse(BaseModel):
+    id: UUID
+    title: str
+    status: str
+    resume_id: UUID | None
+    hiring_manager_name: str | None
+    hiring_manager_email: str | None
+    street_address: str | None
+    city: str | None
+    state_province: str | None
+    postal_code: str | None
+    letter_date: str | None
+    additional_context: str | None
+    content_json: dict
+    latex_source: str | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CoverLetterListResponse(BaseModel):
+    cover_letters: list[CoverLetterResponse]
+    total: int
