@@ -1,13 +1,14 @@
 import httpx
 
 from app.scrapers.base import JobSource, RawJob
+from app.services.location import is_canadian_job
 
 
 class HackerNewsScraper(JobSource):
     source_name = "hackernews"
 
     async def fetch(self) -> list[RawJob]:
-        params = {"query": "hiring remote", "tags": "job", "hitsPerPage": 100}
+        params = {"query": "hiring canada", "tags": "job", "hitsPerPage": 100}
         async with httpx.AsyncClient(timeout=15) as client:
             try:
                 r = await client.get("https://hn.algolia.com/api/v1/search", params=params)
@@ -24,14 +25,18 @@ class HackerNewsScraper(JobSource):
             if not title:
                 continue
             company = hit.get("author", "Unknown")
+            description = hit.get("comment_text") or title
+            if not is_canadian_job(None, description, title):
+                continue
+
             jobs.append(
                 RawJob(
                     title=title[:255],
                     company=company[:255],
                     url=url,
-                    description=hit.get("comment_text") or title,
+                    description=description,
                     source_id=str(hit.get("objectID", "")),
-                    location="Remote",
+                    location="Canada",
                 )
             )
         return jobs

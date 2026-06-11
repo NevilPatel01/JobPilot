@@ -3,6 +3,7 @@ import xml.etree.ElementTree as ET
 import httpx
 
 from app.scrapers.base import JobSource, RawJob
+from app.services.location import is_canadian_job
 
 
 class WeWorkRemotelyScraper(JobSource):
@@ -34,13 +35,19 @@ class WeWorkRemotelyScraper(JobSource):
                                 company, job_title = raw_title.split("|", 1)
                             else:
                                 company, job_title = "Unknown", raw_title
+                            location = region_el.text if region_el is not None and region_el.text else "Remote"
+                            description = desc_el.text if desc_el is not None and desc_el.text else ""
+                            title = job_title.strip()
+                            if not is_canadian_job(location, description, title):
+                                continue
+
                             jobs.append(
                                 RawJob(
-                                    title=job_title.strip(),
+                                    title=title,
                                     company=company.strip(),
                                     url=link_el.text if link_el is not None and link_el.text else "",
-                                    description=desc_el.text if desc_el is not None and desc_el.text else "",
-                                    location=region_el.text if region_el is not None and region_el.text else "Remote",
+                                    description=description,
+                                    location=location,
                                     source_id=link_el.text if link_el is not None else None,
                                 )
                             )

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.job import Job
 from app.scrapers.base import RawJob, get_dedup_hash
+from app.services.location import TARGET_COUNTRY, detect_country
 
 
 async def upsert_jobs(session: AsyncSession, raw_jobs: list[RawJob], source: str) -> int:
@@ -16,6 +17,10 @@ async def upsert_jobs(session: AsyncSession, raw_jobs: list[RawJob], source: str
         if not raw.url or not raw.title or not raw.company:
             continue
 
+        country = raw.country or detect_country(raw.location, raw.description, raw.title)
+        if country != TARGET_COUNTRY:
+            continue
+
         dedup = get_dedup_hash(raw.title, raw.company)
 
         existing = await session.execute(select(Job).where(Job.dedup_hash == dedup))
@@ -24,8 +29,11 @@ async def upsert_jobs(session: AsyncSession, raw_jobs: list[RawJob], source: str
         if job:
             job.last_verified = now
             job.is_active = True
+            job.country = TARGET_COUNTRY
             if raw.description and len(raw.description) > len(job.description or ""):
                 job.description = raw.description
+            if raw.location:
+                job.location = raw.location
             continue
 
         stmt = (
@@ -38,6 +46,7 @@ async def upsert_jobs(session: AsyncSession, raw_jobs: list[RawJob], source: str
                 salary_min=raw.salary_min,
                 salary_max=raw.salary_max,
                 location=raw.location,
+                country=TARGET_COUNTRY,
                 is_remote=raw.is_remote,
                 tech_stack=raw.tech_stack,
                 employment_type=raw.employment_type,

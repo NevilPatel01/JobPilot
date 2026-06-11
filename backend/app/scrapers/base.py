@@ -18,6 +18,7 @@ class RawJob:
     employment_type: Optional[str] = None
     source_id: Optional[str] = None
     is_remote: bool = True
+    country: Optional[str] = None
 
 
 def get_dedup_hash(title: str, company: str) -> str:

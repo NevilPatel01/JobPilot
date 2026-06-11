@@ -26,7 +26,10 @@ async def trigger_scraper(user: User = Depends(get_current_user)):
         )
     mark_manual_triggered()
     new_jobs = await run_all_scrapers()
-    return ScraperTriggerResponse(new_jobs=new_jobs, message=f"Scrape complete. {new_jobs} new jobs added.")
+    return ScraperTriggerResponse(
+        new_jobs=new_jobs,
+        message=f"Scrape complete. {new_jobs} new Canada-eligible jobs added.",
+    )
 
 
 @router.get("/sources")

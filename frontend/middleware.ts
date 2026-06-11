@@ -24,5 +24,8 @@ export const config = {
     "/profile/:path*",
     "/analytics/:path*",
     "/community/:path*",
+    "/resumes/:path*",
+    "/cover-letters/:path*",
+    "/settings/:path*",
   ],
 };

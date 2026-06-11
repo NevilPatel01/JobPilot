@@ -9,6 +9,7 @@ from app.scrapers.hackernews import HackerNewsScraper
 from app.scrapers.remoteok import RemoteOKScraper
 from app.scrapers.weworkremotely import WeWorkRemotelyScraper
 from app.services.dedup import upsert_jobs
+from app.services.job_filters import apply_canada_filter
 
 SCRAPERS = [
     RemoteOKScraper(),
@@ -72,6 +73,6 @@ def mark_manual_triggered() -> None:
 
 async def get_source_stats(session: AsyncSession) -> list[dict]:
     result = await session.execute(
-        select(Job.source, func.count(Job.id)).where(Job.is_active == True).group_by(Job.source)  # noqa: E712
+        apply_canada_filter(select(Job.source, func.count(Job.id)).where(Job.is_active == True)).group_by(Job.source)  # noqa: E712
     )
     return [{"source": row[0], "job_count": row[1]} for row in result.all()]

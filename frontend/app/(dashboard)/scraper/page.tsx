@@ -80,8 +80,8 @@ export default function ScraperPage() {
   return (
     <div>
       <PageHeader
-        title="Remote Jobs"
-        description={`${jobs.length} active listings`}
+        title="Canadian Jobs"
+        description={`${jobs.length} Canada-eligible listings`}
         action={
           <button onClick={handleScrape} disabled={scraping} className="btn-primary">
             <RefreshCw className={`h-4 w-4 ${scraping ? "animate-spin" : ""}`} />
@@ -125,7 +125,7 @@ export default function ScraperPage() {
         <div className="glass-panel flex flex-col items-center py-16 text-center">
           <Inbox className="h-10 w-10 text-zinc-700" />
           <p className="mt-4 font-medium text-zinc-400">No jobs yet</p>
-          <p className="mt-1 text-sm text-zinc-600">Click Scrape Now to pull remote listings</p>
+          <p className="mt-1 text-sm text-zinc-600">Click Scrape Now to pull Canada-eligible listings</p>
         </div>
       ) : (
         <div className="space-y-3">

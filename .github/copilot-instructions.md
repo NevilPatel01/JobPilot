@@ -16,9 +16,10 @@ JobPilot is a free, open-source job search platform: FastAPI backend + Next.js 1
 
 ## PR standards
 
-- Use conventional commits: `feat(backend):`, `feat(frontend):`, `fix:`, `chore:`, `ci:`
+- Use conventional commits: `feat(backend):`, `feat(frontend):`, `fix:`, `chore:`, `ci:`, `test:`
 - Feature branches: `feat/<area>-<description>`
-- Every PR must include a test plan and pass CI (backend import check, frontend lint/build, Docker build)
+- Every PR must include a test plan and pass CI (backend pytest + import check, frontend lint/build, Docker build)
+- **Copilot PR review is optional** — batch changes, run local `pytest` and lint first; request Copilot only for non-trivial changes to conserve premium requests
 
 ## Code review focus
 

@@ -64,6 +64,7 @@ export function JobCard({ job, matchScore, matchedKeywords, onTrack, tracking }:
               Verified {verifiedDays === 0 ? "today" : `${verifiedDays}d ago`}
             </span>
             {job.location && <span>{job.location}</span>}
+            {job.country === "CA" && <span className="text-red-400/80">🇨🇦 Canada</span>}
             {job.is_remote && <span className="text-indigo-400/70">Remote</span>}
           </div>
 

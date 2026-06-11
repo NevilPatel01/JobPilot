@@ -8,6 +8,7 @@ export interface Job {
   salary_max: number | null;
   salary_currency: string;
   location: string | null;
+  country: string | null;
   is_remote: boolean;
   tech_stack: string[] | null;
   source: string;
