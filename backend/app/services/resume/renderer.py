@@ -1,5 +1,15 @@
+from __future__ import annotations
+
 import html
-import re
+import json
+import logging
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.services.llm.client import LLMConfig
+
+logger = logging.getLogger(__name__)
 
 
 def _esc(text: str) -> str:
@@ -121,6 +131,39 @@ body {{ font-family: 'Times New Roman', Times, serif; max-width: 8.5in; margin: 
 </body></html>"""
 
 
+def render_cover_letter_latex(content: dict, contact: dict | None = None) -> str:
+    contact = contact or {}
+    lines = [
+        r"\documentclass[letterpaper,11pt]{article}",
+        r"\usepackage[empty]{fullpage}",
+        r"\usepackage{parskip}",
+        r"\begin{document}",
+        r"\noindent " + _latex_esc(contact.get("full_name", "")) + r" \\",
+        _latex_esc(contact.get("email", "")) + r" \\",
+        _latex_esc(contact.get("phone", "")) + r" \\",
+        r"\vspace{12pt}",
+        r"\noindent " + _latex_esc(content.get("date", "")) + r" \\",
+        r"\vspace{12pt}",
+        r"\noindent " + _latex_esc(content.get("recipient_name", "")) + r" \\",
+        _latex_esc(content.get("company_name", "")) + r" \\",
+        _latex_esc(content.get("company_address", "")) + r" \\",
+        r"\vspace{12pt}",
+        r"\noindent " + _latex_esc(content.get("salutation", "Dear Hiring Manager,")) + r" \\",
+        r"\vspace{6pt}",
+    ]
+    for para in content.get("paragraphs", []):
+        if para:
+            lines.append(_latex_esc(para) + r" \\")
+            lines.append(r"\vspace{6pt}")
+    lines += [
+        r"\noindent " + _latex_esc(content.get("closing", "Sincerely,")) + r" \\",
+        r"\vspace{24pt}",
+        r"\noindent " + _latex_esc(contact.get("full_name", "")),
+        r"\end{document}",
+    ]
+    return "\n".join(lines)
+
+
 def _latex_esc(text: str) -> str:
     if not text:
         return ""
@@ -188,10 +231,112 @@ def render_resume_latex(content: dict) -> str:
     return "\n".join(lines)
 
 
-def parse_pdf_text(raw: str) -> dict:
-    """Best-effort plain text to minimal structured resume."""
-    from app.schemas.resume_content import ResumeContent, new_id
+def resolve_export_latex(content: dict, latex_source: str | None = None) -> str:
+    """Always derive export LaTeX from structured content (latex_source is ignored)."""
+    return render_resume_latex(content)
+
+
+@dataclass
+class PdfParseResult:
+    content: dict
+    warnings: list[str]
+    confidence: float
+    section_counts: dict[str, int]
+
+
+def compute_section_counts(content: dict) -> dict[str, int]:
+    contact = content.get("contact") or {}
+    return {
+        "experience": len(content.get("experience") or []),
+        "education": len(content.get("education") or []),
+        "projects": len(content.get("projects") or []),
+        "skill_categories": len(content.get("skills") or []),
+        "links": len(content.get("links") or []),
+        "has_summary": 1 if (content.get("summary") or "").strip() else 0,
+        "has_contact_name": 1 if (contact.get("full_name") or "").strip() else 0,
+    }
+
+
+def _parse_pdf_stub(raw: str) -> PdfParseResult:
+    """Best-effort plain text to minimal structured resume (no LLM)."""
+    from app.schemas.resume_content import ResumeContent
 
     content = ResumeContent()
-    content.summary = raw[:2000] if raw else ""
-    return content.model_dump()
+    warnings: list[str] = []
+    if raw.strip():
+        content.summary = raw[:2000]
+        warnings.append("No API key — only summary text was extracted. Review all sections in your profile.")
+        confidence = 0.25
+    else:
+        warnings.append("Could not extract text from PDF.")
+        confidence = 0.0
+    dumped = content.model_dump()
+    return PdfParseResult(
+        content=dumped,
+        warnings=warnings,
+        confidence=confidence,
+        section_counts=compute_section_counts(dumped),
+    )
+
+
+async def parse_pdf_text(raw: str, llm_config: LLMConfig | None = None) -> PdfParseResult:
+    """Parse PDF plain text into structured ResumeContent with quality metadata."""
+    if not raw.strip():
+        return _parse_pdf_stub(raw)
+
+    if not llm_config:
+        return _parse_pdf_stub(raw)
+
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from app.agents.retry import invoke_llm
+    from app.schemas.resume_content import ResumeContent
+    from app.services.llm.client import create_chat_model
+
+    prompt = f"""Extract structured resume data from this PDF text. Return JSON with keys:
+- content: object with contact {{full_name, email, phone, location}}, links[], summary, experience[], education[], projects[], skills[]
+  Each list item needs id (uuid string), dates as strings, bullets[] for experience/projects
+  skills is list of {{id, name, skills[]}}
+- warnings: list of strings noting ambiguities, missing sections, or low-confidence fields
+- confidence: float 0-1 for overall extraction quality
+
+Rules:
+- Do not invent employers, degrees, dates, or metrics not supported by the text
+- Use empty strings and empty lists for missing fields
+- Preserve wording in bullets where possible
+
+PDF text:
+{raw[:12000]}"""
+
+    try:
+        llm = create_chat_model(llm_config, temperature=0.1)
+        res = await invoke_llm(
+            llm,
+            [SystemMessage(content="Return valid JSON only."), HumanMessage(content=prompt)],
+        )
+        parsed = json.loads(res.content if isinstance(res.content, str) else str(res.content))
+        content = ResumeContent.model_validate(parsed.get("content") or {})
+        warnings = [str(w) for w in (parsed.get("warnings") or []) if w]
+        confidence = float(parsed.get("confidence", 0.7))
+        confidence = max(0.0, min(1.0, confidence))
+
+        counts = compute_section_counts(content.model_dump())
+        if not counts["has_contact_name"]:
+            warnings.append("Contact name was not detected — verify header in profile.")
+        if counts["experience"] == 0:
+            warnings.append("No experience entries found — add roles manually if missing.")
+        if counts["education"] == 0:
+            warnings.append("No education entries found — add degrees manually if missing.")
+
+        return PdfParseResult(
+            content=content.model_dump(),
+            warnings=warnings or ["Review parsed sections for accuracy."],
+            confidence=confidence,
+            section_counts=counts,
+        )
+    except Exception as e:
+        logger.warning("LLM PDF parse failed, falling back to stub: %s", e)
+        stub = _parse_pdf_stub(raw)
+        stub.warnings.insert(0, f"Structured parse failed ({e}); using summary-only fallback.")
+        stub.confidence = min(stub.confidence, 0.3)
+        return stub

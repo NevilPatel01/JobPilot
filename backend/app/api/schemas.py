@@ -207,6 +207,10 @@ class ResumeCreate(BaseModel):
     content_json: dict | None = None
     create_cover_letter: bool = False
     cover_letter_meta: CoverLetterMeta | None = None
+    webhook_url: str | None = Field(
+        default=None,
+        description="Optional URL notified via POST when the generation pipeline completes or fails.",
+    )
 
 
 class ResumeUpdate(BaseModel):
@@ -251,6 +255,7 @@ class ChatRequest(BaseModel):
 class PendingChangeResponse(BaseModel):
     id: UUID
     path: str
+    path_label: str | None = None
     old_value: str | None
     new_value: str | None
     status: str
@@ -268,8 +273,18 @@ class ChatMessageResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ChatExchangeResponse(BaseModel):
+    user_message: ChatMessageResponse
+    assistant_message: ChatMessageResponse
+
+
 class ChangeActionRequest(BaseModel):
     change_id: UUID
+    action: str = Field(pattern="^(accept|reject)$")
+
+
+class BatchChangeActionRequest(BaseModel):
+    change_ids: list[UUID]
     action: str = Field(pattern="^(accept|reject)$")
 
 
@@ -304,7 +319,7 @@ class ATSScoreHistoryResponse(BaseModel):
 
 
 class CoverLetterCreate(BaseModel):
-    title: str
+    title: str | None = None
     resume_id: UUID | None = None
     hiring_manager_name: str | None = None
     hiring_manager_email: str | None = None
@@ -321,6 +336,14 @@ class CoverLetterUpdate(BaseModel):
     title: str | None = None
     content_json: dict | None = None
     latex_source: str | None = None
+    hiring_manager_name: str | None = None
+    hiring_manager_email: str | None = None
+    street_address: str | None = None
+    city: str | None = None
+    state_province: str | None = None
+    postal_code: str | None = None
+    letter_date: str | None = None
+    additional_context: str | None = None
 
 
 class CoverLetterResponse(BaseModel):

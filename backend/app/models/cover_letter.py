@@ -35,3 +35,39 @@ class CoverLetterDocument(Base):
 
     user = relationship("User", back_populates="cover_letters")
     resume = relationship("ResumeDocument", back_populates="cover_letter", foreign_keys=[resume_id])
+    chat_messages = relationship(
+        "CoverLetterChatMessage", back_populates="cover_letter", cascade="all, delete-orphan"
+    )
+
+
+class CoverLetterChatMessage(Base):
+    __tablename__ = "cover_letter_chat_messages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    cover_letter_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cover_letter_documents.id", ondelete="CASCADE")
+    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    cover_letter = relationship("CoverLetterDocument", back_populates="chat_messages")
+    pending_changes = relationship(
+        "CoverLetterPendingChange", back_populates="message", cascade="all, delete-orphan"
+    )
+
+
+class CoverLetterPendingChange(Base):
+    __tablename__ = "cover_letter_pending_changes"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    message_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cover_letter_chat_messages.id", ondelete="CASCADE")
+    )
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
+    old_value: Mapped[str | None] = mapped_column(Text)
+    new_value: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    message = relationship("CoverLetterChatMessage", back_populates="pending_changes")

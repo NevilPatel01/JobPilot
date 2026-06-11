@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.agents.editor_agent import apply_change, run_editor_agent
+from app.agents.editor_agent import apply_change, format_path_label, run_editor_agent
 from app.agents.graph import run_generation_pipeline
 from app.agents.pipeline_status import get_pipeline_status, mark_stale_processing_resumes
 from app.services.llm.client import get_user_llm_config
@@ -14,7 +14,9 @@ from app.api.schemas import (
     ATSScoreHistoryResponse,
     ATSScoreResponse,
     ATSSuggestionItem,
+    BatchChangeActionRequest,
     ChangeActionRequest,
+    ChatExchangeResponse,
     ChatMessageResponse,
     ChatRequest,
     CoverLetterListResponse,
@@ -35,9 +37,30 @@ from app.models.user import User
 from app.schemas.resume_content import empty_resume_content
 from app.services.ats.persist import save_ats_score
 from app.services.resume.pdf_compiler import compile_latex_to_pdf
-from app.services.resume.renderer import render_resume_html, render_resume_latex
+from app.services.resume.renderer import render_resume_html, render_resume_latex, resolve_export_latex
 
 router = APIRouter()
+
+
+def _pending_change_response(change: PendingChange, content: dict) -> PendingChangeResponse:
+    return PendingChangeResponse(
+        id=change.id,
+        path=change.path,
+        path_label=format_path_label(content, change.path),
+        old_value=change.old_value,
+        new_value=change.new_value,
+        status=change.status,
+    )
+
+
+def _chat_message_response(message: ChatMessage, content: dict) -> ChatMessageResponse:
+    return ChatMessageResponse(
+        id=message.id,
+        role=message.role,
+        content=message.content,
+        pending_changes=[_pending_change_response(c, content) for c in message.pending_changes],
+        created_at=message.created_at,
+    )
 
 
 def _ats_response(row: ATSScore, suggestions: list[str] | None = None) -> ATSScoreResponse:
@@ -284,7 +307,7 @@ async def preview_resume(
 ):
     resume = await _get_resume(db, resume_id, user.id)
     if format == "latex":
-        return {"latex": resume.latex_source or render_resume_latex(resume.content_json)}
+        return {"latex": resolve_export_latex(resume.content_json, resume.latex_source)}
     return Response(content=render_resume_html(resume.content_json), media_type="text/html")
 
 
@@ -295,7 +318,7 @@ async def export_pdf(
     db: AsyncSession = Depends(get_db),
 ):
     resume = await _get_resume(db, resume_id, user.id)
-    latex = resume.latex_source or render_resume_latex(resume.content_json)
+    latex = resolve_export_latex(resume.content_json, resume.latex_source)
     try:
         pdf_bytes = compile_latex_to_pdf(latex)
     except RuntimeError as e:
@@ -309,7 +332,7 @@ async def get_messages(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await _get_resume(db, resume_id, user.id)
+    resume = await _get_resume(db, resume_id, user.id)
     result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.resume_id == resume_id)
@@ -317,19 +340,10 @@ async def get_messages(
         .order_by(ChatMessage.created_at)
     )
     messages = result.scalars().all()
-    return [
-        ChatMessageResponse(
-            id=m.id,
-            role=m.role,
-            content=m.content,
-            pending_changes=[PendingChangeResponse.model_validate(c) for c in m.pending_changes],
-            created_at=m.created_at,
-        )
-        for m in messages
-    ]
+    return [_chat_message_response(m, resume.content_json) for m in messages]
 
 
-@router.post("/{resume_id}/chat", response_model=ChatMessageResponse)
+@router.post("/{resume_id}/chat", response_model=ChatExchangeResponse)
 async def chat_edit(
     resume_id: UUID,
     body: ChatRequest,
@@ -345,6 +359,10 @@ async def chat_edit(
     )
     if pending.scalars().first():
         raise HTTPException(status_code=409, detail="Approve or reject pending changes first")
+
+    user_msg = ChatMessage(resume_id=resume.id, role="user", content=body.message)
+    db.add(user_msg)
+    await db.flush()
 
     reply, changes = await run_editor_agent(db, user.id, resume.content_json, body.message, resume.job_description or "")
 
@@ -363,17 +381,20 @@ async def chat_edit(
             )
         )
     await db.commit()
-    await db.refresh(msg)
+
     result = await db.execute(
-        select(ChatMessage).where(ChatMessage.id == msg.id).options(selectinload(ChatMessage.pending_changes))
+        select(ChatMessage)
+        .where(ChatMessage.id.in_([user_msg.id, msg.id]))
+        .options(selectinload(ChatMessage.pending_changes))
+        .order_by(ChatMessage.created_at)
     )
-    msg = result.scalar_one()
-    return ChatMessageResponse(
-        id=msg.id,
-        role=msg.role,
-        content=msg.content,
-        pending_changes=[PendingChangeResponse.model_validate(c) for c in msg.pending_changes],
-        created_at=msg.created_at,
+    loaded = {m.id: m for m in result.scalars().all()}
+    user_loaded = loaded[user_msg.id]
+    assistant_loaded = loaded[msg.id]
+    content = resume.content_json
+    return ChatExchangeResponse(
+        user_message=_chat_message_response(user_loaded, content),
+        assistant_message=_chat_message_response(assistant_loaded, content),
     )
 
 
@@ -394,21 +415,60 @@ async def handle_change(
     if not change:
         raise HTTPException(status_code=404, detail="Change not found")
 
-    if body.action == "accept":
-        resume.content_json = apply_change(resume.content_json, change.path, change.new_value or "")
+    ats_score = await _apply_pending_changes(db, resume, user.id, [change], body.action)
+    return {"ok": True, "content_json": resume.content_json, "ats_score": ats_score}
+
+
+async def _apply_pending_changes(
+    db: AsyncSession,
+    resume: ResumeDocument,
+    user_id: UUID,
+    changes: list[PendingChange],
+    action: str,
+) -> ATSScoreResponse | None:
+    if action == "accept":
+        for change in changes:
+            resume.content_json = apply_change(resume.content_json, change.path, change.new_value or "")
+            change.status = "accepted"
         resume.latex_source = render_resume_latex(resume.content_json)
-        change.status = "accepted"
     else:
-        change.status = "rejected"
+        for change in changes:
+            change.status = "rejected"
 
     await db.commit()
 
-    ats_score = None
-    if body.action == "accept":
-        ats_row = await save_ats_score(db, resume, user.id, enrich_llm=True)
-        await db.commit()
-        ats_score = _ats_response(ats_row)
+    if action != "accept":
+        return None
+    ats_row = await save_ats_score(db, resume, user_id, enrich_llm=True)
+    await db.commit()
+    return _ats_response(ats_row)
 
+
+@router.post("/{resume_id}/changes/batch")
+async def handle_changes_batch(
+    resume_id: UUID,
+    body: BatchChangeActionRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if not body.change_ids:
+        raise HTTPException(status_code=400, detail="No change IDs provided")
+
+    resume = await _get_resume(db, resume_id, user.id)
+    result = await db.execute(
+        select(PendingChange)
+        .join(ChatMessage)
+        .where(
+            PendingChange.id.in_(body.change_ids),
+            ChatMessage.resume_id == resume_id,
+            PendingChange.status == "pending",
+        )
+    )
+    changes = result.scalars().all()
+    if len(changes) != len(body.change_ids):
+        raise HTTPException(status_code=404, detail="One or more pending changes were not found")
+
+    ats_score = await _apply_pending_changes(db, resume, user.id, changes, body.action)
     return {"ok": True, "content_json": resume.content_json, "ats_score": ats_score}
 
 

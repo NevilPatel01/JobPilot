@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     match_score_threshold: int = 40
     allowed_origins: str = "http://localhost:3000"
     auth_disabled: bool = False
+    public_api_rate_limit_create: str = "10/minute"
+    public_api_rate_limit_default: str = "60/minute"
+    rate_limit_storage_uri: str = "memory://"
 
     @property
     def cors_origins(self) -> list[str]:

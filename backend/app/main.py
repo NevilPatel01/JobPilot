@@ -3,6 +3,9 @@ from contextlib import asynccontextmanager
 import socketio
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 
 from app.api.routes import analytics, applications, auth, cover_letters, documents_api, jobs, profile, resumes, scraper
@@ -10,6 +13,8 @@ from app.api.routes import settings as settings_routes
 from app.api.schemas import HealthResponse
 from app.core.config import settings
 from app.core.database import Base, engine
+from app.core.migrations import run_alembic_migrations
+from app.core.rate_limit import limiter
 from app.core.scheduler import start_scheduler
 from app.services.location import TARGET_COUNTRY, detect_country
 from app.sockets.chat import sio
@@ -70,12 +75,16 @@ async def init_db() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    run_alembic_migrations()
     await init_db()
     start_scheduler()
     yield
 
 
 app = FastAPI(title="JobPilot API", version="1.0.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

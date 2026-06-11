@@ -1,6 +1,7 @@
 import json
 import logging
-from typing import Literal
+import time
+from typing import Awaitable, Callable, Literal, TypeVar
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy import select
@@ -9,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.company_summary import enrich_company_research
 from app.agents.retry import invoke_llm
 from app.agents.validation import guard_tailored_content
+from app.core.pipeline_logging import log_pipeline_event, log_pipeline_step
+from app.services.webhook import dispatch_pipeline_webhook, get_stored_webhook_url
 from app.models.cover_letter import CoverLetterDocument
 from app.models.resume import AgentRun, ATSScore, ResumeDocument
 from app.schemas.resume_content import CoverLetterContent, ResumeContent, resume_to_text
@@ -21,6 +24,7 @@ from app.sockets.chat import sio
 logger = logging.getLogger(__name__)
 
 PipelineMode = Literal["full", "tailor_only", "cover_letter_only"]
+T = TypeVar("T")
 
 
 class PipelineState(dict):
@@ -47,6 +51,23 @@ async def _run_step(
 async def _fail_step(db: AsyncSession, resume_id, step: str, error: str) -> None:
     await _run_step(db, resume_id, step, "failed", error=error)
     await _emit(resume_id, "agent_step", {"step": step, "status": "failed", "error": error})
+
+
+async def _run_timed_step(
+    resume_id: str,
+    step: str,
+    runner: Callable[[], Awaitable[T]],
+) -> T:
+    started = time.perf_counter()
+    try:
+        result = await runner()
+    except Exception:
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        log_pipeline_step(logger, resume_id=resume_id, step=step, duration_ms=duration_ms, status="failed")
+        raise
+    duration_ms = int((time.perf_counter() - started) * 1000)
+    log_pipeline_step(logger, resume_id=resume_id, step=step, duration_ms=duration_ms, status="completed")
+    return result
 
 
 def _cache_key_jd(jd: str) -> str:
@@ -229,24 +250,24 @@ async def generate_cover_letter(state: PipelineState, db: AsyncSession) -> Pipel
     )
 
     if llm_config:
+        from app.services.cover_letter.generator import build_cover_letter_prompt, parse_cover_letter_response
+
         llm = create_chat_model(llm_config, temperature=0.5)
         resume_text = resume_to_text(ResumeContent.model_validate(state["content"]))
-        company_bits = json.dumps({k: company.get(k) for k in ("mission", "products", "values", "tech_stack", "summary") if company.get(k)})
-        prompt = f"""Write a professional cover letter as JSON with keys: paragraphs (list of 3-4 strings), closing (string).
-Tone: professional, 250-400 words total across paragraphs.
-Hiring manager: {meta.get('hiring_manager_name', 'Hiring Manager')}
-Additional context: {meta.get('additional_context', '')}
-Job description excerpt: {state.get('job_description', '')[:2000]}
-Company context: {company_bits[:2000]}
-Resume summary: {resume_text[:3000]}"""
+        prompt = build_cover_letter_prompt(
+            meta=meta,
+            company=company,
+            jd_analysis=state.get("jd_analysis") or {},
+            job_description=state.get("job_description", ""),
+            resume_text=resume_text,
+        )
         try:
             res = await invoke_llm(
                 llm,
                 [SystemMessage(content="Return valid JSON only."), HumanMessage(content=prompt)],
             )
             parsed = json.loads(res.content if isinstance(res.content, str) else str(res.content))
-            content.paragraphs = parsed.get("paragraphs", [])
-            content.closing = parsed.get("closing", "Sincerely,")
+            content.paragraphs, content.closing = parse_cover_letter_response(parsed)
         except Exception as e:
             logger.warning("Cover letter generation failed: %s", e)
             content.paragraphs = ["I am excited to apply for this role and believe my experience is a strong fit."]
@@ -276,11 +297,16 @@ async def score_ats(state: PipelineState, db: AsyncSession) -> PipelineState:
 
 
 async def _persist_cover_letter(db: AsyncSession, resume: ResumeDocument, content: dict) -> None:
+    from app.services.resume.renderer import render_cover_letter_latex
+
     meta = resume.cover_letter_meta or {}
+    contact = (resume.content_json or {}).get("contact", {})
+    latex = render_cover_letter_latex(content, contact)
     existing = await db.execute(select(CoverLetterDocument).where(CoverLetterDocument.resume_id == resume.id))
     cl = existing.scalar_one_or_none()
     if cl:
         cl.content_json = content
+        cl.latex_source = latex
         cl.status = "completed"
         return
 
@@ -299,6 +325,7 @@ async def _persist_cover_letter(db: AsyncSession, resume: ResumeDocument, conten
             letter_date=meta.get("letter_date"),
             additional_context=meta.get("additional_context"),
             content_json=content,
+            latex_source=latex,
         )
     )
 
@@ -332,6 +359,8 @@ async def run_generation_pipeline(
     )
 
     current_step = "pipeline"
+    resume_id = str(resume.id)
+    log_pipeline_event(logger, resume_id=resume_id, event="start", status="running", mode=mode)
 
     try:
         resume.status = "processing"
@@ -343,36 +372,47 @@ async def run_generation_pipeline(
             state["jd_analysis"] = insights.get("jd_analysis", {})
             state["company_research"] = insights.get("company_research", {})
             current_step = "cover_letter"
-            state = await generate_cover_letter(state, db)
+            state = await _run_timed_step(resume_id, current_step, lambda: generate_cover_letter(state, db))
         elif mode == "tailor_only":
             state["jd_analysis"] = insights.get("jd_analysis", {})
             state["company_research"] = insights.get("company_research", {})
             current_step = "tailor_resume"
-            state = await tailor_resume(state, db)
+            state = await _run_timed_step(resume_id, current_step, lambda: tailor_resume(state, db))
             current_step = "ats_score"
-            state = await score_ats(state, db)
+            state = await _run_timed_step(resume_id, current_step, lambda: score_ats(state, db))
         else:
             current_step = "ingest_context"
-            state = await ingest_context(state, db)
+            state = await _run_timed_step(resume_id, current_step, lambda: ingest_context(state, db))
 
             if reuse_analysis and state.get("jd_analysis"):
-                await _emit(str(resume.id), "agent_step", {"step": "analyze_jd", "status": "completed", "cached": True})
+                await _emit(resume_id, "agent_step", {"step": "analyze_jd", "status": "completed", "cached": True})
+                log_pipeline_step(
+                    logger,
+                    resume_id=resume_id,
+                    step="analyze_jd",
+                    duration_ms=0,
+                    status="cached",
+                )
             else:
                 current_step = "analyze_jd"
-                state = await analyze_jd(state, db)
+                state = await _run_timed_step(resume_id, current_step, lambda: analyze_jd(state, db))
 
             current_step = "research_company"
-            state = await research_company_step(state, db, reuse=reuse_analysis and bool(state.get("company_research")))
+            state = await _run_timed_step(
+                resume_id,
+                current_step,
+                lambda: research_company_step(state, db, reuse=reuse_analysis and bool(state.get("company_research"))),
+            )
 
             current_step = "tailor_resume"
-            state = await tailor_resume(state, db)
+            state = await _run_timed_step(resume_id, current_step, lambda: tailor_resume(state, db))
 
             if state.get("create_cover_letter"):
                 current_step = "cover_letter"
-                state = await generate_cover_letter(state, db)
+                state = await _run_timed_step(resume_id, current_step, lambda: generate_cover_letter(state, db))
 
             current_step = "ats_score"
-            state = await score_ats(state, db)
+            state = await _run_timed_step(resume_id, current_step, lambda: score_ats(state, db))
 
         resume.content_json = state.get("content") or resume.content_json
         resume.latex_source = render_resume_latex(resume.content_json)
@@ -397,7 +437,11 @@ async def run_generation_pipeline(
             await _persist_ats(db, resume, resume.user_id)
 
         await db.commit()
-        await _emit(str(resume.id), "agent_complete", {"resume_id": str(resume.id), "status": "completed"})
+        await _emit(resume_id, "agent_complete", {"resume_id": resume_id, "status": "completed"})
+        log_pipeline_event(logger, resume_id=resume_id, event="complete", status="completed", mode=mode)
+        webhook_url = get_stored_webhook_url(resume.insights_json)
+        if webhook_url:
+            await dispatch_pipeline_webhook(webhook_url, resume, status="completed")
     except Exception as e:
         logger.exception("Pipeline failed for resume %s at step %s", resume.id, current_step)
         await _fail_step(db, resume.id, current_step, str(e))
@@ -407,7 +451,25 @@ async def run_generation_pipeline(
         resume.insights_json = failed_insights
         resume.status = "failed"
         await db.commit()
-        await _emit(str(resume.id), "agent_error", {"error": str(e), "step": current_step})
+        await _emit(resume_id, "agent_error", {"error": str(e), "step": current_step})
+        log_pipeline_event(
+            logger,
+            resume_id=resume_id,
+            event="complete",
+            status="failed",
+            mode=mode,
+            error=str(e),
+            last_step=current_step,
+        )
+        webhook_url = get_stored_webhook_url(failed_insights)
+        if webhook_url:
+            await dispatch_pipeline_webhook(
+                webhook_url,
+                resume,
+                status="failed",
+                error=str(e),
+                last_step=current_step,
+            )
 
 
 async def run_cover_letter_regeneration(db: AsyncSession, letter: CoverLetterDocument, resume: ResumeDocument) -> None:
@@ -439,7 +501,11 @@ async def run_cover_letter_regeneration(db: AsyncSession, letter: CoverLetterDoc
 
     try:
         state = await generate_cover_letter(state, db)
+        from app.services.resume.renderer import render_cover_letter_latex
+
         letter.content_json = state["cover_letter_content"]
+        contact = (resume.content_json or {}).get("contact", {})
+        letter.latex_source = render_cover_letter_latex(letter.content_json, contact)
         letter.status = "completed"
         await db.commit()
         await _emit(str(resume.id), "agent_complete", {"resume_id": str(resume.id), "cover_letter_id": str(letter.id)})

@@ -81,13 +81,23 @@ async def update_structured_profile(
 async def upload_resume_pdf(
     file: UploadFile = File(...),
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
     raw = await file.read()
     text = extract_pdf_text(raw)
-    content = parse_pdf_text(text)
-    return {"content": content, "warnings": ["PDF parsing is best-effort. Review sections in the editor."] if text else ["Could not extract text from PDF"]}
+    llm_config = await get_user_llm_config(db, user.id)
+    result = await parse_pdf_text(text, llm_config)
+    if llm_config and text.strip():
+        await ingest_resume_content(db, user.id, result.content, llm_config, source_id="upload")
+        await db.commit()
+    return {
+        "content": result.content,
+        "warnings": result.warnings,
+        "confidence": result.confidence,
+        "section_counts": result.section_counts,
+    }
 
 
 @router.get("/match-scores", response_model=list[MatchScoreResponse])
