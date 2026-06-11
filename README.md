@@ -196,7 +196,7 @@ Dev mode runs with `AUTH_DISABLED=true` — no OAuth setup required for local te
 Generate an API token in **Settings**, then call:
 
 ```bash
-# Create and generate a tailored resume
+# Create and generate a tailored resume (optional webhook_url for completion callback)
 curl -X POST http://localhost:8000/api/v1/documents/resumes \
   -H "X-API-Key: jp_your_token_here" \
   -H "Content-Type: application/json" \
@@ -204,7 +204,8 @@ curl -X POST http://localhost:8000/api/v1/documents/resumes \
     "title": "Senior Engineer at Stripe",
     "job_description": "Paste full JD here...",
     "company_url": "https://stripe.com",
-    "source_type": "profile"
+    "source_type": "profile",
+    "webhook_url": "https://your-app.example/hooks/jobpilot"
   }'
 
 # Get resume status and content
@@ -221,6 +222,10 @@ curl -X POST http://localhost:8000/api/v1/documents/resumes/{id}/chat \
 curl -X POST http://localhost:8000/api/v1/documents/resumes/{id}/ats-score \
   -H "X-API-Key: jp_your_token_here"
 ```
+
+Public API endpoints are rate-limited (10 creates/minute, 60 other requests/minute per API key by default). When `webhook_url` is provided on create, JobPilot POSTs a JSON payload on pipeline completion or failure so you can avoid polling.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#pipeline-durability) for how background jobs behave on restart and how to recover stuck pipelines.
 
 ---
 
@@ -280,9 +285,9 @@ Or use the helper script:
 
 Never commit `.env` or `.env.local` files. Use the `.example` files as templates.
 
-### PDF Export (optional)
+### PDF Export
 
-PDF export compiles LaTeX server-side via [Tectonic](https://tectonic-typesetting.github.io/). Uncomment the Tectonic install lines in `backend/Dockerfile`, or install Tectonic on your host. HTML preview works without it.
+PDF export compiles LaTeX server-side via [Tectonic](https://tectonic-typesetting.github.io/). The backend Docker image installs Tectonic automatically. For local dev without Docker, install Tectonic on your host. HTML preview works without it.
 
 ---
 

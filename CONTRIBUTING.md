@@ -117,6 +117,40 @@ The most impactful contribution type:
 - **TypeScript**: strict mode, client components marked with `"use client"`
 - **UI**: dark mode zinc/indigo palette per existing components
 
+## Pipeline durability
+
+Resume and cover letter generation runs as **in-process background tasks** (FastAPI `BackgroundTasks`), not a durable job queue.
+
+### Current behavior
+
+| Topic | Behavior |
+|-------|----------|
+| **Execution model** | `POST /resumes` or `POST /api/v1/documents/resumes` returns immediately with `status: processing`. The multi-agent pipeline runs after the HTTP response. |
+| **Progress** | Steps stream over Socket.IO (`agent_step`, `agent_complete`, `agent_error`). The public API can poll `GET /documents/resumes/{id}` or supply an optional `webhook_url` on create. |
+| **Server restart** | Background tasks are **not persisted**. If the API process restarts while a job is `processing`, that work is lost. The document may remain stuck in `processing` until the stale-job sweeper marks it failed (~30 minutes) or an operator calls regenerate. |
+| **Per-step retries** | LLM calls use bounded retries/timeouts (`app/agents/retry.py`). A failed step records `pipeline_error` and `last_step` on the resume. |
+| **Recovery** | Use regenerate endpoints: `POST /resumes/{id}/regenerate` (full pipeline), `POST /resumes/{id}/regenerate/resume` (tailor + ATS only), or `POST /cover-letters/{id}/regenerate`. Cached JD/company analysis is reused when possible. |
+| **Logging** | Pipeline steps emit structured logs with `resume_id`, `step`, and `duration_ms` for ops dashboards. |
+
+### BackgroundTasks limitations
+
+- Tasks live only in the running process memory.
+- No cross-worker coordination (multiple Uvicorn workers would each run independent task queues).
+- No automatic retry after process crash — operators or integrators must call regenerate.
+- Long-running pipelines block a thread pool slot in the worker (acceptable at current scale).
+
+### Planned: durable queue (ARQ or Celery)
+
+For production deployments with restarts, horizontal scaling, or strict SLAs, a follow-up change should move pipeline execution to a **durable queue**:
+
+1. **Enqueue** on create/regenerate with `resume_id` and `mode` (`full`, `tailor_only`, `cover_letter_only`).
+2. **Worker process** runs `run_generation_pipeline()` with the same step graph in `app/agents/graph.py`.
+3. **Redis** (ARQ) or **RabbitMQ/Redis** (Celery) as the broker; PostgreSQL remains the source of truth for document state.
+4. **Idempotency**: skip or resume from `last_step` when a job is re-queued.
+5. **Webhook + Socket.IO** unchanged — emit from the worker after commit.
+
+ARQ fits the existing async stack; Celery is preferable if you already run Celery workers elsewhere. Until then, self-hosters should plan for occasional regenerate after deploys and use `webhook_url` or polling in integrations.
+
 ## Questions?
 
 Open a [GitHub Issue](https://github.com/NevilPatel01/JobPilot/issues) for bugs or feature requests.
