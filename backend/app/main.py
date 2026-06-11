@@ -29,6 +29,15 @@ async def init_db() -> None:
         await conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS country VARCHAR(2)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_country ON jobs (country)"))
 
+        for col, col_type in (
+            ("semantic_score", "INTEGER DEFAULT 0"),
+            ("skills_coverage", "INTEGER DEFAULT 0"),
+            ("section_score", "INTEGER DEFAULT 0"),
+            ("matched_keywords", "JSONB"),
+            ("breakdown_json", "JSONB"),
+        ):
+            await conn.execute(text(f"ALTER TABLE ats_scores ADD COLUMN IF NOT EXISTS {col} {col_type}"))
+
         rows = await conn.execute(
             text(
                 """

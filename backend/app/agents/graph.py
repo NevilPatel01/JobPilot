@@ -201,33 +201,17 @@ Resume summary: {resume_text[:3000]}"""
 
 
 async def score_ats(state: PipelineState, db: AsyncSession) -> PipelineState:
+    from app.services.ats.scorer import score_resume
+
     resume_id = state["resume_id"]
     await _emit(resume_id, "agent_step", {"step": "ats_score", "status": "running"})
 
-    resume_text = resume_to_text(ResumeContent.model_validate(state.get("content") or {}))
-    jd = state.get("job_description", "")
-    keywords = state.get("jd_analysis", {}).get("keywords", []) or state.get("jd_analysis", {}).get("required_skills", [])
-
-    resume_lower = resume_text.lower()
-    matched = [k for k in keywords if k.lower() in resume_lower]
-    missing = [k for k in keywords if k.lower() not in resume_lower]
-    keyword_score = int((len(matched) / max(len(keywords), 1)) * 100) if keywords else 70
-    formatting_score = 85 if state.get("content", {}).get("experience") else 50
-    overall = int(keyword_score * 0.6 + formatting_score * 0.4)
-
-    suggestions = []
-    if missing:
-        suggestions.append(f"Add missing keywords: {', '.join(missing[:8])}")
-    if not state.get("content", {}).get("summary"):
-        suggestions.append("Add a tailored professional summary")
-
-    state["ats_result"] = {
-        "overall_score": overall,
-        "keyword_match": keyword_score,
-        "formatting_score": formatting_score,
-        "missing_keywords": missing,
-        "suggestions": suggestions,
-    }
+    result = score_resume(
+        state.get("content") or {},
+        state.get("job_description", ""),
+        state.get("jd_analysis") or {},
+    )
+    state["ats_result"] = result.to_dict()
 
     await _run_step(db, resume_id, "ats_score", "completed", state["ats_result"])
     await _emit(resume_id, "agent_step", {"step": "ats_score", "status": "completed", "data": state["ats_result"]})
@@ -301,7 +285,12 @@ async def run_generation_pipeline(db: AsyncSession, resume: ResumeDocument) -> N
                     overall_score=ats["overall_score"],
                     keyword_match=ats["keyword_match"],
                     formatting_score=ats["formatting_score"],
+                    semantic_score=ats.get("semantic_score", 0),
+                    skills_coverage=ats.get("skills_coverage", 0),
+                    section_score=ats.get("section_score", 0),
+                    matched_keywords=ats.get("matched_keywords", []),
                     suggestions_json={"suggestions": ats.get("suggestions", [])},
+                    breakdown_json=ats.get("breakdown"),
                     missing_keywords=ats.get("missing_keywords", []),
                 )
             )

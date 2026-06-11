@@ -13,10 +13,21 @@ Thank you for your interest in contributing! JobPilot is free and open-source �
 
 ## Pull requests with GitHub Copilot
 
-JobPilot uses **GitHub Copilot** for PR workflows and code review. Copilot reads project rules from:
+JobPilot can use **GitHub Copilot** for optional PR code review. Copilot reads project rules from:
 
 - `.github/copilot-instructions.md` — repo-wide standards
 - `.github/instructions/*.instructions.md` — path-specific rules (backend, frontend, CI)
+
+### Minimize Copilot usage (recommended)
+
+Copilot PR reviews consume GitHub Copilot premium requests. To use credits efficiently:
+
+1. **Run local checks first** — `pytest` in `backend/`, `npm run lint && npm run build` in `frontend/`
+2. **Batch related changes** — one focused PR per feature slice instead of many tiny PRs
+3. **Skip Copilot review when** CI is green, changes are test-only (`test:`, `ci:`), or you self-reviewed against `copilot-instructions.md`
+4. **Request Copilot review when** the PR touches auth, scrapers, LLM pipeline, or DB migrations and you want a second pass
+
+Maintainers may merge without Copilot when CI passes and the test plan is complete.
 
 ### Opening a PR (GitHub CLI)
 
@@ -38,9 +49,9 @@ EOF
 )"
 ```
 
-### Request Copilot code review
+### Request Copilot code review (optional)
 
-After the PR is open, request a review using one of these methods:
+Use Copilot review when you want automated feedback on non-trivial changes. Skip for test-only or docs-only PRs if CI is green.
 
 **GitHub CLI v2.88+:**
 ```bash
@@ -95,10 +106,10 @@ The most impactful contribution type:
 
 - [ ] No secrets, `.env` files, or `docs/` folder committed
 - [ ] Conventional commit messages (`feat(backend):`, `feat(frontend):`, etc.)
-- [ ] Backend changes tested via API or pytest
+- [ ] Backend changes tested via `pytest` (see `backend/requirements-dev.txt`) or manual API check
 - [ ] Frontend changes pass `npm run lint` and `npm run build`
 - [ ] PR description includes summary and test plan
-- [ ] Copilot code review requested and feedback addressed
+- [ ] Copilot review requested **if needed** (optional when CI passes and changes are small/test-only)
 
 ## Code Style
 

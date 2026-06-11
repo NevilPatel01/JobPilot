@@ -35,6 +35,23 @@ from app.services.resume.renderer import render_resume_html, render_resume_latex
 router = APIRouter()
 
 
+def _ats_response(row: ATSScore, suggestions: list[str] | None = None) -> ATSScoreResponse:
+    return ATSScoreResponse(
+        id=row.id,
+        overall_score=row.overall_score,
+        keyword_match=row.keyword_match,
+        formatting_score=row.formatting_score,
+        semantic_score=row.semantic_score or 0,
+        skills_coverage=row.skills_coverage or 0,
+        section_score=row.section_score or 0,
+        matched_keywords=row.matched_keywords,
+        missing_keywords=row.missing_keywords,
+        suggestions=suggestions if suggestions is not None else (row.suggestions_json or {}).get("suggestions", []),
+        breakdown=row.breakdown_json,
+        created_at=row.created_at,
+    )
+
+
 async def _get_structured_profile(db: AsyncSession, user: User) -> dict:
     result = await db.execute(select(UserProfileStructured).where(UserProfileStructured.user_id == user.id))
     row = result.scalar_one_or_none()
@@ -345,21 +362,18 @@ async def run_ats_score(
         overall_score=ats["overall_score"],
         keyword_match=ats["keyword_match"],
         formatting_score=ats["formatting_score"],
+        semantic_score=ats.get("semantic_score", 0),
+        skills_coverage=ats.get("skills_coverage", 0),
+        section_score=ats.get("section_score", 0),
+        matched_keywords=ats.get("matched_keywords", []),
         suggestions_json={"suggestions": ats.get("suggestions", [])},
+        breakdown_json=ats.get("breakdown"),
         missing_keywords=ats.get("missing_keywords", []),
     )
     db.add(row)
     await db.commit()
     await db.refresh(row)
-    return ATSScoreResponse(
-        id=row.id,
-        overall_score=row.overall_score,
-        keyword_match=row.keyword_match,
-        formatting_score=row.formatting_score,
-        missing_keywords=row.missing_keywords,
-        suggestions=ats.get("suggestions", []),
-        created_at=row.created_at,
-    )
+    return _ats_response(row, ats.get("suggestions", []))
 
 
 @router.get("/{resume_id}/ats-score", response_model=ATSScoreResponse | None)
@@ -375,13 +389,4 @@ async def get_latest_ats(
     row = result.scalar_one_or_none()
     if not row:
         return None
-    suggestions = (row.suggestions_json or {}).get("suggestions", [])
-    return ATSScoreResponse(
-        id=row.id,
-        overall_score=row.overall_score,
-        keyword_match=row.keyword_match,
-        formatting_score=row.formatting_score,
-        missing_keywords=row.missing_keywords,
-        suggestions=suggestions,
-        created_at=row.created_at,
-    )
+    return _ats_response(row)

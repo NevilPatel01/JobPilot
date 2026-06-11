@@ -276,8 +276,13 @@ class ATSScoreResponse(BaseModel):
     overall_score: int
     keyword_match: int
     formatting_score: int
+    semantic_score: int = 0
+    skills_coverage: int = 0
+    section_score: int = 0
+    matched_keywords: list[str] | None = None
     missing_keywords: list[str] | None
     suggestions: list[str] = []
+    breakdown: dict | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

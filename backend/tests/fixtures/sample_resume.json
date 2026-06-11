@@ -1,0 +1,57 @@
+{
+  "contact": {
+    "full_name": "Jane Developer",
+    "email": "jane@example.com",
+    "phone": "555-0100",
+    "location": "Toronto, ON"
+  },
+  "links": [
+    { "id": "1", "label": "GitHub", "url": "https://github.com/jane" }
+  ],
+  "summary": "Senior backend engineer with 6 years building Python microservices and REST APIs.",
+  "experience": [
+    {
+      "id": "exp1",
+      "company": "Acme Corp",
+      "title": "Senior Software Engineer",
+      "location": "Remote",
+      "start_date": "2021",
+      "end_date": "Present",
+      "bullets": [
+        "Built FastAPI services handling 10M requests/day with PostgreSQL and Docker.",
+        "Led async migration of legacy monolith to microservices architecture."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "id": "edu1",
+      "institution": "University of Toronto",
+      "degree": "BSc Computer Science",
+      "location": "Toronto",
+      "start_date": "2014",
+      "end_date": "2018",
+      "gpa": "3.8"
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj1",
+      "name": "JobPilot",
+      "url": "https://github.com/example/jobpilot",
+      "bullets": ["Open-source job tracker with FastAPI backend."]
+    }
+  ],
+  "skills": [
+    {
+      "id": "sk1",
+      "name": "Languages",
+      "skills": ["Python", "TypeScript", "SQL"]
+    },
+    {
+      "id": "sk2",
+      "name": "Tools",
+      "skills": ["Docker", "PostgreSQL", "Git"]
+    }
+  ]
+}

@@ -142,8 +142,13 @@ export interface ATSScore {
   overall_score: number;
   keyword_match: number;
   formatting_score: number;
+  semantic_score?: number;
+  skills_coverage?: number;
+  section_score?: number;
+  matched_keywords?: string[] | null;
   missing_keywords: string[] | null;
   suggestions: string[];
+  breakdown?: Record<string, unknown> | null;
   created_at: string;
 }
 

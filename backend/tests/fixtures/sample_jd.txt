@@ -1,0 +1,17 @@
+Senior Backend Engineer — Remote
+
+We are looking for a Senior Backend Engineer to build scalable services.
+
+Requirements:
+- 5+ years Python experience
+- FastAPI or Django REST framework
+- PostgreSQL and SQL optimization
+- Docker and Kubernetes in production
+- Experience with async programming and microservices
+- Strong REST API design skills
+
+Nice to have:
+- CI/CD pipelines
+- Open source contributions
+
+You will design APIs, write tests, and mentor junior engineers.

@@ -101,7 +101,12 @@ class ATSScore(Base):
     overall_score: Mapped[int] = mapped_column(default=0)
     keyword_match: Mapped[int] = mapped_column(default=0)
     formatting_score: Mapped[int] = mapped_column(default=0)
+    semantic_score: Mapped[int] = mapped_column(default=0)
+    skills_coverage: Mapped[int] = mapped_column(default=0)
+    section_score: Mapped[int] = mapped_column(default=0)
+    matched_keywords: Mapped[list | None] = mapped_column(JSONB)
     suggestions_json: Mapped[dict | None] = mapped_column(JSONB)
+    breakdown_json: Mapped[dict | None] = mapped_column(JSONB)
     missing_keywords: Mapped[list | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
