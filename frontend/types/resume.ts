@@ -139,6 +139,13 @@ export interface ChatMessage {
   created_at: string;
 }
 
+export interface ATSSuggestionItem {
+  text: string;
+  prompt: string;
+  priority: string;
+  category: string;
+}
+
 export interface ATSScore {
   id: string;
   overall_score: number;
@@ -150,6 +157,7 @@ export interface ATSScore {
   matched_keywords?: string[] | null;
   missing_keywords: string[] | null;
   suggestions: string[];
+  suggestion_items?: ATSSuggestionItem[];
   breakdown?: Record<string, unknown> | null;
   created_at: string;
 }

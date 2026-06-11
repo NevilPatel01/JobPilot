@@ -197,12 +197,15 @@ export const api = {
       content_json: import("@/types/resume").ResumeContent;
       latex_source: string;
       application_id: string;
-    }>
-  ) =>
-    request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}`, {
+    }>,
+    options?: { rescore?: boolean }
+  ) => {
+    const qs = options?.rescore ? "?rescore=true" : "";
+    return request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}${qs}`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    }),
+    });
+  },
 
   deleteResume: (id: string) =>
     request<{ ok: boolean }>(`/api/v1/resumes/${id}`, { method: "DELETE" }),
@@ -247,16 +250,22 @@ export const api = {
     }),
 
   handleResumeChange: (id: string, change_id: string, action: "accept" | "reject") =>
-    request<{ ok: boolean; content_json: import("@/types/resume").ResumeContent }>(
-      `/api/v1/resumes/${id}/changes`,
-      { method: "POST", body: JSON.stringify({ change_id, action }) }
-    ),
+    request<{
+      ok: boolean;
+      content_json: import("@/types/resume").ResumeContent;
+      ats_score?: import("@/types/resume").ATSScore | null;
+    }>(`/api/v1/resumes/${id}/changes`, { method: "POST", body: JSON.stringify({ change_id, action }) }),
 
   runATSScore: (id: string) =>
     request<import("@/types/resume").ATSScore>(`/api/v1/resumes/${id}/ats-score`, { method: "POST" }),
 
   getATSScore: (id: string) =>
     request<import("@/types/resume").ATSScore | null>(`/api/v1/resumes/${id}/ats-score`),
+
+  getATSScoreHistory: (id: string, limit = 5) =>
+    request<{ scores: import("@/types/resume").ATSScore[]; total: number }>(
+      `/api/v1/resumes/${id}/ats-score/history?limit=${limit}`
+    ),
 
   // Cover letters
   getCoverLetters: () =>

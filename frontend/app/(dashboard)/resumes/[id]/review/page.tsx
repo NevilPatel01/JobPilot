@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { RefreshCw } from "lucide-react";
+import { MessageSquare, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
-import type { ATSScore } from "@/types/resume";
+import type { ATSScore, ATSSuggestionItem } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { formatDate } from "@/lib/utils";
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
   return (
@@ -25,30 +26,108 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-function scoreColor(score: number): string {
-  if (score >= 80) return "text-emerald-400";
-  if (score >= 60) return "text-amber-400";
-  return "text-red-400";
+function ScoreRing({ score }: { score: number }) {
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  const stroke =
+    score >= 80 ? "#34d399" : score >= 60 ? "#fbbf24" : "#f87171";
+
+  return (
+    <div className="relative flex h-36 w-36 items-center justify-center">
+      <svg className="-rotate-90" width="144" height="144" viewBox="0 0 144 144">
+        <circle cx="72" cy="72" r={radius} fill="none" stroke="#27272a" strokeWidth="10" />
+        <circle
+          cx="72"
+          cy="72"
+          r={radius}
+          fill="none"
+          stroke={stroke}
+          strokeWidth="10"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          className="transition-all duration-700"
+        />
+      </svg>
+      <div className="absolute text-center">
+        <div className="text-4xl font-bold text-white">{score}</div>
+        <div className="text-xs text-zinc-500">Overall</div>
+      </div>
+    </div>
+  );
+}
+
+function priorityClass(priority: string): string {
+  if (priority === "high") return "ring-red-500/30 text-red-300 bg-red-500/10";
+  if (priority === "low") return "ring-zinc-500/30 text-zinc-400 bg-zinc-500/10";
+  return "ring-amber-500/30 text-amber-300 bg-amber-500/10";
+}
+
+function SuggestionList({ items, resumeId }: { items: ATSSuggestionItem[]; resumeId: string }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-4 space-y-3">
+      <h3 className="text-sm font-semibold text-white">Suggestions</h3>
+      {items.map((item, i) => (
+        <div key={i} className="rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <p className="text-sm text-zinc-300">{item.text}</p>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] uppercase ring-1 ${priorityClass(item.priority)}`}>
+              {item.priority}
+            </span>
+          </div>
+          <Link
+            href={`/resumes/${resumeId}?chat=${encodeURIComponent(item.prompt)}`}
+            className="mt-2 inline-flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300"
+          >
+            <MessageSquare className="h-3 w-3" /> Fix in chat
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function ResumeReviewPage() {
   const { id } = useParams<{ id: string }>();
   const [score, setScore] = useState<ATSScore | null>(null);
+  const [history, setHistory] = useState<ATSScore[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const load = () => api.getATSScore(id).then(setScore).catch(console.error);
+  const load = useCallback(async () => {
+    const [latest, hist] = await Promise.all([
+      api.getATSScore(id).catch(() => null),
+      api.getATSScoreHistory(id, 5).catch(() => ({ scores: [], total: 0 })),
+    ]);
+    setScore(latest);
+    setHistory(hist.scores);
+  }, [id]);
 
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => {
+    load().catch(console.error);
+  }, [load]);
 
   const rescore = async () => {
     setLoading(true);
     try {
       const s = await api.runATSScore(id);
       setScore(s);
+      await load();
     } finally {
       setLoading(false);
     }
   };
+
+  const suggestionItems =
+    score?.suggestion_items && score.suggestion_items.length > 0
+      ? score.suggestion_items
+      : (score?.suggestions || []).map((text) => ({
+          text,
+          prompt: text,
+          priority: "medium",
+          category: "general",
+        }));
 
   return (
     <div>
@@ -67,9 +146,28 @@ export default function ResumeReviewPage() {
 
       {score ? (
         <div className="grid gap-6 lg:grid-cols-3">
-          <div className="glass-panel flex flex-col items-center justify-center p-8">
-            <div className={`text-5xl font-bold ${scoreColor(score.overall_score)}`}>{score.overall_score}</div>
-            <div className="mt-2 text-sm text-zinc-500">Overall ATS Score</div>
+          <div className="glass-panel flex flex-col items-center justify-center gap-4 p-8">
+            <ScoreRing score={score.overall_score} />
+            <p className="text-center text-xs text-zinc-500">
+              Scored {formatDate(score.created_at)}
+            </p>
+            {history.length > 1 && (
+              <div className="w-full border-t border-zinc-800 pt-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-500">Score history</p>
+                <div className="flex items-end justify-center gap-1 h-12">
+                  {[...history].reverse().map((h) => (
+                    <div key={h.id} className="flex flex-col items-center gap-1">
+                      <div
+                        className="w-6 rounded-t bg-indigo-500/80"
+                        style={{ height: `${Math.max(8, h.overall_score * 0.4)}px` }}
+                        title={`${h.overall_score} — ${formatDate(h.created_at)}`}
+                      />
+                      <span className="text-[10px] text-zinc-500">{h.overall_score}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="glass-panel space-y-4 p-6 lg:col-span-2">
             <ScoreBar label="Keyword match" value={score.keyword_match} />
@@ -98,14 +196,7 @@ export default function ResumeReviewPage() {
                 </div>
               </div>
             )}
-            {score.suggestions.length > 0 && (
-              <div className="mt-4">
-                <h3 className="text-sm font-semibold text-white">Suggestions</h3>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-zinc-400">
-                  {score.suggestions.map((s, i) => <li key={i}>{s}</li>)}
-                </ul>
-              </div>
-            )}
+            <SuggestionList items={suggestionItems} resumeId={id} />
           </div>
         </div>
       ) : (

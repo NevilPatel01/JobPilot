@@ -303,23 +303,8 @@ async def _persist_cover_letter(db: AsyncSession, resume: ResumeDocument, conten
     )
 
 
-async def _persist_ats(db: AsyncSession, resume: ResumeDocument, ats: dict) -> None:
-    db.add(
-        ATSScore(
-            resume_id=resume.id,
-            job_description=resume.job_description,
-            overall_score=ats["overall_score"],
-            keyword_match=ats["keyword_match"],
-            formatting_score=ats["formatting_score"],
-            semantic_score=ats.get("semantic_score", 0),
-            skills_coverage=ats.get("skills_coverage", 0),
-            section_score=ats.get("section_score", 0),
-            matched_keywords=ats.get("matched_keywords", []),
-            suggestions_json={"suggestions": ats.get("suggestions", [])},
-            breakdown_json=ats.get("breakdown"),
-            missing_keywords=ats.get("missing_keywords", []),
-        )
-    )
+async def _persist_ats(db: AsyncSession, resume: ResumeDocument, user_id) -> None:
+    await save_ats_score(db, resume, user_id, enrich_llm=True)
 
 
 async def run_generation_pipeline(
@@ -409,7 +394,7 @@ async def run_generation_pipeline(
             await _persist_cover_letter(db, resume, state["cover_letter_content"])
 
         if state.get("ats_result"):
-            await _persist_ats(db, resume, state["ats_result"])
+            await _persist_ats(db, resume, resume.user_id)
 
         await db.commit()
         await _emit(str(resume.id), "agent_complete", {"resume_id": str(resume.id), "status": "completed"})

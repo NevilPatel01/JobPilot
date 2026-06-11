@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { Download, FileText, MessageSquare, Check, X, RefreshCw, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChatMessage, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
@@ -16,6 +16,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function ResumeEditorPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const [resume, setResume] = useState<ResumeDocument | null>(null);
   const [content, setContent] = useState<ResumeContent | null>(null);
   const [previewHtml, setPreviewHtml] = useState("");
@@ -45,6 +46,11 @@ export default function ResumeEditorPage() {
   useEffect(() => {
     load().catch(console.error);
   }, [load]);
+
+  useEffect(() => {
+    const chat = searchParams.get("chat");
+    if (chat) setChatInput(chat);
+  }, [searchParams]);
 
   useEffect(() => {
     const socket = io(API_URL, { path: "/socket.io", transports: ["websocket", "polling"] });

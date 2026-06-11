@@ -273,6 +273,13 @@ class ChangeActionRequest(BaseModel):
     action: str = Field(pattern="^(accept|reject)$")
 
 
+class ATSSuggestionItem(BaseModel):
+    text: str
+    prompt: str
+    priority: str = "medium"
+    category: str = "general"
+
+
 class ATSScoreResponse(BaseModel):
     id: UUID
     overall_score: int
@@ -284,10 +291,16 @@ class ATSScoreResponse(BaseModel):
     matched_keywords: list[str] | None = None
     missing_keywords: list[str] | None
     suggestions: list[str] = []
+    suggestion_items: list[ATSSuggestionItem] = []
     breakdown: dict | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ATSScoreHistoryResponse(BaseModel):
+    scores: list[ATSScoreResponse]
+    total: int
 
 
 class CoverLetterCreate(BaseModel):

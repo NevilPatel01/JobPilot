@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,9 @@ from app.agents.graph import run_generation_pipeline
 from app.agents.pipeline_status import get_pipeline_status, mark_stale_processing_resumes
 from app.services.llm.client import get_user_llm_config
 from app.api.schemas import (
+    ATSScoreHistoryResponse,
     ATSScoreResponse,
+    ATSSuggestionItem,
     ChangeActionRequest,
     ChatMessageResponse,
     ChatRequest,
@@ -31,6 +33,7 @@ from app.models.profile_structured import UserProfileStructured
 from app.models.resume import ATSScore, ChatMessage, PendingChange, ResumeDocument
 from app.models.user import User
 from app.schemas.resume_content import empty_resume_content
+from app.services.ats.persist import save_ats_score
 from app.services.resume.pdf_compiler import compile_latex_to_pdf
 from app.services.resume.renderer import render_resume_html, render_resume_latex
 
@@ -38,6 +41,9 @@ router = APIRouter()
 
 
 def _ats_response(row: ATSScore, suggestions: list[str] | None = None) -> ATSScoreResponse:
+    payload = row.suggestions_json or {}
+    items_raw = payload.get("items") or []
+    items = [ATSSuggestionItem.model_validate(i) for i in items_raw if isinstance(i, dict)]
     return ATSScoreResponse(
         id=row.id,
         overall_score=row.overall_score,
@@ -48,7 +54,8 @@ def _ats_response(row: ATSScore, suggestions: list[str] | None = None) -> ATSSco
         section_score=row.section_score or 0,
         matched_keywords=row.matched_keywords,
         missing_keywords=row.missing_keywords,
-        suggestions=suggestions if suggestions is not None else (row.suggestions_json or {}).get("suggestions", []),
+        suggestions=suggestions if suggestions is not None else payload.get("suggestions", []),
+        suggestion_items=items,
         breakdown=row.breakdown_json,
         created_at=row.created_at,
     )
@@ -234,6 +241,7 @@ async def _get_resume(db: AsyncSession, resume_id: UUID, user_id: UUID) -> Resum
 async def update_resume(
     resume_id: UUID,
     body: ResumeUpdate,
+    rescore: bool = Query(False),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -248,6 +256,9 @@ async def update_resume(
     if body.application_id is not None:
         resume.application_id = body.application_id
     await db.commit()
+    if rescore and body.content_json is not None:
+        await save_ats_score(db, resume, user.id, enrich_llm=True)
+        await db.commit()
     await db.refresh(resume)
     return _resume_response(resume)
 
@@ -391,7 +402,14 @@ async def handle_change(
         change.status = "rejected"
 
     await db.commit()
-    return {"ok": True, "content_json": resume.content_json}
+
+    ats_score = None
+    if body.action == "accept":
+        ats_row = await save_ats_score(db, resume, user.id, enrich_llm=True)
+        await db.commit()
+        ats_score = _ats_response(ats_row)
+
+    return {"ok": True, "content_json": resume.content_json, "ats_score": ats_score}
 
 
 @router.post("/{resume_id}/ats-score", response_model=ATSScoreResponse)
@@ -401,36 +419,28 @@ async def run_ats_score(
     db: AsyncSession = Depends(get_db),
 ):
     resume = await _get_resume(db, resume_id, user.id)
-    from app.agents.graph import score_ats
-
-    state = {
-        "resume_id": str(resume.id),
-        "user_id": str(user.id),
-        "job_description": resume.job_description or "",
-        "content": resume.content_json,
-        "jd_analysis": (resume.insights_json or {}).get("jd_analysis", {}),
-    }
-    state = await score_ats(state, db)
-
-    ats = state["ats_result"]
-    row = ATSScore(
-        resume_id=resume.id,
-        job_description=resume.job_description,
-        overall_score=ats["overall_score"],
-        keyword_match=ats["keyword_match"],
-        formatting_score=ats["formatting_score"],
-        semantic_score=ats.get("semantic_score", 0),
-        skills_coverage=ats.get("skills_coverage", 0),
-        section_score=ats.get("section_score", 0),
-        matched_keywords=ats.get("matched_keywords", []),
-        suggestions_json={"suggestions": ats.get("suggestions", [])},
-        breakdown_json=ats.get("breakdown"),
-        missing_keywords=ats.get("missing_keywords", []),
-    )
-    db.add(row)
+    row = await save_ats_score(db, resume, user.id, enrich_llm=True)
     await db.commit()
     await db.refresh(row)
-    return _ats_response(row, ats.get("suggestions", []))
+    return _ats_response(row)
+
+
+@router.get("/{resume_id}/ats-score/history", response_model=ATSScoreHistoryResponse)
+async def get_ats_history(
+    resume_id: UUID,
+    limit: int = Query(5, ge=1, le=20),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_resume(db, resume_id, user.id)
+    result = await db.execute(
+        select(ATSScore)
+        .where(ATSScore.resume_id == resume_id)
+        .order_by(ATSScore.created_at.desc())
+        .limit(limit)
+    )
+    rows = result.scalars().all()
+    return ATSScoreHistoryResponse(scores=[_ats_response(r) for r in rows], total=len(rows))
 
 
 @router.get("/{resume_id}/ats-score", response_model=ATSScoreResponse | None)
