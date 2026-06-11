@@ -2,12 +2,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.agents.editor_agent import apply_change, run_editor_agent
 from app.agents.graph import run_generation_pipeline
+from app.agents.pipeline_status import get_pipeline_status, mark_stale_processing_resumes
+from app.services.llm.client import get_user_llm_config
 from app.api.schemas import (
     ATSScoreResponse,
     ChangeActionRequest,
@@ -60,7 +62,13 @@ async def _get_structured_profile(db: AsyncSession, user: User) -> dict:
     return empty_resume_content().model_dump()
 
 
-def _resume_response(resume: ResumeDocument, cover_letter_id: UUID | None = None) -> ResumeResponse:
+def _resume_response(
+    resume: ResumeDocument,
+    cover_letter_id: UUID | None = None,
+    pipeline_error: str | None = None,
+    last_step: str | None = None,
+) -> ResumeResponse:
+    insights = resume.insights_json or {}
     return ResumeResponse(
         id=resume.id,
         title=resume.title,
@@ -78,7 +86,51 @@ def _resume_response(resume: ResumeDocument, cover_letter_id: UUID | None = None
         created_at=resume.created_at,
         updated_at=resume.updated_at,
         cover_letter_id=cover_letter_id,
+        pipeline_error=pipeline_error or insights.get("pipeline_error"),
+        last_step=last_step or insights.get("last_step"),
     )
+
+
+async def _resume_response_with_status(
+    db: AsyncSession,
+    resume: ResumeDocument,
+    cover_letter_id: UUID | None = None,
+) -> ResumeResponse:
+    last_step, pipeline_error = await get_pipeline_status(db, resume.id)
+    if resume.status != "failed":
+        pipeline_error = None
+    insights = resume.insights_json or {}
+    return _resume_response(
+        resume,
+        cover_letter_id,
+        pipeline_error=pipeline_error or insights.get("pipeline_error"),
+        last_step=last_step or insights.get("last_step"),
+    )
+
+
+def _pipeline_task(resume_id: UUID, mode: str = "full"):
+    async def _run():
+        from app.core.database import async_session
+
+        async with async_session() as session:
+            result = await session.execute(select(ResumeDocument).where(ResumeDocument.id == resume_id))
+            doc = result.scalar_one()
+            await run_generation_pipeline(session, doc, mode=mode)  # type: ignore[arg-type]
+
+    return _run
+
+
+async def _ensure_not_processing(resume: ResumeDocument) -> None:
+    if resume.status == "processing":
+        raise HTTPException(status_code=409, detail="Resume is still processing. Wait for completion or retry later.")
+
+
+async def _require_llm_config(db: AsyncSession, user_id: UUID) -> None:
+    if not await get_user_llm_config(db, user_id):
+        raise HTTPException(
+            status_code=422,
+            detail="Configure an LLM API key in Settings before generating or regenerating resumes.",
+        )
 
 
 @router.get("", response_model=ResumeListResponse)
@@ -87,6 +139,7 @@ async def list_resumes(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await mark_stale_processing_resumes(db)
     q = select(ResumeDocument).where(ResumeDocument.user_id == user.id).order_by(ResumeDocument.updated_at.desc())
     if search:
         q = q.where(ResumeDocument.title.ilike(f"%{search}%"))
@@ -106,7 +159,15 @@ async def list_resumes(
                 cl_map[cl.resume_id] = cl.id
 
     return ResumeListResponse(
-        resumes=[_resume_response(r, cl_map.get(r.id)) for r in resumes],
+        resumes=[
+            _resume_response(
+                r,
+                cl_map.get(r.id),
+                pipeline_error=(r.insights_json or {}).get("pipeline_error") if r.status == "failed" else None,
+                last_step=(r.insights_json or {}).get("last_step"),
+            )
+            for r in resumes
+        ],
         total=len(resumes),
     )
 
@@ -118,6 +179,8 @@ async def create_resume(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await _require_llm_config(db, user.id)
+
     if body.source_type == "profile":
         content = await _get_structured_profile(db, user)
     else:
@@ -134,20 +197,13 @@ async def create_resume(
         latex_source=render_resume_latex(content),
         create_cover_letter=body.create_cover_letter,
         cover_letter_meta=body.cover_letter_meta.model_dump() if body.cover_letter_meta else None,
+        insights_json={"source_content": content},
     )
     db.add(resume)
     await db.commit()
     await db.refresh(resume)
 
-    async def _run():
-        from app.core.database import async_session
-
-        async with async_session() as session:
-            result = await session.execute(select(ResumeDocument).where(ResumeDocument.id == resume.id))
-            doc = result.scalar_one()
-            await run_generation_pipeline(session, doc)
-
-    background_tasks.add_task(_run)
+    background_tasks.add_task(_pipeline_task(resume.id, "full"))
     return _resume_response(resume)
 
 
@@ -157,10 +213,11 @@ async def get_resume(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await mark_stale_processing_resumes(db)
     resume = await _get_resume(db, resume_id, user.id)
     cl_result = await db.execute(select(CoverLetterDocument).where(CoverLetterDocument.resume_id == resume.id))
     cl = cl_result.scalar_one_or_none()
-    return _resume_response(resume, cl.id if cl else None)
+    return await _resume_response_with_status(db, resume, cl.id if cl else None)
 
 
 async def _get_resume(db: AsyncSession, resume_id: UUID, user_id: UUID) -> ResumeDocument:
@@ -390,3 +447,37 @@ async def get_latest_ats(
     if not row:
         return None
     return _ats_response(row)
+
+
+@router.post("/{resume_id}/regenerate", response_model=ResumeResponse)
+async def regenerate_resume(
+    resume_id: UUID,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _require_llm_config(db, user.id)
+    resume = await _get_resume(db, resume_id, user.id)
+    await _ensure_not_processing(resume)
+    background_tasks.add_task(_pipeline_task(resume.id, "full"))
+    resume.status = "processing"
+    await db.commit()
+    await db.refresh(resume)
+    return _resume_response(resume)
+
+
+@router.post("/{resume_id}/regenerate/resume", response_model=ResumeResponse)
+async def regenerate_tailored_resume(
+    resume_id: UUID,
+    background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _require_llm_config(db, user.id)
+    resume = await _get_resume(db, resume_id, user.id)
+    await _ensure_not_processing(resume)
+    background_tasks.add_task(_pipeline_task(resume.id, "tailor_only"))
+    resume.status = "processing"
+    await db.commit()
+    await db.refresh(resume)
+    return _resume_response(resume)

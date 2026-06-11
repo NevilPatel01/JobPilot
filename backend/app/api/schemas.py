@@ -233,6 +233,8 @@ class ResumeResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     cover_letter_id: UUID | None = None
+    pipeline_error: str | None = None
+    last_step: str | None = None
 
     model_config = {"from_attributes": True}
 

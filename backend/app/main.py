@@ -5,7 +5,8 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
-from app.api.routes import analytics, applications, auth, cover_letters, documents_api, jobs, profile, resumes, scraper, settings
+from app.api.routes import analytics, applications, auth, cover_letters, documents_api, jobs, profile, resumes, scraper
+from app.api.routes import settings as settings_routes
 from app.api.schemas import HealthResponse
 from app.core.config import settings
 from app.core.database import Base, engine
@@ -91,7 +92,7 @@ app.include_router(applications.router, prefix="/api/v1/applications", tags=["ap
 app.include_router(scraper.router, prefix="/api/v1/scraper", tags=["scraper"])
 app.include_router(profile.router, prefix="/api/v1/profile", tags=["profile"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
-app.include_router(settings.router, prefix="/api/v1/settings", tags=["settings"])
+app.include_router(settings_routes.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(resumes.router, prefix="/api/v1/resumes", tags=["resumes"])
 app.include_router(cover_letters.router, prefix="/api/v1/cover-letters", tags=["cover-letters"])
 app.include_router(documents_api.router, prefix="/api/v1/documents", tags=["documents-api"])

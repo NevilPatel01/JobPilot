@@ -69,6 +69,8 @@ export interface ResumeDocument {
   cover_letter_meta: Record<string, string> | null;
   application_id: string | null;
   cover_letter_id: string | null;
+  pipeline_error?: string | null;
+  last_step?: string | null;
   created_at: string;
   updated_at: string;
 }

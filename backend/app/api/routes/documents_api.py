@@ -4,9 +4,16 @@ from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.graph import run_generation_pipeline
+from app.agents.pipeline_status import mark_stale_processing_resumes
 from app.api.schemas import ATSScoreResponse, ChatRequest, ResumeCreate, ResumeResponse
-from app.api.routes.resumes import _get_resume, _resume_response
+from app.api.routes.resumes import (
+    _get_resume,
+    _get_structured_profile,
+    _pipeline_task,
+    _require_llm_config,
+    _resume_response,
+    _resume_response_with_status,
+)
 from app.core.api_auth import get_user_from_api_token
 from app.core.database import get_db
 from app.models.cover_letter import CoverLetterDocument
@@ -25,7 +32,7 @@ async def api_create_resume(
     user: User = Depends(get_user_from_api_token),
     db: AsyncSession = Depends(get_db),
 ):
-    from app.api.routes.resumes import _get_structured_profile
+    await _require_llm_config(db, user.id)
 
     if body.source_type == "profile":
         content = await _get_structured_profile(db, user)
@@ -43,20 +50,13 @@ async def api_create_resume(
         latex_source=render_resume_latex(content),
         create_cover_letter=body.create_cover_letter,
         cover_letter_meta=body.cover_letter_meta.model_dump() if body.cover_letter_meta else None,
+        insights_json={"source_content": content},
     )
     db.add(resume)
     await db.commit()
     await db.refresh(resume)
 
-    async def _run():
-        from app.core.database import async_session
-
-        async with async_session() as session:
-            result = await session.execute(select(ResumeDocument).where(ResumeDocument.id == resume.id))
-            doc = result.scalar_one()
-            await run_generation_pipeline(session, doc)
-
-    background_tasks.add_task(_run)
+    background_tasks.add_task(_pipeline_task(resume.id, "full"))
     return _resume_response(resume)
 
 
@@ -66,10 +66,11 @@ async def api_get_resume(
     user: User = Depends(get_user_from_api_token),
     db: AsyncSession = Depends(get_db),
 ):
+    await mark_stale_processing_resumes(db)
     resume = await _get_resume(db, resume_id, user.id)
     cl_result = await db.execute(select(CoverLetterDocument).where(CoverLetterDocument.resume_id == resume.id))
     cl = cl_result.scalar_one_or_none()
-    return _resume_response(resume, cl.id if cl else None)
+    return await _resume_response_with_status(db, resume, cl.id if cl else None)
 
 
 @router.post("/resumes/{resume_id}/chat")

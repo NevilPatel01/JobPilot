@@ -207,6 +207,16 @@ export const api = {
   deleteResume: (id: string) =>
     request<{ ok: boolean }>(`/api/v1/resumes/${id}`, { method: "DELETE" }),
 
+  regenerateResume: (id: string) =>
+    request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}/regenerate`, {
+      method: "POST",
+    }),
+
+  regenerateTailoredResume: (id: string) =>
+    request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}/regenerate/resume`, {
+      method: "POST",
+    }),
+
   getResumePreviewHtml: async (id: string): Promise<string> => {
     const token = getAuthToken();
     const res = await fetch(`${API_URL}/api/v1/resumes/${id}/preview`, {
@@ -261,6 +271,11 @@ export const api = {
     request<import("@/types/resume").CoverLetterDocument>(`/api/v1/cover-letters/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    }),
+
+  regenerateCoverLetter: (id: string) =>
+    request<import("@/types/resume").CoverLetterDocument>(`/api/v1/cover-letters/${id}/regenerate`, {
+      method: "POST",
     }),
 
   getCoverLetterPreviewHtml: async (id: string): Promise<string> => {

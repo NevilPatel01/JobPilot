@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Pencil, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Loader2, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ResumeDocument } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -27,9 +27,22 @@ export default function ResumesPage() {
   const [resumes, setResumes] = useState<ResumeDocument[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
 
   const load = () => {
     api.getResumes(search || undefined).then((r) => setResumes(r.resumes)).catch(console.error).finally(() => setLoading(false));
+  };
+
+  const handleRetry = async (id: string) => {
+    setRetryingId(id);
+    try {
+      await api.regenerateResume(id);
+      load();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Regenerate failed");
+    } finally {
+      setRetryingId(null);
+    }
   };
 
   useEffect(() => {
@@ -85,14 +98,30 @@ export default function ResumesPage() {
                   {r.status === "processing" && (
                     <div className="text-xs text-zinc-500">Tailoring resume for this role...</div>
                   )}
+                  {r.status === "failed" && r.pipeline_error && (
+                    <div className="mt-1 text-xs text-red-400">{r.pipeline_error}</div>
+                  )}
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                 <td className="px-4 py-3 text-zinc-400">{r.company_name || r.company_url || "—"}</td>
                 <td className="px-4 py-3 text-zinc-500">{formatDate(r.updated_at)}</td>
                 <td className="px-4 py-3">
-                  <Link href={`/resumes/${r.id}`} className="btn-secondary text-xs">
-                    <Pencil className="h-3 w-3" /> Edit
-                  </Link>
+                  <div className="flex gap-2">
+                    {r.status === "failed" && (
+                      <button
+                        type="button"
+                        onClick={() => handleRetry(r.id)}
+                        disabled={retryingId === r.id}
+                        className="btn-secondary text-xs"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${retryingId === r.id ? "animate-spin" : ""}`} />
+                        Retry
+                      </button>
+                    )}
+                    <Link href={`/resumes/${r.id}`} className="btn-secondary text-xs">
+                      <Pencil className="h-3 w-3" /> Edit
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}

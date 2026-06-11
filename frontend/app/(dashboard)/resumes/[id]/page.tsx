@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Download, FileText, MessageSquare, Check, X } from "lucide-react";
+import { Download, FileText, MessageSquare, Check, X, RefreshCw, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChatMessage, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
@@ -25,6 +25,7 @@ export default function ResumeEditorPage() {
   const [chatInput, setChatInput] = useState("");
   const [sending, setSending] = useState(false);
   const [saved, setSaved] = useState(true);
+  const [pipelineBusy, setPipelineBusy] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const socketRef = useRef<Socket | null>(null);
 
@@ -111,6 +112,19 @@ export default function ResumeEditorPage() {
     }
   };
 
+  const runPipeline = async (mode: "full" | "tailor") => {
+    setPipelineBusy(true);
+    try {
+      if (mode === "full") await api.regenerateResume(id);
+      else await api.regenerateTailoredResume(id);
+      await load();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Pipeline failed to start");
+    } finally {
+      setPipelineBusy(false);
+    }
+  };
+
   if (!resume || !content) {
     return <div className="flex h-full items-center justify-center text-zinc-500">Loading editor...</div>;
   }
@@ -128,8 +142,35 @@ export default function ResumeEditorPage() {
           <Link href="/resumes" className="text-xs text-zinc-500 hover:text-white">← Resumes</Link>
           <h1 className="truncate text-sm font-medium text-white">{resume.title}</h1>
           <span className={cn("text-xs", saved ? "text-emerald-400" : "text-amber-400")}>{saved ? "Saved" : "Saving..."}</span>
+          {resume.status === "processing" && (
+            <span className="flex items-center gap-1 text-xs text-amber-400">
+              <Loader2 className="h-3 w-3 animate-spin" /> Processing
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
+          {(resume.status === "failed" || resume.status === "completed") && (
+            <>
+              <button
+                type="button"
+                disabled={pipelineBusy}
+                onClick={() => runPipeline("tailor")}
+                className="btn-secondary text-xs"
+              >
+                <RefreshCw className={cn("h-3 w-3", pipelineBusy && "animate-spin")} /> Re-tailor
+              </button>
+              {resume.status === "failed" && (
+                <button
+                  type="button"
+                  disabled={pipelineBusy}
+                  onClick={() => runPipeline("full")}
+                  className="btn-secondary text-xs"
+                >
+                  Regenerate all
+                </button>
+              )}
+            </>
+          )}
           <Link href={`/resumes/${id}/review`} className="btn-secondary text-xs">ATS Review</Link>
           <button
             onClick={async () => {
@@ -155,6 +196,18 @@ export default function ResumeEditorPage() {
           </button>
         </div>
       </header>
+
+      {resume.status === "failed" && resume.pipeline_error && (
+        <div className="border-b border-red-500/30 bg-red-950/30 px-4 py-2 text-sm text-red-300">
+          Pipeline failed{resume.last_step ? ` at ${resume.last_step}` : ""}: {resume.pipeline_error}
+        </div>
+      )}
+
+      {resume.status === "processing" && (
+        <div className="border-b border-amber-500/30 bg-amber-950/20 px-4 py-2 text-sm text-amber-200">
+          AI pipeline is running — tailoring resume, scoring ATS, and generating documents.
+        </div>
+      )}
 
       <div className="grid flex-1 grid-cols-[320px_1fr_360px] overflow-hidden">
         {/* Chat pane */}
