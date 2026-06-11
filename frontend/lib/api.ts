@@ -225,20 +225,18 @@ export const api = {
       method: "POST",
     }),
 
-  getResumePreviewHtml: async (id: string): Promise<string> => {
-    const token = getAuthToken();
-    const res = await fetch(`${API_URL}/api/v1/resumes/${id}/preview`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    return res.text();
-  },
-
   getResumeLatex: (id: string) =>
-    request<{ latex: string }>(`/api/v1/resumes/${id}/preview?format=latex`),
+    request<{ latex: string }>(`/api/v1/resumes/${id}/preview`),
 
-  downloadResumePdf: async (id: string): Promise<Blob> => {
+  regenerateResumeLatex: (id: string) =>
+    request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}/regenerate-latex`, {
+      method: "POST",
+    }),
+
+  downloadResumePdf: async (id: string, options?: { inline?: boolean }): Promise<Blob> => {
     const token = getAuthToken();
-    const res = await fetch(`${API_URL}/api/v1/resumes/${id}/pdf`, {
+    const qs = options?.inline ? "?inline=true" : "";
+    const res = await fetch(`${API_URL}/api/v1/resumes/${id}/pdf${qs}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     if (!res.ok) throw new Error("PDF export failed");

@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Download, FileText, MessageSquare, Check, X, RefreshCw, Loader2 } from "lucide-react";
+import { Download, Eye, EyeOff, MessageSquare, Check, X, RefreshCw, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChatMessage, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
-import { ResumePreviewFrame } from "@/components/resume/ResumePreviewFrame";
 import { PipelineProgressBar, PIPELINE_STEPS, type PipelineStepStatus } from "@/components/resume/PipelineProgressBar";
-import { renderResumeHtmlClient } from "@/lib/resumePreview";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
 
@@ -40,16 +38,22 @@ export default function ResumeEditorPage() {
   const searchParams = useSearchParams();
   const [resume, setResume] = useState<ResumeDocument | null>(null);
   const [content, setContent] = useState<ResumeContent | null>(null);
-  const [previewHtml, setPreviewHtml] = useState("");
-  const [showLatex, setShowLatex] = useState(false);
   const [latex, setLatex] = useState("");
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [saved, setSaved] = useState(true);
+  const [contentSaved, setContentSaved] = useState(true);
+  const [latexSaved, setLatexSaved] = useState(true);
+  const [regeneratingLatex, setRegeneratingLatex] = useState(false);
   const [pipelineBusy, setPipelineBusy] = useState(false);
   const [pipelineSteps, setPipelineSteps] = useState<Record<string, PipelineStepStatus>>(initialPipelineSteps);
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const contentSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const latexSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  const skipLatexSave = useRef(true);
   const socketRef = useRef<Socket | null>(null);
   const prevResumeStatus = useRef<string | null>(null);
 
@@ -59,11 +63,18 @@ export default function ResumeEditorPage() {
     const r = await api.getResume(id);
     setResume(r);
     setContent(r.content_json);
-    setLatex(r.latex_source || "");
-    const html = await api.getResumePreviewHtml(id).catch(() => renderResumeHtmlClient(r.content_json));
-    setPreviewHtml(html);
+    skipLatexSave.current = true;
+    if (r.latex_source?.trim()) {
+      setLatex(r.latex_source);
+    } else {
+      const { latex: generated } = await api.getResumeLatex(id);
+      setLatex(generated);
+    }
     const msgs = await api.getResumeMessages(id);
     setMessages(msgs);
+    setContentSaved(true);
+    setLatexSaved(true);
+    skipLatexSave.current = false;
   }, [id]);
 
   useEffect(() => {
@@ -121,19 +132,61 @@ export default function ResumeEditorPage() {
 
   useEffect(() => {
     if (!content) return;
-    setPreviewHtml(renderResumeHtmlClient(content));
-    setSaved(false);
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
+    setContentSaved(false);
+    clearTimeout(contentSaveTimer.current);
+    contentSaveTimer.current = setTimeout(async () => {
       try {
         await api.updateResume(id, { content_json: content });
-        setSaved(true);
+        setContentSaved(true);
       } catch (e) {
         console.error(e);
       }
     }, 500);
-    return () => clearTimeout(saveTimer.current);
+    return () => clearTimeout(contentSaveTimer.current);
   }, [content, id]);
+
+  useEffect(() => {
+    if (!latex || skipLatexSave.current) return;
+    setLatexSaved(false);
+    clearTimeout(latexSaveTimer.current);
+    latexSaveTimer.current = setTimeout(async () => {
+      try {
+        await api.updateResume(id, { latex_source: latex });
+        setLatexSaved(true);
+      } catch (e) {
+        console.error(e);
+      }
+    }, 800);
+    return () => clearTimeout(latexSaveTimer.current);
+  }, [latex, id]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    };
+  }, [pdfUrl]);
+
+  const refreshPdfPreview = async () => {
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const blob = await api.downloadResumePdf(id, { inline: true });
+      setPdfUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+    } catch (e: unknown) {
+      setPdfError(e instanceof Error ? e.message : "PDF preview failed");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showPdfPreview && latexSaved) {
+      refreshPdfPreview().catch(console.error);
+    }
+  }, [showPdfPreview, latexSaved, latex]);
 
   const sendChat = async () => {
     if (!chatInput.trim() || pendingChanges.length > 0) return;
@@ -183,12 +236,20 @@ export default function ResumeEditorPage() {
     load();
   };
 
-  const openLatexView = async () => {
-    if (!showLatex) {
-      const { latex: rendered } = await api.getResumeLatex(id);
-      setLatex(rendered);
+  const regenerateLatexFromContent = async () => {
+    setRegeneratingLatex(true);
+    try {
+      skipLatexSave.current = true;
+      const updated = await api.regenerateResumeLatex(id);
+      setLatex(updated.latex_source || "");
+      setLatexSaved(true);
+      skipLatexSave.current = false;
+      if (showPdfPreview) await refreshPdfPreview();
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "LaTeX regeneration failed");
+    } finally {
+      setRegeneratingLatex(false);
     }
-    setShowLatex(!showLatex);
   };
 
   const exportPdf = async () => {
@@ -199,6 +260,7 @@ export default function ResumeEditorPage() {
       a.href = url;
       a.download = `${resume?.title || "resume"}.pdf`;
       a.click();
+      URL.revokeObjectURL(url);
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "PDF export failed");
     }
@@ -227,13 +289,15 @@ export default function ResumeEditorPage() {
     company_research?: { summary?: string };
   };
 
+  const saveLabel = !contentSaved || !latexSaved ? "Saving..." : "Saved";
+
   return (
     <div className="flex h-full flex-col bg-zinc-950">
       <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
         <div className="flex items-center gap-3">
           <Link href="/resumes" className="text-xs text-zinc-500 hover:text-white">← Resumes</Link>
           <h1 className="truncate text-sm font-medium text-white">{resume.title}</h1>
-          <span className={cn("text-xs", saved ? "text-emerald-400" : "text-amber-400")}>{saved ? "Saved" : "Saving..."}</span>
+          <span className={cn("text-xs", contentSaved && latexSaved ? "text-emerald-400" : "text-amber-400")}>{saveLabel}</span>
           {resume.status === "processing" && (
             <span className="flex items-center gap-1 text-xs text-amber-400">
               <Loader2 className="h-3 w-3 animate-spin" /> Processing
@@ -280,8 +344,12 @@ export default function ResumeEditorPage() {
           >
             Apply with Resume
           </button>
-          <button onClick={openLatexView} className="btn-secondary text-xs">
-            <FileText className="h-3 w-3" /> {showLatex ? "Preview" : "LaTeX"}
+          <button
+            onClick={() => setShowPdfPreview((v) => !v)}
+            className="btn-secondary text-xs"
+          >
+            {showPdfPreview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            {showPdfPreview ? "Hide PDF" : "PDF Preview"}
           </button>
           <button onClick={exportPdf} className="btn-primary text-xs">
             <Download className="h-3 w-3" /> PDF
@@ -379,22 +447,41 @@ export default function ResumeEditorPage() {
           </div>
         </div>
 
-        {/* Preview pane */}
-        <div className="overflow-hidden bg-zinc-900 p-4">
-          {showLatex ? (
-            <div className="flex h-full flex-col gap-3">
-              <div className="rounded-lg border border-indigo-500/30 bg-indigo-950/30 px-3 py-2 text-xs text-indigo-200">
-                LaTeX is generated from your structured resume content at export time. Edit sections in the right panel — this view is read-only.
+        {/* LaTeX + optional PDF preview */}
+        <div className="flex flex-col overflow-hidden bg-zinc-900 p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">LaTeX Source</p>
+            <button
+              type="button"
+              onClick={regenerateLatexFromContent}
+              disabled={regeneratingLatex}
+              className="btn-secondary text-xs"
+            >
+              <RefreshCw className={cn("h-3 w-3", regeneratingLatex && "animate-spin")} />
+              Regenerate from content
+            </button>
+          </div>
+          <div className={cn("grid min-h-0 flex-1 gap-3", showPdfPreview ? "grid-cols-2" : "grid-cols-1")}>
+            <textarea
+              className="h-full w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-300"
+              value={latex}
+              onChange={(e) => setLatex(e.target.value)}
+              spellCheck={false}
+            />
+            {showPdfPreview && (
+              <div className="flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-white">
+                {pdfLoading && (
+                  <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">Compiling PDF...</div>
+                )}
+                {!pdfLoading && pdfError && (
+                  <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-red-600">{pdfError}</div>
+                )}
+                {!pdfLoading && !pdfError && pdfUrl && (
+                  <iframe title="PDF preview" src={pdfUrl} className="h-full w-full" />
+                )}
               </div>
-              <textarea
-                readOnly
-                className="h-full w-full flex-1 rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs text-zinc-300"
-                value={latex}
-              />
-            </div>
-          ) : (
-            <ResumePreviewFrame html={previewHtml} className="h-full w-full rounded-lg border border-zinc-800 bg-white" />
-          )}
+            )}
+          </div>
         </div>
 
         {/* Structured editor */}

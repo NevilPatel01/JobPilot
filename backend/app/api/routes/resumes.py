@@ -273,7 +273,6 @@ async def update_resume(
         resume.title = body.title
     if body.content_json is not None:
         resume.content_json = body.content_json
-        resume.latex_source = render_resume_latex(body.content_json)
     if body.latex_source is not None:
         resume.latex_source = body.latex_source
     if body.application_id is not None:
@@ -301,19 +300,20 @@ async def delete_resume(
 @router.get("/{resume_id}/preview")
 async def preview_resume(
     resume_id: UUID,
-    format: str = "html",
+    format: str = "latex",
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     resume = await _get_resume(db, resume_id, user.id)
-    if format == "latex":
-        return {"latex": resolve_export_latex(resume.content_json, resume.latex_source)}
-    return Response(content=render_resume_html(resume.content_json), media_type="text/html")
+    if format == "html":
+        return Response(content=render_resume_html(resume.content_json), media_type="text/html")
+    return {"latex": resolve_export_latex(resume.content_json, resume.latex_source)}
 
 
 @router.get("/{resume_id}/pdf")
 async def export_pdf(
     resume_id: UUID,
+    inline: bool = Query(False, description="Use inline disposition for browser PDF preview"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -323,7 +323,25 @@ async def export_pdf(
         pdf_bytes = compile_latex_to_pdf(latex)
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
-    return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": "attachment; filename=resume.pdf"})
+    disposition = "inline" if inline else "attachment"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'{disposition}; filename="resume.pdf"'},
+    )
+
+
+@router.post("/{resume_id}/regenerate-latex", response_model=ResumeResponse)
+async def regenerate_latex(
+    resume_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    resume = await _get_resume(db, resume_id, user.id)
+    resume.latex_source = render_resume_latex(resume.content_json)
+    await db.commit()
+    await db.refresh(resume)
+    return _resume_response(resume)
 
 
 @router.get("/{resume_id}/messages", response_model=list[ChatMessageResponse])

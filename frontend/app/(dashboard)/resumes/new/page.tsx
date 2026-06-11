@@ -3,14 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ExternalLink, Upload, User } from "lucide-react";
+import { AlertTriangle, ExternalLink, FileText, Upload, User } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CoverLetterMeta, ResumeContent } from "@/types/resume";
 import { emptyResumeContent } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { ResumePreviewFrame } from "@/components/resume/ResumePreviewFrame";
 import { cn } from "@/lib/utils";
-import { renderResumeHtmlClient } from "@/lib/resumePreview";
 
 type ParseFeedback = {
   warnings: string[];
@@ -29,19 +27,12 @@ export default function CreateResumePage() {
   const [uploading, setUploading] = useState(false);
   const [createCoverLetter, setCreateCoverLetter] = useState(false);
   const [coverMeta, setCoverMeta] = useState<CoverLetterMeta>({});
-  const [previewHtml, setPreviewHtml] = useState("");
   const [creating, setCreating] = useState(false);
   const [profileContent, setProfileContent] = useState<ResumeContent>(emptyResumeContent());
 
   useEffect(() => {
     api.getStructuredProfile().then((p) => setProfileContent(p.content)).catch(console.error);
   }, []);
-
-  const activeContent = sourceType === "upload" && uploadedContent ? uploadedContent : profileContent;
-
-  useEffect(() => {
-    setPreviewHtml(renderResumeHtmlClient(activeContent));
-  }, [activeContent]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -208,11 +199,18 @@ export default function CreateResumePage() {
           </button>
         </div>
 
-        <div className="glass-panel p-4">
-          <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">Resume Preview</p>
-          <div className="mt-3 h-[600px]">
-            <ResumePreviewFrame html={previewHtml || "<html><body></body></html>"} />
-          </div>
+        <div className="glass-panel flex flex-col justify-center p-8">
+          <FileText className="h-10 w-10 text-indigo-400" />
+          <p className="mt-4 text-sm font-medium text-white">Professional LaTeX resume</p>
+          <p className="mt-2 text-sm text-zinc-400">
+            Your resume is generated in Jake&apos;s Resume LaTeX style (Charter font, Font Awesome icons) and compiled to PDF with Tectonic.
+            After creation you can edit the LaTeX source directly or refine structured sections — then export a polished PDF.
+          </p>
+          <ul className="mt-4 space-y-2 text-xs text-zinc-500">
+            <li>• AI tailoring updates structured content, then syncs LaTeX</li>
+            <li>• Edit raw LaTeX for fine-grained formatting control</li>
+            <li>• Live PDF preview in the editor</li>
+          </ul>
         </div>
       </div>
     </div>

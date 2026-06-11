@@ -1,4 +1,9 @@
-from app.services.resume.renderer import render_resume_html, render_resume_latex, resolve_export_latex, _latex_esc
+from app.services.resume.renderer import (
+    render_resume_html,
+    render_resume_latex,
+    resolve_export_latex,
+    _latex_esc,
+)
 
 
 def test_render_resume_html_contains_name(sample_resume):
@@ -6,6 +11,7 @@ def test_render_resume_html_contains_name(sample_resume):
     assert "Jane Developer" in html
     assert "Senior Software Engineer" in html
     assert "FastAPI" in html
+    assert "Technical Skills" in html
 
 
 def test_render_resume_latex_escapes_special_chars():
@@ -13,17 +19,68 @@ def test_render_resume_latex_escapes_special_chars():
     assert r"\_" in _latex_esc("foo_bar")
 
 
+def test_render_resume_latex_jakes_style_preamble(sample_resume):
+    latex = render_resume_latex(sample_resume)
+    assert r"\documentclass[letterpaper,11pt]{article}" in latex
+    assert r"\usepackage{fontawesome5}" in latex
+    assert r"\usepackage{charter}" in latex
+    assert r"\newcommand{\resumeSubheading}" in latex
+    assert r"\newcommand{\resumeProjectHeading}" in latex
+    assert r"\newcommand{\resumeItem}" in latex
+
+
 def test_render_resume_latex_contains_sections(sample_resume):
     latex = render_resume_latex(sample_resume)
-    assert r"\section*{Experience}" in latex
-    assert "Jane Developer" in latex or "Developer" in latex
-
-
-def test_resolve_export_latex_ignores_stale_source(sample_resume):
-    stale = r"\documentclass{article}\begin{document}STALE\end{document}"
-    latex = resolve_export_latex(sample_resume, stale)
-    assert "STALE" not in latex
+    assert r"\section{Technical Skills}" in latex
+    assert r"\section{Experience}" in latex
+    assert r"\section{Projects}" in latex
+    assert r"\section{Education}" in latex
     assert "Jane Developer" in latex
+    assert r"\resumeSubheading" in latex
+    assert r"\resumeItem{" in latex
+
+
+def test_render_resume_latex_header_icons(sample_resume):
+    latex = render_resume_latex(sample_resume)
+    assert r"\faPhone" in latex
+    assert r"\faEnvelope" in latex
+    assert r"\faGithub" in latex
+    assert "jane@example.com" in latex
+
+
+def test_render_resume_latex_escapes_in_bullets():
+    content = {
+        "contact": {"full_name": "Test User"},
+        "experience": [
+            {
+                "title": "Engineer",
+                "company": "A & B Corp",
+                "location": "",
+                "start_date": "2020",
+                "end_date": "2021",
+                "bullets": ["Improved latency by 50% & reliability"],
+            }
+        ],
+    }
+    latex = render_resume_latex(content)
+    assert r"A \& B Corp" in latex
+    assert r"50\% \& reliability" in latex
+
+
+def test_resolve_export_latex_uses_stored_source(sample_resume):
+    custom = r"\documentclass{article}\begin{document}CUSTOM\end{document}"
+    latex = resolve_export_latex(sample_resume, custom)
+    assert "CUSTOM" in latex
+    assert r"\section{Experience}" not in latex
+
+
+def test_resolve_export_latex_generates_when_empty(sample_resume):
+    latex = resolve_export_latex(sample_resume, None)
+    assert "Jane Developer" in latex
+    assert r"\section{Experience}" in latex
+
+    latex_blank = resolve_export_latex(sample_resume, "   ")
+    assert r"\section{Experience}" in latex_blank
 
 
 def test_render_cover_letter_html(sample_resume):
