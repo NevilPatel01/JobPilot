@@ -120,7 +120,12 @@ export const api = {
       body: form,
     });
     if (!res.ok) throw new Error("Upload failed");
-    return res.json() as Promise<{ content: import("@/types/resume").ResumeContent; warnings: string[] }>;
+    return res.json() as Promise<{
+      content: import("@/types/resume").ResumeContent;
+      warnings: string[];
+      confidence: number;
+      section_counts: Record<string, number>;
+    }>;
   },
 
   // Settings / BYOK
@@ -244,7 +249,7 @@ export const api = {
     request<import("@/types/resume").ChatMessage[]>(`/api/v1/resumes/${id}/messages`),
 
   sendResumeChat: (id: string, message: string) =>
-    request<import("@/types/resume").ChatMessage>(`/api/v1/resumes/${id}/chat`, {
+    request<import("@/types/resume").ChatExchange>(`/api/v1/resumes/${id}/chat`, {
       method: "POST",
       body: JSON.stringify({ message }),
     }),
@@ -255,6 +260,16 @@ export const api = {
       content_json: import("@/types/resume").ResumeContent;
       ats_score?: import("@/types/resume").ATSScore | null;
     }>(`/api/v1/resumes/${id}/changes`, { method: "POST", body: JSON.stringify({ change_id, action }) }),
+
+  handleResumeChangesBatch: (id: string, change_ids: string[], action: "accept" | "reject") =>
+    request<{
+      ok: boolean;
+      content_json: import("@/types/resume").ResumeContent;
+      ats_score?: import("@/types/resume").ATSScore | null;
+    }>(`/api/v1/resumes/${id}/changes/batch`, {
+      method: "POST",
+      body: JSON.stringify({ change_ids, action }),
+    }),
 
   runATSScore: (id: string) =>
     request<import("@/types/resume").ATSScore>(`/api/v1/resumes/${id}/ats-score`, { method: "POST" }),
@@ -276,9 +291,41 @@ export const api = {
   getCoverLetter: (id: string) =>
     request<import("@/types/resume").CoverLetterDocument>(`/api/v1/cover-letters/${id}`),
 
-  updateCoverLetter: (id: string, data: { title?: string; content_json?: Record<string, unknown> }) =>
+  updateCoverLetter: (
+    id: string,
+    data: Partial<{
+      title: string;
+      content_json: Record<string, unknown>;
+      latex_source: string;
+      hiring_manager_name: string;
+      hiring_manager_email: string;
+      street_address: string;
+      city: string;
+      state_province: string;
+      postal_code: string;
+      letter_date: string;
+      additional_context: string;
+    }>
+  ) =>
     request<import("@/types/resume").CoverLetterDocument>(`/api/v1/cover-letters/${id}`, {
       method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  createCoverLetter: (data: {
+    title?: string;
+    resume_id: string;
+    hiring_manager_name?: string;
+    hiring_manager_email?: string;
+    street_address?: string;
+    city?: string;
+    state_province?: string;
+    postal_code?: string;
+    letter_date?: string;
+    additional_context?: string;
+  }) =>
+    request<import("@/types/resume").CoverLetterDocument>("/api/v1/cover-letters", {
+      method: "POST",
       body: JSON.stringify(data),
     }),
 
@@ -293,5 +340,29 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
     return res.text();
+  },
+
+  getCoverLetterMessages: (id: string) =>
+    request<import("@/types/resume").ChatMessage[]>(`/api/v1/cover-letters/${id}/messages`),
+
+  sendCoverLetterChat: (id: string, message: string) =>
+    request<import("@/types/resume").ChatExchange>(`/api/v1/cover-letters/${id}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ message }),
+    }),
+
+  handleCoverLetterChange: (id: string, change_id: string, action: "accept" | "reject") =>
+    request<{ ok: boolean; content_json: Record<string, unknown> }>(
+      `/api/v1/cover-letters/${id}/changes`,
+      { method: "POST", body: JSON.stringify({ change_id, action }) }
+    ),
+
+  downloadCoverLetterPdf: async (id: string): Promise<Blob> => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_URL}/api/v1/cover-letters/${id}/pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("PDF export failed");
+    return res.blob();
   },
 };

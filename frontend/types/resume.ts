@@ -75,6 +75,48 @@ export interface ResumeDocument {
   updated_at: string;
 }
 
+export interface CoverLetterContent {
+  recipient_name: string;
+  recipient_title: string;
+  company_name: string;
+  company_address: string;
+  date: string;
+  salutation: string;
+  paragraphs: string[];
+  closing: string;
+}
+
+export function emptyCoverLetterContent(): CoverLetterContent {
+  return {
+    recipient_name: "",
+    recipient_title: "",
+    company_name: "",
+    company_address: "",
+    date: "",
+    salutation: "Dear Hiring Manager,",
+    paragraphs: [""],
+    closing: "Sincerely,",
+  };
+}
+
+export function parseCoverLetterContent(raw: Record<string, unknown>): CoverLetterContent {
+  const base = emptyCoverLetterContent();
+  const paragraphs = raw.paragraphs;
+  return {
+    ...base,
+    recipient_name: String(raw.recipient_name || ""),
+    recipient_title: String(raw.recipient_title || ""),
+    company_name: String(raw.company_name || ""),
+    company_address: String(raw.company_address || ""),
+    date: String(raw.date || ""),
+    salutation: String(raw.salutation || base.salutation),
+    closing: String(raw.closing || base.closing),
+    paragraphs: Array.isArray(paragraphs) && paragraphs.length
+      ? paragraphs.map((p) => String(p))
+      : [""],
+  };
+}
+
 export interface CoverLetterDocument {
   id: string;
   title: string;
@@ -126,6 +168,7 @@ export interface ApiToken {
 export interface PendingChange {
   id: string;
   path: string;
+  path_label?: string | null;
   old_value: string | null;
   new_value: string | null;
   status: string;
@@ -137,6 +180,11 @@ export interface ChatMessage {
   content: string;
   pending_changes: PendingChange[];
   created_at: string;
+}
+
+export interface ChatExchange {
+  user_message: ChatMessage;
+  assistant_message: ChatMessage;
 }
 
 export interface ATSSuggestionItem {

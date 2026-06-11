@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Upload, User } from "lucide-react";
+import { AlertTriangle, ExternalLink, Upload, User } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CoverLetterMeta, ResumeContent } from "@/types/resume";
 import { emptyResumeContent } from "@/types/resume";
@@ -11,6 +12,12 @@ import { ResumePreviewFrame } from "@/components/resume/ResumePreviewFrame";
 import { cn } from "@/lib/utils";
 import { renderResumeHtmlClient } from "@/lib/resumePreview";
 
+type ParseFeedback = {
+  warnings: string[];
+  confidence: number;
+  section_counts: Record<string, number>;
+};
+
 export default function CreateResumePage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
@@ -18,6 +25,8 @@ export default function CreateResumePage() {
   const [companyUrl, setCompanyUrl] = useState("");
   const [sourceType, setSourceType] = useState<"profile" | "upload">("profile");
   const [uploadedContent, setUploadedContent] = useState<ResumeContent | null>(null);
+  const [parseFeedback, setParseFeedback] = useState<ParseFeedback | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [createCoverLetter, setCreateCoverLetter] = useState(false);
   const [coverMeta, setCoverMeta] = useState<CoverLetterMeta>({});
   const [previewHtml, setPreviewHtml] = useState("");
@@ -37,9 +46,23 @@ export default function CreateResumePage() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const result = await api.uploadResumePdf(file);
-    setUploadedContent(result.content);
-    setSourceType("upload");
+    setUploading(true);
+    setParseFeedback(null);
+    try {
+      const result = await api.uploadResumePdf(file);
+      setUploadedContent(result.content);
+      setParseFeedback({
+        warnings: result.warnings,
+        confidence: result.confidence,
+        section_counts: result.section_counts,
+      });
+      setSourceType("upload");
+    } catch (err) {
+      console.error(err);
+      alert("PDF upload failed.");
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleCreate = async () => {
@@ -55,9 +78,7 @@ export default function CreateResumePage() {
         create_cover_letter: createCoverLetter,
         cover_letter_meta: createCoverLetter ? coverMeta : undefined,
       });
-      router.push("/resumes");
-      router.refresh();
-      void resume;
+      router.push(`/resumes/${resume.id}`);
     } catch (e) {
       console.error(e);
       alert("Failed to create resume. Check API keys in Settings.");
@@ -103,10 +124,64 @@ export default function CreateResumePage() {
               <label className={cn("cursor-pointer rounded-lg border p-4 text-left transition", sourceType === "upload" ? "border-indigo-500 bg-indigo-500/10" : "border-zinc-800")}>
                 <Upload className="h-5 w-5 text-indigo-400" />
                 <div className="mt-2 text-sm font-medium text-white">Upload Resume</div>
-                <div className="text-xs text-zinc-500">PDF upload</div>
-                <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} />
+                <div className="text-xs text-zinc-500">{uploading ? "Parsing PDF..." : "PDF upload"}</div>
+                <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
               </label>
             </div>
+
+            {parseFeedback && sourceType === "upload" && (
+              <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">Parse quality</p>
+                  <span
+                    className={cn(
+                      "text-xs font-medium",
+                      parseFeedback.confidence >= 0.7
+                        ? "text-emerald-400"
+                        : parseFeedback.confidence >= 0.4
+                          ? "text-amber-400"
+                          : "text-red-400"
+                    )}
+                  >
+                    {Math.round(parseFeedback.confidence * 100)}% confidence
+                  </span>
+                </div>
+
+                <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                  {[
+                    ["Experience", parseFeedback.section_counts.experience ?? 0],
+                    ["Education", parseFeedback.section_counts.education ?? 0],
+                    ["Projects", parseFeedback.section_counts.projects ?? 0],
+                    ["Skills", parseFeedback.section_counts.skill_categories ?? 0],
+                    ["Summary", parseFeedback.section_counts.has_summary ?? 0],
+                    ["Contact", parseFeedback.section_counts.has_contact_name ?? 0],
+                  ].map(([label, count]) => (
+                    <div key={String(label)} className="rounded border border-zinc-800 px-2 py-2">
+                      <div className="text-lg font-semibold text-white">{count as number}</div>
+                      <div className="text-zinc-500">{label as string}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {parseFeedback.warnings.length > 0 && (
+                  <ul className="mt-3 space-y-1 text-xs text-amber-300/90">
+                    {parseFeedback.warnings.map((warning) => (
+                      <li key={warning} className="flex gap-2">
+                        <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>{warning}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <Link
+                  href="/profile"
+                  className="btn-secondary mt-4 inline-flex w-full justify-center text-xs"
+                >
+                  <ExternalLink className="h-3 w-3" /> Review parsed sections in profile
+                </Link>
+              </div>
+            )}
           </div>
 
           <div className="glass-panel p-4">

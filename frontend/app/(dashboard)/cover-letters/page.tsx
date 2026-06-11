@@ -21,9 +21,14 @@ export default function CoverLettersPage() {
         title="My Cover Letters"
         description="Cover letters generated alongside tailored resumes"
         action={
-          <Link href="/resumes/new" className="btn-primary">
-            <Plus className="h-4 w-4" /> Create with Resume
-          </Link>
+          <div className="flex gap-2">
+            <Link href="/cover-letters/new" className="btn-secondary">
+              <Plus className="h-4 w-4" /> From Resume
+            </Link>
+            <Link href="/resumes/new" className="btn-primary">
+              <Plus className="h-4 w-4" /> Create with Resume
+            </Link>
+          </div>
         }
       />
 

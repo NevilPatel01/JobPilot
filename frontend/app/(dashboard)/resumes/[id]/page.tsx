@@ -8,11 +8,32 @@ import { api } from "@/lib/api";
 import type { ChatMessage, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
 import { ResumePreviewFrame } from "@/components/resume/ResumePreviewFrame";
+import { PipelineProgressBar, PIPELINE_STEPS, type PipelineStepStatus } from "@/components/resume/PipelineProgressBar";
 import { renderResumeHtmlClient } from "@/lib/resumePreview";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+function formatDiffValue(value: string | null): string {
+  if (!value) return "";
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.map((item) => `• ${String(item)}`).join("\n");
+    }
+    if (parsed && typeof parsed === "object") {
+      return JSON.stringify(parsed, null, 2);
+    }
+  } catch {
+    // plain text
+  }
+  return value;
+}
+
+function initialPipelineSteps(): Record<string, PipelineStepStatus> {
+  return Object.fromEntries(PIPELINE_STEPS.map((step) => [step.id, "pending" as PipelineStepStatus]));
+}
 
 export default function ResumeEditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -27,8 +48,10 @@ export default function ResumeEditorPage() {
   const [sending, setSending] = useState(false);
   const [saved, setSaved] = useState(true);
   const [pipelineBusy, setPipelineBusy] = useState(false);
+  const [pipelineSteps, setPipelineSteps] = useState<Record<string, PipelineStepStatus>>(initialPipelineSteps);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
   const socketRef = useRef<Socket | null>(null);
+  const prevResumeStatus = useRef<string | null>(null);
 
   const pendingChanges = messages.flatMap((m) => m.pending_changes.filter((c) => c.status === "pending"));
 
@@ -55,11 +78,46 @@ export default function ResumeEditorPage() {
   useEffect(() => {
     const socket = io(API_URL, { path: "/socket.io", transports: ["websocket", "polling"] });
     socketRef.current = socket;
+
+    const onStep = (data: { step?: string; status?: string; cached?: boolean; skipped?: boolean }) => {
+      if (!data.step || !data.status) return;
+      setPipelineSteps((prev) => {
+        const next = { ...prev };
+        if (data.status === "running") {
+          next[data.step!] = "running";
+        } else if (data.status === "failed") {
+          next[data.step!] = "failed";
+        } else if (data.status === "completed") {
+          next[data.step!] = data.skipped ? "skipped" : "completed";
+        }
+        return next;
+      });
+      if (data.status === "completed" || data.status === "failed") {
+        load().catch(console.error);
+      }
+    };
+
     socket.on("connect", () => socket.emit("join_room", { room: `resume:${id}` }));
-    socket.on("agent_complete", () => load());
-    socket.on("agent_step", () => load());
+    socket.on("agent_complete", () => {
+      setPipelineSteps(initialPipelineSteps());
+      load().catch(console.error);
+    });
+    socket.on("agent_step", onStep);
+    socket.on("agent_error", (data: { step?: string }) => {
+      if (data.step) {
+        setPipelineSteps((prev) => ({ ...prev, [data.step!]: "failed" }));
+      }
+      load().catch(console.error);
+    });
     return () => { socket.disconnect(); };
   }, [id, load]);
+
+  useEffect(() => {
+    if (resume?.status === "processing" && prevResumeStatus.current !== "processing") {
+      setPipelineSteps(initialPipelineSteps());
+    }
+    prevResumeStatus.current = resume?.status ?? null;
+  }, [resume?.status]);
 
   useEffect(() => {
     if (!content) return;
@@ -81,8 +139,8 @@ export default function ResumeEditorPage() {
     if (!chatInput.trim() || pendingChanges.length > 0) return;
     setSending(true);
     try {
-      const msg = await api.sendResumeChat(id, chatInput);
-      setMessages((prev) => [...prev, msg]);
+      const exchange = await api.sendResumeChat(id, chatInput);
+      setMessages((prev) => [...prev, exchange.user_message, exchange.assistant_message]);
       setChatInput("");
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Chat failed");
@@ -103,6 +161,34 @@ export default function ResumeEditorPage() {
       }))
     );
     load();
+  };
+
+  const handleBatchChanges = async (action: "accept" | "reject") => {
+    if (pendingChanges.length === 0) return;
+    const result = await api.handleResumeChangesBatch(
+      id,
+      pendingChanges.map((c) => c.id),
+      action
+    );
+    if (action === "accept") setContent(result.content_json);
+    const ids = new Set(pendingChanges.map((c) => c.id));
+    setMessages((prev) =>
+      prev.map((m) => ({
+        ...m,
+        pending_changes: m.pending_changes.map((c) =>
+          ids.has(c.id) ? { ...c, status: action === "accept" ? "accepted" : "rejected" } : c
+        ),
+      }))
+    );
+    load();
+  };
+
+  const openLatexView = async () => {
+    if (!showLatex) {
+      const { latex: rendered } = await api.getResumeLatex(id);
+      setLatex(rendered);
+    }
+    setShowLatex(!showLatex);
   };
 
   const exportPdf = async () => {
@@ -194,7 +280,7 @@ export default function ResumeEditorPage() {
           >
             Apply with Resume
           </button>
-          <button onClick={() => setShowLatex(!showLatex)} className="btn-secondary text-xs">
+          <button onClick={openLatexView} className="btn-secondary text-xs">
             <FileText className="h-3 w-3" /> {showLatex ? "Preview" : "LaTeX"}
           </button>
           <button onClick={exportPdf} className="btn-primary text-xs">
@@ -210,8 +296,13 @@ export default function ResumeEditorPage() {
       )}
 
       {resume.status === "processing" && (
-        <div className="border-b border-amber-500/30 bg-amber-950/20 px-4 py-2 text-sm text-amber-200">
-          AI pipeline is running — tailoring resume, scoring ATS, and generating documents.
+        <div className="border-b border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-200">
+          <p>AI pipeline is running — tailoring resume, scoring ATS, and generating documents.</p>
+          <PipelineProgressBar
+            className="mt-3"
+            steps={pipelineSteps}
+            includeCoverLetter={resume.create_cover_letter}
+          />
         </div>
       )}
 
@@ -243,13 +334,27 @@ export default function ResumeEditorPage() {
               </details>
             )}
 
+            {pendingChanges.length > 0 && (
+              <div className="flex gap-2 rounded-lg border border-zinc-700 bg-zinc-900/80 p-2">
+                <button onClick={() => handleBatchChanges("reject")} className="btn-secondary flex-1 text-xs">
+                  <X className="h-3 w-3" /> Reject all ({pendingChanges.length})
+                </button>
+                <button onClick={() => handleBatchChanges("accept")} className="btn-primary flex-1 text-xs">
+                  <Check className="h-3 w-3" /> Accept all ({pendingChanges.length})
+                </button>
+              </div>
+            )}
+
             {messages.map((m) => (
               <div key={m.id} className={cn("rounded-lg p-3 text-sm", m.role === "assistant" ? "bg-zinc-900 text-zinc-300" : "bg-indigo-600/10 text-white")}>
                 {m.content}
                 {m.pending_changes.filter((c) => c.status === "pending").map((ch) => (
                   <div key={ch.id} className="mt-3 overflow-hidden rounded border border-zinc-700 font-mono text-xs">
-                    <div className="bg-red-950/50 p-2 text-red-300 line-through">{ch.old_value}</div>
-                    <div className="bg-emerald-950/50 p-2 text-emerald-300">{ch.new_value}</div>
+                    <div className="border-b border-zinc-700 bg-zinc-800/80 px-2 py-1 text-[11px] font-sans text-zinc-400">
+                      {ch.path_label || ch.path}
+                    </div>
+                    <div className="whitespace-pre-wrap bg-red-950/50 p-2 text-red-300 line-through">{formatDiffValue(ch.old_value)}</div>
+                    <div className="whitespace-pre-wrap bg-emerald-950/50 p-2 text-emerald-300">{formatDiffValue(ch.new_value)}</div>
                     <div className="flex gap-2 border-t border-zinc-700 p-2">
                       <button onClick={() => handleChange(ch, "reject")} className="btn-secondary flex-1 text-xs"><X className="h-3 w-3" /> Reject</button>
                       <button onClick={() => handleChange(ch, "accept")} className="btn-primary flex-1 text-xs"><Check className="h-3 w-3" /> Accept</button>
@@ -277,12 +382,16 @@ export default function ResumeEditorPage() {
         {/* Preview pane */}
         <div className="overflow-hidden bg-zinc-900 p-4">
           {showLatex ? (
-            <textarea
-              className="h-full w-full rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs text-zinc-300"
-              value={latex}
-              onChange={(e) => setLatex(e.target.value)}
-              onBlur={() => api.updateResume(id, { latex_source: latex })}
-            />
+            <div className="flex h-full flex-col gap-3">
+              <div className="rounded-lg border border-indigo-500/30 bg-indigo-950/30 px-3 py-2 text-xs text-indigo-200">
+                LaTeX is generated from your structured resume content at export time. Edit sections in the right panel — this view is read-only.
+              </div>
+              <textarea
+                readOnly
+                className="h-full w-full flex-1 rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs text-zinc-300"
+                value={latex}
+              />
+            </div>
           ) : (
             <ResumePreviewFrame html={previewHtml} className="h-full w-full rounded-lg border border-zinc-800 bg-white" />
           )}
