@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # Tectonic for server-side PDF export (drop-sh has no aarch64-gnu asset; use release binaries)

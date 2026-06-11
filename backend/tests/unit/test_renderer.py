@@ -23,7 +23,7 @@ def test_render_resume_latex_jakes_style_preamble(sample_resume):
     latex = render_resume_latex(sample_resume)
     assert r"\documentclass[letterpaper,11pt]{article}" in latex
     assert r"\usepackage{fontawesome5}" in latex
-    assert r"\usepackage{charter}" in latex
+    assert r"\usepackage{mathpazo}" in latex
     assert r"\newcommand{\resumeSubheading}" in latex
     assert r"\newcommand{\resumeProjectHeading}" in latex
     assert r"\newcommand{\resumeItem}" in latex

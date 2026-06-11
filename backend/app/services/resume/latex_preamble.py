@@ -21,7 +21,8 @@ RESUME_LATEX_PREAMBLE = r"""
 \usepackage{fontawesome5}
 \usepackage{multicol}
 \usepackage[T1]{fontenc}
-\usepackage{charter}
+% Palatino body text — Tectonic-safe alternative to Jake's charter package
+\usepackage{mathpazo}
 
 \pagestyle{fancy}
 \fancyhf{}

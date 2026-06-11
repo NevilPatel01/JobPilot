@@ -449,6 +449,9 @@ export default function ResumeEditorPage() {
 
         {/* LaTeX + optional PDF preview */}
         <div className="flex flex-col overflow-hidden bg-zinc-900 p-4">
+          <div className="mb-2 rounded-lg border border-indigo-500/30 bg-indigo-950/30 px-3 py-2 text-xs text-indigo-200">
+            LaTeX is generated from structured content. Edits here are used for PDF export.
+          </div>
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">LaTeX Source</p>
             <button
