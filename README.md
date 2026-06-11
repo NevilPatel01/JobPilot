@@ -171,6 +171,12 @@ cp frontend/.env.local.example frontend/.env.local
 docker compose up --build
 ```
 
+Runs the **built images** (no host bind mounts), which avoids Docker Desktop mount failures when the repo lives on an external drive (`/Volumes/...`). For hot-reload with bind mounts (repo on an internal disk, or with **Settings → Resources → File sharing** including your volume):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
 | Service | URL |
 |---------|-----|
 | Frontend | http://localhost:3000 |
