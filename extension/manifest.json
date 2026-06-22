@@ -1,13 +1,22 @@
 {
   "manifest_version": 3,
   "name": "JobPilot Capture",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Capture a job listing into your private JobPilot Inbox and application Tracker.",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["activeTab", "storage", "scripting", "tabs"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "Capture with JobPilot",
     "default_popup": "popup.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Capture the job in the current tab"
+    }
   },
   "content_scripts": [
     {

@@ -100,6 +100,13 @@ export default function ExtensionSetupPage() {
         </SetupCard>
       </div>
 
+      <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 px-5 py-4">
+        <p className="text-sm font-semibold text-foreground">Fast capture</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Press <span className="font-semibold text-primary">Command + Shift + Y</span> on macOS or <span className="font-semibold text-primary">Ctrl + Shift + Y</span> on Windows/Linux while viewing a job. You can also paste any listing URL directly into the extension.
+        </p>
+      </div>
+
       <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card px-5 py-4 text-sm">
         <div><p className="font-medium text-foreground">Need to revoke or replace a token?</p><p className="mt-1 text-xs text-muted-foreground">Manage every extension token from the existing API Settings page.</p></div>
         <Link href="/settings" className="btn-secondary"><KeyRound className="h-4 w-4" /> Open API Settings</Link>

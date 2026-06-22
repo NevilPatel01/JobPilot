@@ -26,6 +26,18 @@ function setBusy(busy) {
   $("save-inbox").textContent = busy ? "Saving…" : "Save to Inbox";
 }
 
+function applyCapture(data, fallbackUrl = "") {
+  state.capture = data;
+  $("title").value = data.title || "";
+  $("company").value = data.company || "";
+  $("location").value = data.location || "";
+  $("description").value = data.description || "";
+  $("page-url").value = data.url || fallbackUrl;
+  $("manual-url").value = data.url || fallbackUrl;
+  $("selected-text").value = data.selected_text || "";
+  $("source-site").textContent = (data.source_site || "current page").replaceAll("_", " ");
+}
+
 async function loadSettings() {
   state.settings = { ...DEFAULTS, ...(await chrome.storage.sync.get(DEFAULTS)) };
   $("api-url").value = state.settings.apiUrl;
@@ -44,27 +56,70 @@ async function saveSettings() {
   showNotice(state.settings.apiToken ? "Connection saved." : "Add an API token before capturing jobs.");
 }
 
+async function extractFromTab(tabId) {
+  let response;
+  try {
+    response = await chrome.tabs.sendMessage(tabId, { type: "JOBPILOT_EXTRACT" });
+  } catch {
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["content.js"] });
+    response = await chrome.tabs.sendMessage(tabId, { type: "JOBPILOT_EXTRACT" });
+  }
+  if (!response?.ok) throw new Error(response?.error || "Could not read this page.");
+  return response.data;
+}
+
 async function extractCurrentPage() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !tab.url?.startsWith("http")) {
     throw new Error("Open a job listing in a regular browser tab first.");
   }
-  let response;
+  applyCapture(await extractFromTab(tab.id), tab.url);
+}
+
+function waitForTab(tabId) {
+  return new Promise((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error("The job page took too long to load."));
+    }, 20000);
+    const listener = (updatedId, changeInfo) => {
+      if (updatedId !== tabId || changeInfo.status !== "complete") return;
+      window.clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve();
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+async function loadPastedUrl() {
+  const rawUrl = $("manual-url").value.trim();
+  let url;
   try {
-    response = await chrome.tabs.sendMessage(tab.id, { type: "JOBPILOT_EXTRACT" });
+    url = new URL(rawUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
   } catch {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-    response = await chrome.tabs.sendMessage(tab.id, { type: "JOBPILOT_EXTRACT" });
+    showNotice("Enter a complete job URL beginning with https://");
+    return;
   }
-  if (!response?.ok) throw new Error(response?.error || "Could not read this page.");
-  state.capture = response.data;
-  $("title").value = response.data.title || "";
-  $("company").value = response.data.company || "";
-  $("location").value = response.data.location || "";
-  $("description").value = response.data.description || "";
-  $("page-url").value = response.data.url || tab.url;
-  $("selected-text").value = response.data.selected_text || "";
-  $("source-site").textContent = (response.data.source_site || "current page").replaceAll("_", " ");
+
+  const button = $("load-url");
+  button.disabled = true;
+  button.textContent = "Loading…";
+  showNotice("Opening the listing briefly to extract its details…");
+  let tab;
+  try {
+    tab = await chrome.tabs.create({ url: url.href, active: false });
+    await waitForTab(tab.id);
+    applyCapture(await extractFromTab(tab.id), url.href);
+    showNotice("Listing loaded. Review the details, then save it.");
+  } catch (error) {
+    showNotice(error instanceof Error ? error.message : "Could not load this job URL.");
+  } finally {
+    if (tab?.id) await chrome.tabs.remove(tab.id).catch(() => {});
+    button.disabled = false;
+    button.textContent = "Load URL";
+  }
 }
 
 async function api(path, options = {}) {
@@ -139,10 +194,20 @@ async function updateStatus(action) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   await loadSettings();
+  const commands = await chrome.commands.getAll();
+  const captureCommand = commands.find((command) => command.name === "_execute_action");
+  $("shortcut").textContent = captureCommand?.shortcut || "";
   $("settings-toggle").addEventListener("click", () => { $("settings").hidden = !$("settings").hidden; });
   $("save-settings").addEventListener("click", saveSettings);
   $("open-setup").addEventListener("click", () => chrome.tabs.create({ url: `${state.settings.appUrl}/extension` }));
   $("capture-form").addEventListener("submit", submitCapture);
+  $("load-url").addEventListener("click", loadPastedUrl);
+  $("manual-url").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      loadPastedUrl();
+    }
+  });
   $("open-inbox").addEventListener("click", () => chrome.tabs.create({ url: `${state.settings.appUrl}/inbox` }));
   $("mark-applied").addEventListener("click", () => updateStatus("applied"));
   $("archive").addEventListener("click", () => updateStatus("archived"));

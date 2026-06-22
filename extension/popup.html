@@ -29,7 +29,15 @@
     <main>
       <div id="notice" class="notice" hidden></div>
       <form id="capture-form">
-        <div class="eyebrow"><span id="source-site">Current page</span><span class="live-dot"></span></div>
+        <div class="capture-source">
+          <div class="eyebrow"><span id="source-site">Current page</span><span class="live-dot"></span></div>
+          <span id="shortcut" class="shortcut" title="Open JobPilot Capture from the active tab"></span>
+        </div>
+        <div class="url-loader">
+          <input id="manual-url" type="url" aria-label="Job listing URL" placeholder="Paste a job URL" />
+          <button id="load-url" class="button secondary compact" type="button">Load URL</button>
+        </div>
+        <p class="url-help">Or use the job already open in your active tab.</p>
         <label>Job title<input id="title" name="title" required maxlength="255" /></label>
         <label>Company<input id="company" name="company" required maxlength="255" /></label>
         <label>Location<input id="location" name="location" maxlength="255" placeholder="Toronto, Ontario, Canada" /></label>
