@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "JobPilot Capture",
+  "version": "0.1.0",
+  "description": "Capture a job listing into your private JobPilot Inbox and application Tracker.",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Capture with JobPilot",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

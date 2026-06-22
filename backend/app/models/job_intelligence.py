@@ -159,3 +159,26 @@ class ScraperRun(Base):
     dry_run: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CapturedJob(Base):
+    __tablename__ = "captured_jobs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), index=True
+    )
+    inbox_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("inbox_jobs.id", ondelete="SET NULL"), index=True
+    )
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    source_site: Mapped[str | None] = mapped_column(String(50))
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="received", index=True)
+    action: Mapped[str] = mapped_column(String(20), nullable=False, default="inbox")
+    raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

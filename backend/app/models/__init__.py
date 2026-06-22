@@ -4,6 +4,7 @@ from app.models.community import CommunityChannel, CommunityPost
 from app.models.cover_letter import CoverLetterChatMessage, CoverLetterDocument, CoverLetterPendingChange
 from app.models.job import Job
 from app.models.job_intelligence import (
+    CapturedJob,
     InboxJob,
     JobFitScore,
     JobSourceConfig,
@@ -19,6 +20,7 @@ from app.models.user import User
 
 __all__ = [
     "Job",
+    "CapturedJob",
     "InboxJob",
     "JobFitScore",
     "ResumeCategoryTemplate",

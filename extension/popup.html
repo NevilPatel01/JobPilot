@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobPilot Capture</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-mark">J</div>
+      <div class="brand-copy">
+        <strong>JobPilot</strong>
+        <span>Capture</span>
+      </div>
+      <button id="settings-toggle" class="icon-button" aria-label="Connection settings" title="Connection settings">•••</button>
+    </header>
+
+    <section id="settings" class="settings" hidden>
+      <label>API URL<input id="api-url" type="url" placeholder="http://localhost:8000" /></label>
+      <label>App URL<input id="app-url" type="url" placeholder="http://localhost:3000" /></label>
+      <label>API token<input id="api-token" type="password" placeholder="jp_..." autocomplete="off" /></label>
+      <div class="settings-actions">
+        <button id="open-setup" class="button secondary">Setup guide</button>
+        <button id="save-settings" class="button primary">Save connection</button>
+      </div>
+    </section>
+
+    <main>
+      <div id="notice" class="notice" hidden></div>
+      <form id="capture-form">
+        <div class="eyebrow"><span id="source-site">Current page</span><span class="live-dot"></span></div>
+        <label>Job title<input id="title" name="title" required maxlength="255" /></label>
+        <label>Company<input id="company" name="company" required maxlength="255" /></label>
+        <label>Location<input id="location" name="location" maxlength="255" placeholder="Toronto, Ontario, Canada" /></label>
+        <label>Description<textarea id="description" name="description" rows="6" placeholder="Select job text on the page if extraction misses it."></textarea></label>
+        <input id="page-url" name="url" type="hidden" />
+        <input id="selected-text" name="selected_text" type="hidden" />
+
+        <div class="capture-actions">
+          <button id="save-inbox" class="button secondary" type="submit" data-action="inbox">Save to Inbox</button>
+          <button id="save-applied" class="button primary" type="submit" data-action="applied">Save + Applied</button>
+        </div>
+      </form>
+
+      <section id="result" class="result" hidden>
+        <div class="result-heading"><span id="result-icon">✓</span><div><strong id="result-title">Saved</strong><p id="result-message"></p></div></div>
+        <div class="result-meta">
+          <div><span>Fit</span><strong id="fit-score">—</strong></div>
+          <div><span>Resume</span><strong id="resume-category">Reviewing</strong></div>
+        </div>
+        <div class="result-actions">
+          <button id="open-inbox" class="button secondary">Open Inbox</button>
+          <button id="mark-applied" class="button primary">Mark Applied</button>
+          <button id="archive" class="text-button">Archive</button>
+        </div>
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -18,6 +18,7 @@ import {
   Settings,
   Plus,
   PanelLeftClose,
+  Puzzle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HireMeButton } from "@/components/ui/HireMeButton";
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/resumes", label: "My Resumes", icon: FileText },
   { href: "/cover-letters", label: "My Cover Letters", icon: Mail },
   { href: "/inbox", label: "Job Inbox", icon: Inbox },
+  { href: "/extension", label: "Chrome Capture", icon: Puzzle },
   { href: "/scraper", label: "Canadian Jobs", icon: Search },
   { href: "/tracker", label: "Tracker", icon: Columns3 },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },

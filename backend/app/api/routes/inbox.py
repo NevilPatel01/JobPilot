@@ -1,4 +1,3 @@
-from datetime import date
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
@@ -23,10 +22,10 @@ from app.core.auth import get_current_user
 from app.core.database import async_session, get_db
 from app.agents.graph import run_generation_pipeline
 from app.jobs.pipeline.ingest import ingest_job
+from app.jobs.inbox_actions import mark_inbox_applied
 from app.jobs.pipeline.normalizer import normalize_job, normalize_raw_job
 from app.jobs.resume_templates import RESUME_CATEGORIES, ensure_resume_template, seed_resume_templates
 from app.jobs.scoring.service import rescore_user_inbox, score_inbox_job
-from app.models.application import UserApplication
 from app.models.job import Job
 from app.models.job_intelligence import InboxJob, JobFitScore, UserScoringPrefs
 from app.models.resume import ResumeDocument
@@ -297,31 +296,10 @@ async def update_inbox_status(
     db: AsyncSession = Depends(get_db),
 ):
     item = await _load_user_inbox(db, inbox_id, user.id)
-    if body.status == "applied" and not item.application_id:
-        salary = None
-        if item.job.salary_min or item.job.salary_max:
-            salary = f"${item.job.salary_min or '?'}-${item.job.salary_max or '?'} {item.job.salary_currency}"
-        application = UserApplication(
-            user_id=user.id,
-            job_id=item.job_id,
-            status="applied",
-            job_title=item.job.title,
-            company=item.job.company,
-            job_url=item.job.apply_url or item.job.url,
-            salary_range=salary,
-            date_applied=date.today(),
-        )
-        db.add(application)
-        await db.flush()
-        item.application_id = application.id
-        item.tracker_summary = "Applied"
-
-    if item.application_id and item.resume_id:
-        resume = await db.get(ResumeDocument, item.resume_id)
-        if resume:
-            resume.application_id = item.application_id
-
-    item.status = body.status
+    if body.status == "applied":
+        await mark_inbox_applied(db, item, user)
+    else:
+        item.status = body.status
     await db.commit()
     return _response(await _load_inbox(db, item.id))
 
