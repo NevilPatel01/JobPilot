@@ -158,6 +158,23 @@ class ApiKeyCreate(BaseModel):
     is_default: bool = False
 
 
+class ApiKeyProbe(BaseModel):
+    provider: str
+    api_key: str
+    base_url: str | None = None
+
+
+class ApiKeyModelsResponse(BaseModel):
+    chat_models: list[str]
+    embedding_models: list[str]
+
+
+class ApiKeyAutoSelectResponse(BaseModel):
+    model_name: str
+    embedding_model: str
+    reason: str
+
+
 class ApiKeyResponse(BaseModel):
     id: UUID
     provider: str

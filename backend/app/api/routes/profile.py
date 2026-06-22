@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +13,8 @@ from app.services.job_filters import apply_canada_filter
 from app.services.llm.client import get_user_llm_config
 from app.services.match_scorer import extract_skills, tfidf_score
 from app.services.rag.ingest import ingest_resume_content
-from app.services.resume.pdf_compiler import extract_pdf_text
-from app.services.resume.renderer import parse_pdf_text
+from app.services.resume.pdf_compiler import compile_latex_to_pdf, extract_pdf_text
+from app.services.resume.renderer import parse_pdf_text, render_resume_latex
 
 router = APIRouter()
 
@@ -98,6 +98,19 @@ async def upload_resume_pdf(
         "confidence": result.confidence,
         "section_counts": result.section_counts,
     }
+
+
+@router.get("/preview-pdf")
+async def preview_profile_pdf(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(UserProfileStructured).where(UserProfileStructured.user_id == user.id))
+    row = result.scalar_one_or_none()
+    content = row.content_json if row else empty_resume_content().model_dump()
+    latex = render_resume_latex(content)
+    try:
+        pdf_bytes = compile_latex_to_pdf(latex)
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"PDF compile failed: {exc}") from exc
+    return Response(content=pdf_bytes, media_type="application/pdf")
 
 
 @router.get("/match-scores", response_model=list[MatchScoreResponse])

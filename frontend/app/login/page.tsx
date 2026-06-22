@@ -1,12 +1,22 @@
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { Sparkles } from "lucide-react";
+import Link from "next/link";
+import { authDisabled, hasGithub, hasGoogle } from "@/lib/authFlags";
 
 export default function LoginPage() {
-  const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
-  const hasGoogle = !!process.env.NEXT_PUBLIC_HAS_GOOGLE;
-  const hasGithub = !!process.env.NEXT_PUBLIC_HAS_GITHUB;
+  const router = useRouter();
+  const { data: session, status } = useSession();
+  const noProviders = !hasGoogle && !hasGithub;
+
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      router.replace("/dashboard");
+    }
+  }, [status, session, router]);
 
   if (authDisabled) {
     return (
@@ -17,15 +27,13 @@ export default function LoginPage() {
           </div>
           <h1 className="mt-5 text-xl font-semibold text-white">Dev Mode</h1>
           <p className="mt-2 text-sm text-zinc-500">Authentication is disabled for local development.</p>
-          <a href="/" className="btn-primary mt-6 inline-flex w-full justify-center">
+          <Link href="/dashboard" className="btn-primary mt-6 inline-flex w-full justify-center">
             Continue to Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     );
   }
-
-  const noProviders = !hasGoogle && !hasGithub;
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -40,22 +48,28 @@ export default function LoginPage() {
 
         {noProviders ? (
           <p className="mt-8 text-center text-sm text-zinc-500">
-            Configure Google or GitHub OAuth in <code className="text-zinc-400">.env.local</code> to enable sign-in.
+            Configure GitHub OAuth in <code className="text-zinc-400">.env.local</code> to enable sign-in.
           </p>
         ) : (
           <div className="mt-8 space-y-3">
-            {hasGoogle && (
-              <button onClick={() => signIn("google", { callbackUrl: "/" })} className="btn-secondary w-full">
-                Sign in with Google
+            {hasGithub && (
+              <button onClick={() => signIn("github", { callbackUrl: "/dashboard" })} className="btn-primary w-full">
+                Sign in with GitHub
               </button>
             )}
-            {hasGithub && (
-              <button onClick={() => signIn("github", { callbackUrl: "/" })} className="btn-primary w-full">
-                Sign in with GitHub
+            {hasGoogle && (
+              <button onClick={() => signIn("google", { callbackUrl: "/dashboard" })} className="btn-secondary w-full">
+                Sign in with Google
               </button>
             )}
           </div>
         )}
+
+        <p className="mt-6 text-center text-xs text-zinc-600">
+          <Link href="/" className="hover:text-zinc-400">
+            ← Back to home
+          </Link>
+        </p>
       </div>
     </div>
   );

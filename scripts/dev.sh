@@ -10,9 +10,11 @@ PIDS=()
 cleanup() {
   echo ""
   echo "Shutting down..."
-  for pid in "${PIDS[@]}"; do
-    kill "$pid" 2>/dev/null || true
-  done
+  if ((${#PIDS[@]} > 0)); then
+    for pid in "${PIDS[@]}"; do
+      kill "$pid" 2>/dev/null || true
+    done
+  fi
   wait 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
@@ -61,10 +63,12 @@ if [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
   bun install --prefix "$ROOT_DIR/frontend"
 fi
 
-# Override Docker-internal hostnames for processes running on the host.
-export DATABASE_URL="${DATABASE_URL:-postgresql+asyncpg://jobpilot:password@localhost:5432/jobpilot}"
-export AUTH_DISABLED="${AUTH_DISABLED:-true}"
-export ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-http://localhost:3000}"
+# Backend/frontend run on the host; Postgres is in Docker on localhost:5432.
+# Always use localhost here — backend/.env.example uses the Docker service name
+# "postgres", which only resolves inside the compose network, not on your Mac.
+export DATABASE_URL="postgresql+asyncpg://jobpilot:password@localhost:5432/jobpilot"
+export AUTH_DISABLED="true"
+export ALLOWED_ORIGINS="http://localhost:3000"
 
 echo ""
 echo "Starting backend  → http://localhost:8000"

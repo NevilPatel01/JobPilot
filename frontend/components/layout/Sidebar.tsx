@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { HireMeButton } from "@/components/ui/HireMeButton";
 
 const navItems = [
-  { href: "/", label: "Home", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/profile", label: "User Profile", icon: User },
   { href: "/resumes", label: "My Resumes", icon: FileText },
   { href: "/cover-letters", label: "My Cover Letters", icon: Mail },
@@ -60,7 +60,7 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/" && pathname.startsWith(href));
+          const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
           return (
             <Link
               key={href}

@@ -1,9 +1,11 @@
 import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
+import { authDisabled, hasGithub, hasGoogle } from "@/lib/authFlags";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-export const authDisabled = process.env.AUTH_DISABLED === "true";
+export { authDisabled, hasGithub, hasGoogle };
 
 export const authOptions: NextAuthOptions = {
   providers: [

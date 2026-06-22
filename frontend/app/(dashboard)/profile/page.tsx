@@ -8,8 +8,7 @@ import type { ResumeContent as RC } from "@/types/resume";
 import { emptyResumeContent } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
-import { ResumePreviewFrame } from "@/components/resume/ResumePreviewFrame";
-import { renderResumeHtmlClient } from "@/lib/resumePreview";
+import { PdfPreviewPane } from "@/components/resume/PdfPreviewPane";
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -18,6 +17,25 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<"structured" | "legacy">("structured");
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  const refreshPdf = async () => {
+    setPdfLoading(true);
+    setPdfError(null);
+    try {
+      const blob = await api.getProfilePreviewPdf();
+      setPdfUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(blob);
+      });
+    } catch (e: unknown) {
+      setPdfError(e instanceof Error ? e.message : "PDF preview failed");
+    } finally {
+      setPdfLoading(false);
+    }
+  };
 
   useEffect(() => {
     api.getProfile().then((p) => {
@@ -27,6 +45,16 @@ export default function ProfilePage() {
     api.getStructuredProfile().then((p) => setContent(p.content)).catch(console.error);
   }, []);
 
+  useEffect(() => {
+    if (tab === "structured") {
+      refreshPdf().catch(console.error);
+    }
+    return () => {
+      if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, content]);
+
   const handleSaveStructured = async () => {
     setSaving(true);
     try {
@@ -35,6 +63,7 @@ export default function ProfilePage() {
       setProfile(p);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      await refreshPdf();
     } catch (e) {
       console.error(e);
     } finally {
@@ -75,10 +104,11 @@ export default function ProfilePage() {
               {saving ? "Saving..." : saved ? "Saved" : "Save Profile"}
             </button>
           </div>
-          <div className="glass-panel p-4">
-            <p className="text-xs uppercase tracking-widest text-indigo-400">Preview</p>
+          <div className="glass-panel flex flex-col p-4">
+            <p className="text-xs uppercase tracking-widest text-indigo-400">LaTeX PDF Preview</p>
+            <p className="mt-1 text-xs text-zinc-500">Compiled from your structured profile via Jake&apos;s Resume template.</p>
             <div className="mt-3 h-[600px]">
-              <ResumePreviewFrame html={renderResumeHtmlClient(content)} />
+              <PdfPreviewPane pdfUrl={pdfUrl} loading={pdfLoading} error={pdfError} />
             </div>
           </div>
         </div>

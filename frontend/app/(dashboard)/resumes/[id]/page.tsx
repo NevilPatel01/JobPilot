@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Download, Eye, EyeOff, MessageSquare, Check, X, RefreshCw, Loader2 } from "lucide-react";
+import { Download, MessageSquare, Check, X, RefreshCw, Loader2, Columns2, FileCode } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChatMessage, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
 import { PipelineProgressBar, PIPELINE_STEPS, type PipelineStepStatus } from "@/components/resume/PipelineProgressBar";
+import { LatexEditor } from "@/components/resume/LatexEditor";
+import { PdfPreviewPane } from "@/components/resume/PdfPreviewPane";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
 
@@ -39,7 +41,7 @@ export default function ResumeEditorPage() {
   const [resume, setResume] = useState<ResumeDocument | null>(null);
   const [content, setContent] = useState<ResumeContent | null>(null);
   const [latex, setLatex] = useState("");
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [previewMode, setPreviewMode] = useState<"split" | "source" | "preview">("split");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -166,7 +168,7 @@ export default function ResumeEditorPage() {
     };
   }, [pdfUrl]);
 
-  const refreshPdfPreview = async () => {
+  const refreshPdfPreview = useCallback(async () => {
     setPdfLoading(true);
     setPdfError(null);
     try {
@@ -180,13 +182,15 @@ export default function ResumeEditorPage() {
     } finally {
       setPdfLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
-    if (showPdfPreview && latexSaved) {
+    if (!latexSaved || !latex.trim()) return;
+    const timer = setTimeout(() => {
       refreshPdfPreview().catch(console.error);
-    }
-  }, [showPdfPreview, latexSaved, latex]);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [latexSaved, latex, refreshPdfPreview]);
 
   const sendChat = async () => {
     if (!chatInput.trim() || pendingChanges.length > 0) return;
@@ -244,7 +248,7 @@ export default function ResumeEditorPage() {
       setLatex(updated.latex_source || "");
       setLatexSaved(true);
       skipLatexSave.current = false;
-      if (showPdfPreview) await refreshPdfPreview();
+      if (previewMode !== "source") await refreshPdfPreview();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "LaTeX regeneration failed");
     } finally {
@@ -345,11 +349,25 @@ export default function ResumeEditorPage() {
             Apply with Resume
           </button>
           <button
-            onClick={() => setShowPdfPreview((v) => !v)}
-            className="btn-secondary text-xs"
+            type="button"
+            onClick={() => setPreviewMode("source")}
+            className={cn("btn-secondary text-xs", previewMode === "source" && "ring-1 ring-indigo-500/40")}
           >
-            {showPdfPreview ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-            {showPdfPreview ? "Hide PDF" : "PDF Preview"}
+            <FileCode className="h-3 w-3" /> Source
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreviewMode("split")}
+            className={cn("btn-secondary text-xs", previewMode === "split" && "ring-1 ring-indigo-500/40")}
+          >
+            <Columns2 className="h-3 w-3" /> Split
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreviewMode("preview")}
+            className={cn("btn-secondary text-xs", previewMode === "preview" && "ring-1 ring-indigo-500/40")}
+          >
+            PDF
           </button>
           <button onClick={exportPdf} className="btn-primary text-xs">
             <Download className="h-3 w-3" /> PDF
@@ -447,13 +465,13 @@ export default function ResumeEditorPage() {
           </div>
         </div>
 
-        {/* LaTeX + optional PDF preview */}
+        {/* LaTeX source + PDF preview */}
         <div className="flex flex-col overflow-hidden bg-zinc-900 p-4">
           <div className="mb-2 rounded-lg border border-indigo-500/30 bg-indigo-950/30 px-3 py-2 text-xs text-indigo-200">
-            LaTeX is generated from structured content. Edits here are used for PDF export.
+            LaTeX compiles to PDF via Tectonic — preview reflects the exact exported document.
           </div>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">LaTeX Source</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">LaTeX · PDF Preview</p>
             <button
               type="button"
               onClick={regenerateLatexFromContent}
@@ -464,25 +482,21 @@ export default function ResumeEditorPage() {
               Regenerate from content
             </button>
           </div>
-          <div className={cn("grid min-h-0 flex-1 gap-3", showPdfPreview ? "grid-cols-2" : "grid-cols-1")}>
-            <textarea
-              className="h-full w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-300"
-              value={latex}
-              onChange={(e) => setLatex(e.target.value)}
-              spellCheck={false}
-            />
-            {showPdfPreview && (
-              <div className="flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-white">
-                {pdfLoading && (
-                  <div className="flex flex-1 items-center justify-center text-xs text-zinc-500">Compiling PDF...</div>
-                )}
-                {!pdfLoading && pdfError && (
-                  <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-red-600">{pdfError}</div>
-                )}
-                {!pdfLoading && !pdfError && pdfUrl && (
-                  <iframe title="PDF preview" src={pdfUrl} className="h-full w-full" />
-                )}
+          <div
+            className={cn(
+              "grid min-h-0 flex-1 gap-3",
+              previewMode === "split" && "grid-cols-2",
+              previewMode === "source" && "grid-cols-1",
+              previewMode === "preview" && "grid-cols-1"
+            )}
+          >
+            {previewMode !== "preview" && (
+              <div className="h-full min-h-0 overflow-hidden rounded-lg border border-zinc-800">
+                <LatexEditor value={latex} onChange={setLatex} className="h-full text-xs" />
               </div>
+            )}
+            {previewMode !== "source" && (
+              <PdfPreviewPane pdfUrl={pdfUrl} loading={pdfLoading} error={pdfError} />
             )}
           </div>
         </div>

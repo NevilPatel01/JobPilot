@@ -156,6 +156,30 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  probeApiKeyModels: (data: { provider: string; api_key: string; base_url?: string }) =>
+    request<{ chat_models: string[]; embedding_models: string[] }>("/api/v1/settings/api-keys/models", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  autoSelectApiKeyModels: (data: { provider: string; api_key: string; base_url?: string }) =>
+    request<{ model_name: string; embedding_model: string; reason: string }>(
+      "/api/v1/settings/api-keys/auto-select",
+      { method: "POST", body: JSON.stringify(data) }
+    ),
+
+  getProfilePreviewPdf: async (): Promise<Blob> => {
+    const token = getAuthToken();
+    const res = await fetch(`${API_URL}/api/v1/profile/preview-pdf`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "PDF preview failed");
+    }
+    return res.blob();
+  },
+
   deleteApiKey: (id: string) =>
     request<{ ok: boolean }>(`/api/v1/settings/api-keys/${id}`, { method: "DELETE" }),
 

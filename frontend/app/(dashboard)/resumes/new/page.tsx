@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, ExternalLink, FileText, Upload, User } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CoverLetterMeta, ResumeContent } from "@/types/resume";
-import { emptyResumeContent } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { cn } from "@/lib/utils";
 
@@ -28,11 +27,6 @@ export default function CreateResumePage() {
   const [createCoverLetter, setCreateCoverLetter] = useState(false);
   const [coverMeta, setCoverMeta] = useState<CoverLetterMeta>({});
   const [creating, setCreating] = useState(false);
-  const [profileContent, setProfileContent] = useState<ResumeContent>(emptyResumeContent());
-
-  useEffect(() => {
-    api.getStructuredProfile().then((p) => setProfileContent(p.content)).catch(console.error);
-  }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

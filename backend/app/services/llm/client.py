@@ -41,7 +41,16 @@ async def get_user_llm_config(db: AsyncSession, user_id) -> LLMConfig | None:
     )
 
 
-def create_chat_model(config: LLMConfig, temperature: float = 0.3) -> ChatOpenAI:
+def create_chat_model(config: LLMConfig, temperature: float = 0.3):
+    if config.provider == "anthropic":
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(
+            api_key=config.api_key,
+            model=config.model_name,
+            temperature=temperature,
+        )
+
     kwargs: dict = {
         "api_key": config.api_key,
         "model": config.model_name,
@@ -63,6 +72,20 @@ def create_embeddings(config: LLMConfig) -> OpenAIEmbeddings:
 
 
 async def test_api_key(config: LLMConfig) -> bool:
+    if config.provider == "anthropic":
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                res = await client.get(
+                    "https://api.anthropic.com/v1/models",
+                    headers={
+                        "x-api-key": config.api_key,
+                        "anthropic-version": "2023-06-01",
+                    },
+                )
+                return res.status_code == 200
+        except Exception:
+            return False
+
     base = (config.base_url or "https://api.openai.com/v1").rstrip("/")
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
