@@ -7,7 +7,7 @@ from app.main import app
 
 def test_normalize_database_url_adds_asyncpg():
     raw = "postgresql://user:pass@host/db?sslmode=require"
-    assert normalize_database_url(raw) == "postgresql+asyncpg://user:pass@host/db?sslmode=require"
+    assert normalize_database_url(raw) == "postgresql+asyncpg://user:pass@host/db?ssl=require"
 
 
 def test_cron_scrape_requires_secret_configured(monkeypatch):
