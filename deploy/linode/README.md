@@ -172,10 +172,10 @@ ssh root@YOUR_LINODE_IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" < dep
 | `SECRET_KEY` | Same as server `backend/.env` |
 | `NEXTAUTH_SECRET` | Same as server `frontend/.env.local` |
 | `CRON_SECRET` | Same as server `backend/.env` (same value used by scrape workflow) |
-| `GITHUB_ID` | GitHub OAuth app Client ID |
-| `GITHUB_SECRET` | GitHub OAuth app Client Secret |
+| `CLIENT_ID` | GitHub OAuth app **Client ID** (repo variable or secret; `GITHUB_` prefix is reserved by Actions) |
+| `CLIENT_SECRET` | GitHub OAuth app **Client Secret** (use a **secret**, not a variable) |
 
-When `GITHUB_ID` and `GITHUB_SECRET` are set, the sync script automatically sets `AUTH_DISABLED=false` and rebuilds.
+When `CLIENT_ID` and `CLIENT_SECRET` are set, the sync script maps them to `GITHUB_ID` / `GITHUB_SECRET` on the server and enables auth.
 
 3. Push to `main` or run **Actions → Deploy (production) → Run workflow**.
 

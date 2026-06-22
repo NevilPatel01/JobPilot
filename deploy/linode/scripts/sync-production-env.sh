@@ -4,15 +4,20 @@
 #
 # Usage (on server):
 #   export PRODUCTION_URL=https://jobs.nevil.ca
-#   export GITHUB_ID=... GITHUB_SECRET=...
+#   export CLIENT_ID=... CLIENT_SECRET=...   # or GITHUB_ID / GITHUB_SECRET
 #   bash deploy/linode/scripts/sync-production-env.sh
 #
-# When GITHUB_ID and GITHUB_SECRET are both set, auth is enabled automatically.
+# GitHub Actions cannot use secret names starting with GITHUB_ — use CLIENT_ID / CLIENT_SECRET.
+# When OAuth credentials are present, auth is enabled automatically.
 set -euo pipefail
 
 APP_ROOT="${APP_ROOT:-/opt/jobpilot}"
 BACKEND_ENV="$APP_ROOT/backend/.env"
 FRONTEND_ENV="$APP_ROOT/frontend/.env.local"
+
+# Map GitHub Actions names (CLIENT_*) to app env names (GITHUB_*)
+if [[ -n "${CLIENT_ID:-}" ]]; then export GITHUB_ID="$CLIENT_ID"; fi
+if [[ -n "${CLIENT_SECRET:-}" ]]; then export GITHUB_SECRET="$CLIENT_SECRET"; fi
 
 set_env_var() {
   local file="$1" key="$2" value="$3"
