@@ -133,6 +133,9 @@ async function api(path, options = {}) {
     }
   });
   const payload = await response.json().catch(() => ({}));
+  if (response.status === 404 && path.startsWith("/api/v1/extension/")) {
+    throw new Error("Capture API not found. Deploy the latest JobPilot backend, then try again.");
+  }
   if (!response.ok) throw new Error(payload.detail || `JobPilot returned ${response.status}`);
   return payload;
 }

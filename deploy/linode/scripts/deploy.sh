@@ -10,6 +10,7 @@ git pull --ff-only
 cd "$APP_ROOT/backend"
 source .venv/bin/activate
 pip install -r requirements.txt
+alembic upgrade head
 deactivate
 
 cd "$APP_ROOT/frontend"

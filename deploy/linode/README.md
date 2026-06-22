@@ -153,6 +153,8 @@ cd /opt/jobpilot
 sudo bash deploy/linode/scripts/deploy.sh
 ```
 
+The deploy script pulls the latest code, installs backend dependencies, applies pending Alembic migrations, rebuilds the frontend, and restarts both services.
+
 ## Firewall (Linode Cloud Firewall)
 
 | Direction | Protocol | Port | Source |
