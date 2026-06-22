@@ -1,6 +1,6 @@
 # Job Intelligence + Capture — Implementation Plan
 
-> **Status:** Phases 1–3 implemented — Phase 4 Canadian source adapters are next
+> **Status:** Phases 1–5 implemented — Phase 6 company watchlist and board adapters are next
 > **Database:** PostgreSQL + pgvector (existing JobPilot stack). **No Supabase.**  
 > **Source repo:** [canada-tech-job-market-analysis-2026](https://github.com/NevilPatel01/canada-tech-job-market-analysis-2026)  
 > **Decisions:** [JOB_INTELLIGENCE_QUESTIONS.md](./JOB_INTELLIGENCE_QUESTIONS.md)

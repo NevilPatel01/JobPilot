@@ -24,11 +24,11 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       )}
       <main
         className={cn(
-          "min-h-screen px-8 py-8 transition-[margin-left] duration-300 ease-in-out",
+          "min-h-screen px-5 py-7 transition-[margin-left] duration-300 ease-in-out sm:px-8 sm:py-9",
           isOpen ? "ml-60" : "ml-0"
         )}
       >
-        <div className="mx-auto max-w-6xl">{children}</div>
+        <div className="mx-auto max-w-[1240px]">{children}</div>
       </main>
     </div>
   );

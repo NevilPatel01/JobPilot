@@ -57,19 +57,19 @@
 
 ### Phase 4 — Canadian Source Adapters
 
-- [ ] Port Job Bank, Adzuna, JSearch from old repo
-- [ ] Instance-level API keys in `.env` with graceful fallback + Source Settings UI
-- [ ] `job_sources` config, `scraper_runs` audit log
-- [ ] Role priority queue when rate-limited (IT Support → App Support → Cloud first)
-- [ ] Scheduler: 08:00 + optional 18:00 America/Toronto
-- [ ] Tests: source normalization fixtures
+- [x] Port Job Bank, Adzuna, JSearch from old repo
+- [x] Instance-level API keys in `.env` with graceful fallback + Source Settings UI
+- [x] `job_sources` config, `scraper_runs` audit log
+- [x] Role priority queue when rate-limited (IT Support → App Support → Cloud first)
+- [x] Scheduler: 08:00 + optional 18:00 America/Toronto
+- [x] Tests: source normalization fixtures
 
 ### Phase 5 — Chrome Extension
 
-- [ ] `extension/` — JobPilot Capture (MV3, unpacked dev)
-- [ ] Capture API endpoint (`X-API-Key`)
-- [ ] Extension setup page (`/extension`)
-- [ ] Tests: extension capture endpoint
+- [x] `extension/` — JobPilot Capture (MV3, unpacked dev)
+- [x] Capture API endpoint (`X-API-Key`)
+- [x] Extension setup page (`/extension`)
+- [x] Tests: extension capture endpoint
 
 ### Phase 6 — Company Watchlist + Boards
 

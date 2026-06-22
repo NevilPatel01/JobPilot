@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -12,7 +13,7 @@ import {
   BarChart3,
   MessageSquare,
   LogOut,
-  Sparkles,
+  Navigation,
   FileText,
   Mail,
   Settings,
@@ -48,19 +49,19 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl transition-transform duration-300 ease-in-out",
+        "fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-sidebar-border/80 bg-sidebar/95 backdrop-blur-xl transition-transform duration-300 ease-in-out",
         isOpen ? "translate-x-0" : "-translate-x-full"
       )}
     >
       <div className="border-b border-sidebar-border px-5 py-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/25">
-              <Sparkles className="h-4 w-4 text-primary" />
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-primary text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.2)]">
+              <Navigation className="h-4 w-4 fill-current" />
             </div>
             <div className="min-w-0">
-              <span className="text-base font-semibold tracking-tight text-sidebar-foreground">JobPilot</span>
-              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Job Search OS</p>
+              <span className="text-base font-semibold tracking-[-0.025em] text-sidebar-foreground">JobPilot</span>
+              <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Career workspace</p>
             </div>
           </div>
           <button
@@ -90,9 +91,9 @@ export function Sidebar() {
               key={href}
               href={href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                 active
-                  ? "bg-primary/12 text-primary shadow-sm ring-1 ring-primary/20"
+                  ? "bg-primary/10 text-primary ring-1 ring-primary/15 before:absolute before:-left-0.5 before:h-4 before:w-0.5 before:rounded-full before:bg-primary"
                   : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               )}
             >
@@ -109,7 +110,14 @@ export function Sidebar() {
         {session?.user ? (
           <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-2">
             {session.user.image && (
-              <img src={session.user.image} alt="" className="h-8 w-8 rounded-full ring-2 ring-border" />
+              <Image
+                src={session.user.image}
+                alt=""
+                width={32}
+                height={32}
+                unoptimized
+                className="h-8 w-8 rounded-full ring-2 ring-border"
+              />
             )}
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-foreground">{session.user.name}</p>
