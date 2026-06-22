@@ -132,7 +132,7 @@ jobs:
             cp -r public .next/standalone/public
             cp -r .next/static .next/standalone/.next/static
             systemctl restart jobpilot-api jobpilot-web
-            echo "Services restarted after env sync."
+            bash "$APP_ROOT/deploy/linode/scripts/wait-for-api-health.sh"
           else
             bash "$APP_ROOT/deploy/linode/scripts/deploy.sh"
           fi
@@ -140,8 +140,10 @@ jobs:
 
       - name: Verify health
         if: steps.check.outputs.skip != 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
-          if [[ -n "${{ secrets.PRODUCTION_URL }}" ]]; then
-            curl -fsS "${{ secrets.PRODUCTION_URL }}/api/v1/health"
-            echo ""
-          fi
+          set -euo pipefail
+          # Check via SSH on the server — public URL may return 403 from Cloudflare for GitHub Actions IPs.
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "root@${DEPLOY_HOST}" \
+            "bash /opt/jobpilot/deploy/linode/scripts/wait-for-api-health.sh"

@@ -26,12 +26,4 @@ cp -r .next/static .next/standalone/.next/static
 systemctl restart jobpilot-api jobpilot-web
 
 echo "Deploy complete."
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -sf "http://127.0.0.1:8000/api/v1/health" >/dev/null; then
-    echo " API healthy"
-    exit 0
-  fi
-  sleep 2
-done
-echo "Warning: API health check timed out" >&2
-exit 1
+bash "$APP_ROOT/deploy/linode/scripts/wait-for-api-health.sh"
