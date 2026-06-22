@@ -74,7 +74,7 @@ export function AddJobModal({ open, onClose, defaultStatus, onCreate }: AddJobMo
 
         <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto p-6">
           <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-            <label className="text-xs font-medium text-primary">Import from URL (Canada-eligible roles only)</label>
+            <label className="text-xs font-medium text-primary">Import any job from its listing URL</label>
             <div className="mt-2 flex gap-2">
               <input
                 type="url"

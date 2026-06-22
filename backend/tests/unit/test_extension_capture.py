@@ -9,7 +9,6 @@ from app.api.routes.extension import _capture_response, build_capture_job
 from app.api.schemas import ExtensionCaptureRequest
 from app.core.api_auth import get_user_from_api_token
 from app.models.job_intelligence import CapturedJob
-from app.services.location import is_canadian_job
 
 
 def capture_request(**overrides) -> ExtensionCaptureRequest:
@@ -49,10 +48,13 @@ def test_extension_capture_validates_required_url_and_action() -> None:
         capture_request(action="delete")
 
 
-def test_canada_eligibility_rejects_non_canadian_capture() -> None:
+def test_extension_capture_normalizes_non_canadian_job() -> None:
     body = capture_request(location="New York, NY", description="US only role")
+    job = build_capture_job(body)
 
-    assert is_canadian_job(body.location, body.description, body.title) is False
+    assert job.location == "New York, NY"
+    assert job.city == "New York"
+    assert job.province is None
 
 
 @pytest.mark.asyncio

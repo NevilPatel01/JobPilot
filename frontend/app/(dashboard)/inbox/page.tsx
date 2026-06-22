@@ -267,7 +267,18 @@ function InboxCard({ item, onStatus, onCategory, onGenerate, generating }: { ite
         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-muted/70 ring-1 ring-border/70"><BriefcaseBusiness className="h-5 w-5 text-primary" /></div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="font-semibold text-foreground">{job.title}</h2>
+            <h2 className="font-semibold text-foreground">
+              <a
+                href={job.apply_url || job.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 underline-offset-4 transition-colors hover:text-primary hover:underline"
+                title="Open original job listing"
+              >
+                {job.title}
+                <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+              </a>
+            </h2>
             <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary ring-1 ring-inset ring-primary/20">{STATUS_LABELS[item.status]}</span>
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">{job.company}</p>

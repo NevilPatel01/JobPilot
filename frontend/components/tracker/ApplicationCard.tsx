@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
+import { ArrowUpRight, GripVertical, Trash2 } from "lucide-react";
 import type { Application } from "@/types";
 import { KANBAN_COLUMNS } from "@/types";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,20 @@ export function ApplicationCard({ app, onUpdate, onDelete, isDragging }: Applica
           <GripVertical className="h-4 w-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium text-foreground">{app.job_title}</p>
+          {app.job_url ? (
+            <a
+              href={app.job_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex min-w-0 items-center gap-1 font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+              title="Open original job listing"
+            >
+              <span className="truncate">{app.job_title}</span>
+              <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+            </a>
+          ) : (
+            <p className="truncate font-medium text-foreground">{app.job_title}</p>
+          )}
           <p className="truncate text-sm text-muted-foreground">{app.company}</p>
           {app.salary_range && (
             <span className="mt-1.5 inline-block rounded-md bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400 ring-1 ring-amber-500/20">

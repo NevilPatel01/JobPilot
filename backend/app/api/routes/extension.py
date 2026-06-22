@@ -16,7 +16,6 @@ from app.jobs.pipeline.ingest import ingest_job
 from app.jobs.pipeline.normalizer import normalize_job
 from app.models.job_intelligence import CapturedJob, InboxJob
 from app.models.user import User
-from app.services.location import is_canadian_job
 
 router = APIRouter()
 
@@ -91,14 +90,6 @@ async def capture_job(
     )
     db.add(capture)
     await db.flush()
-
-    description = body.description or body.selected_text
-    if not is_canadian_job(body.location, description, body.title):
-        capture.status = "rejected"
-        capture.error = "Job does not appear to be Canada-eligible"
-        capture.processed_at = datetime.now(timezone.utc)
-        await db.commit()
-        raise HTTPException(status_code=422, detail=capture.error)
 
     normalized = build_capture_job(body)
     result = await ingest_job(db, normalized, user_id=user.id, captured_via="extension")

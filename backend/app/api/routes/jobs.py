@@ -13,7 +13,6 @@ from app.jobs.pipeline.ingest import ingest_job
 from app.jobs.pipeline.normalizer import normalize_raw_job
 from app.scrapers.url_importer import import_from_url
 from app.services.job_filters import apply_canada_filter
-from app.services.location import is_canadian_job
 from app.scrapers.base import RawJob
 
 router = APIRouter()
@@ -89,12 +88,6 @@ async def import_job_url(
         raw = await import_from_url(str(body.url))
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not load URL: {e}")
-
-    if not is_canadian_job(raw.location, raw.description, raw.title):
-        raise HTTPException(
-            status_code=422,
-            detail="This job does not appear to be a Canadian position. JobPilot only tracks Canada-eligible roles.",
-        )
 
     normalized = normalize_raw_job(raw, "url_import")
     result = await ingest_job(db, normalized, user_id=user.id, captured_via="url")

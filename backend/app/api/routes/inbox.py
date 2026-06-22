@@ -31,7 +31,6 @@ from app.models.job_intelligence import InboxJob, JobFitScore, UserScoringPrefs
 from app.models.resume import ResumeDocument
 from app.models.user import User
 from app.scrapers.url_importer import import_from_url
-from app.services.location import is_canadian_job
 from app.services.llm.client import get_user_llm_config
 from app.services.resume.renderer import render_resume_latex
 
@@ -127,9 +126,6 @@ async def import_url_to_inbox(
         raw = await import_from_url(str(body.url))
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Could not load URL: {exc}") from exc
-
-    if not is_canadian_job(raw.location, raw.description, raw.title):
-        raise HTTPException(status_code=422, detail="This job does not appear to be a Canadian position.")
 
     normalized = normalize_raw_job(raw, "url_import")
     result = await ingest_job(db, normalized, user_id=user.id, captured_via="url")
