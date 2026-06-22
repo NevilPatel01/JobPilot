@@ -26,7 +26,8 @@ JobPilot is a free, open-source job search platform: FastAPI backend + Next.js 1
 - Backend: async patterns, graceful scraper error handling, no blocking I/O in async routes
 - Frontend: use `frontend/lib/api.ts` for API calls, `"use client"` on interactive components
 - UI: zinc-950 canvas, zinc-900 panels, indigo-600 accent — match existing design system
-- Scrapers: inherit `JobSource` from `backend/app/scrapers/base.py`, register in `scraper_runner.py`
+- Scrapers: inherit `JobSource` from `backend/app/scrapers/base.py`, register in `scraper_runner.py` (migrating to `backend/app/jobs/sources/` — see `JOB_INTELLIGENCE_PLAN.md`)
+- Job Intelligence: inbox-first workflow; scraped jobs must not auto-create `user_applications`
 
 ## Do not
 

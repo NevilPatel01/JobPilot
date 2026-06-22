@@ -68,6 +68,19 @@ export interface ResumeDocument {
   create_cover_letter: boolean;
   cover_letter_meta: Record<string, string> | null;
   application_id: string | null;
+  job_id: string | null;
+  inbox_job_id: string | null;
+  resume_category: string | null;
+  why_this_version: {
+    category?: string;
+    category_source?: string;
+    category_confidence?: number | null;
+    matched_keywords?: string[];
+    missing_keywords?: string[];
+    fit_score?: number | null;
+    truthfulness?: string;
+    template_notes?: Record<string, unknown>;
+  } | null;
   cover_letter_id: string | null;
   pipeline_error?: string | null;
   last_step?: string | null;

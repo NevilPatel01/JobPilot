@@ -271,6 +271,20 @@ JobPilot/
 
 ---
 
+## Job Intelligence + Capture (v0.4 — Ready to Build)
+
+JobPilot is evolving into a **Canadian job acquisition engine** focused on AB, BC, ON, and SK: inbox-first workflow, weighted fit scoring for work-permit holders targeting PR, multi-source ingestion, Chrome extension capture, and application analytics tied to the AI resume builder.
+
+| Document | Purpose |
+|----------|---------|
+| [JOB_INTELLIGENCE_PLAN.md](JOB_INTELLIGENCE_PLAN.md) | Architecture, data models, phases |
+| [JOB_INTELLIGENCE_QUESTIONS.md](JOB_INTELLIGENCE_QUESTIONS.md) | Confirmed decisions record |
+| [ROADMAP.md](ROADMAP.md) | Version milestones |
+
+**Database:** PostgreSQL + pgvector only. **Ship order:** Inbox → Fit scoring → Resume from inbox → Canadian APIs → Extension → Watchlist → Gmail → Analytics.
+
+---
+
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md).

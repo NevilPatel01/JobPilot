@@ -1,11 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Save, Key, Trash2, Copy, Sparkles } from "lucide-react";
+import { Save, Key, Trash2, Copy, Sparkles, MapPinned } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ApiKeyConfig, ApiToken } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AUTO_MODEL, LLM_PRESETS, getProviderPreset } from "@/lib/llmPresets";
+import type { ScoringPreferences } from "@/types";
+
+const TARGET_PROVINCES = [
+  { code: "AB", label: "Alberta" },
+  { code: "BC", label: "British Columbia" },
+  { code: "ON", label: "Ontario" },
+  { code: "SK", label: "Saskatchewan" },
+];
 
 export default function SettingsPage() {
   const [keys, setKeys] = useState<ApiKeyConfig[]>([]);
@@ -23,12 +31,16 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [probing, setProbing] = useState(false);
+  const [scoringPrefs, setScoringPrefs] = useState<ScoringPreferences | null>(null);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+  const [prefsSaved, setPrefsSaved] = useState(false);
 
   const preset = getProviderPreset(provider);
 
   const load = () => {
     api.getApiKeys().then(setKeys).catch(console.error);
     api.getApiTokens().then(setTokens).catch(console.error);
+    api.getScoringPreferences().then(setScoringPrefs).catch(console.error);
   };
 
   useEffect(() => { load(); }, []);
@@ -126,6 +138,51 @@ export default function SettingsPage() {
     load();
   };
 
+  const toggleProvince = (code: string) => {
+    if (!scoringPrefs) return;
+    const selected = scoringPrefs.target_provinces.includes(code);
+    setScoringPrefs({
+      ...scoringPrefs,
+      target_provinces: selected
+        ? scoringPrefs.target_provinces.filter((province) => province !== code)
+        : [...scoringPrefs.target_provinces, code],
+    });
+  };
+
+  const saveScoringPreferences = async () => {
+    if (!scoringPrefs || scoringPrefs.target_provinces.length === 0) return;
+    setSavingPrefs(true);
+    try {
+      const saved = await api.updateScoringPreferences({
+        work_authorization: scoringPrefs.work_authorization,
+        target_provinces: scoringPrefs.target_provinces,
+        relocation_open: scoringPrefs.relocation_open,
+        threshold_overrides: scoringPrefs.threshold_overrides,
+      });
+      setScoringPrefs(saved);
+      setPrefsSaved(true);
+      window.setTimeout(() => setPrefsSaved(false), 2500);
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  const thresholdValue = (key: string, fallback: number) => scoringPrefs?.threshold_overrides?.[key] ?? fallback;
+
+  const updateThreshold = (key: string, value: number) => {
+    if (!scoringPrefs) return;
+    setScoringPrefs({
+      ...scoringPrefs,
+      threshold_overrides: {
+        low_max: thresholdValue("low_max", 39),
+        stretch_max: thresholdValue("stretch_max", 59),
+        reviewed_max: thresholdValue("reviewed_max", 74),
+        recommended_max: thresholdValue("recommended_max", 84),
+        [key]: value,
+      },
+    });
+  };
+
   return (
     <div>
       <PageHeader
@@ -134,6 +191,69 @@ export default function SettingsPage() {
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <div className="glass-panel p-6 lg:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 ring-1 ring-indigo-500/20">
+                <MapPinned className="h-4 w-4 text-indigo-400" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-white">Job fit preferences</h2>
+                <p className="mt-1 text-xs text-zinc-500">Used to prioritize Canadian opportunities with the strongest hiring and PR fit.</p>
+              </div>
+            </div>
+            <button onClick={saveScoringPreferences} disabled={savingPrefs || !scoringPrefs || scoringPrefs.target_provinces.length === 0} className="btn-primary">
+              <Save className="h-4 w-4" /> {savingPrefs ? "Saving..." : prefsSaved ? "Saved" : "Save preferences"}
+            </button>
+          </div>
+
+          {scoringPrefs ? (
+            <div className="mt-5 grid gap-5 md:grid-cols-[220px_1fr_auto]">
+              <label className="text-xs font-medium text-zinc-500">
+                Work authorization
+                <select className="input-field mt-2" value={scoringPrefs.work_authorization} onChange={(event) => setScoringPrefs({ ...scoringPrefs, work_authorization: event.target.value })}>
+                  <option value="work_permit">Work permit</option>
+                  <option value="permanent_resident">Permanent resident</option>
+                  <option value="citizen">Canadian citizen</option>
+                  <option value="requires_sponsorship">Requires sponsorship</option>
+                </select>
+              </label>
+              <div>
+                <p className="text-xs font-medium text-zinc-500">Target provinces</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {TARGET_PROVINCES.map((province) => {
+                    const selected = scoringPrefs.target_provinces.includes(province.code);
+                    return <button key={province.code} type="button" onClick={() => toggleProvince(province.code)} className={`rounded-lg border px-3 py-2 text-sm transition ${selected ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-200" : "border-zinc-800 bg-zinc-950/50 text-zinc-500 hover:border-zinc-700"}`}><span className="font-semibold">{province.code}</span><span className="ml-1.5 text-xs opacity-70">{province.label}</span></button>;
+                  })}
+                </div>
+              </div>
+              <label className="flex items-center gap-3 self-end rounded-lg border border-zinc-800 bg-zinc-950/50 px-4 py-2.5 text-sm text-zinc-400">
+                <input type="checkbox" checked={scoringPrefs.relocation_open} onChange={(event) => setScoringPrefs({ ...scoringPrefs, relocation_open: event.target.checked })} className="h-4 w-4 accent-indigo-500" />
+                Open to relocation
+              </label>
+              <div className="md:col-span-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-medium text-zinc-500">Fit score upper bounds</p>
+                  <button type="button" className="text-xs text-zinc-600 transition hover:text-zinc-300" onClick={() => setScoringPrefs({ ...scoringPrefs, threshold_overrides: null })}>Reset defaults</button>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {[
+                    ["low_max", "Low", 39],
+                    ["stretch_max", "Stretch", 59],
+                    ["reviewed_max", "Reviewed", 74],
+                    ["recommended_max", "Recommended", 84],
+                  ].map(([key, label, fallback]) => (
+                    <label key={String(key)} className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-500">
+                      {label}
+                      <input type="number" min="0" max="99" className="mt-1 w-full bg-transparent text-base font-semibold text-zinc-200 outline-none" value={thresholdValue(String(key), Number(fallback))} onChange={(event) => updateThreshold(String(key), Number(event.target.value))} />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : <p className="mt-5 text-sm text-zinc-600">Loading preferences...</p>}
+        </div>
+
         <div className="glass-panel p-6">
           <div className="flex items-center gap-2">
             <Key className="h-4 w-4 text-indigo-400" />

@@ -33,3 +33,6 @@ class User(Base):
     api_tokens = relationship("UserApiToken", back_populates="user", cascade="all, delete-orphan")
     resumes = relationship("ResumeDocument", back_populates="user", cascade="all, delete-orphan")
     cover_letters = relationship("CoverLetterDocument", back_populates="user", cascade="all, delete-orphan")
+    inbox_jobs = relationship("InboxJob", cascade="all, delete-orphan")
+    scoring_prefs = relationship("UserScoringPrefs", uselist=False, cascade="all, delete-orphan")
+    resume_category_templates = relationship("ResumeCategoryTemplate", cascade="all, delete-orphan")

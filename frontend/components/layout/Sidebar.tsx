@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Search,
+  Inbox,
   Columns3,
   User,
   BarChart3,
@@ -25,6 +26,7 @@ const navItems = [
   { href: "/profile", label: "User Profile", icon: User },
   { href: "/resumes", label: "My Resumes", icon: FileText },
   { href: "/cover-letters", label: "My Cover Letters", icon: Mail },
+  { href: "/inbox", label: "Job Inbox", icon: Inbox },
   { href: "/scraper", label: "Canadian Jobs", icon: Search },
   { href: "/tracker", label: "Tracker", icon: Columns3 },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },

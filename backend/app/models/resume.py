@@ -25,6 +25,14 @@ class ResumeDocument(Base):
     application_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("user_applications.id", ondelete="SET NULL")
     )
+    job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("jobs.id", ondelete="SET NULL"), index=True
+    )
+    inbox_job_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("inbox_jobs.id", ondelete="SET NULL"), index=True
+    )
+    resume_category: Mapped[str | None] = mapped_column(String(50))
+    why_this_version: Mapped[dict | None] = mapped_column(JSONB)
     create_cover_letter: Mapped[bool] = mapped_column(Boolean, default=False)
     cover_letter_meta: Mapped[dict | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

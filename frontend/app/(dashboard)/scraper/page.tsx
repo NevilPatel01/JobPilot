@@ -16,7 +16,7 @@ export default function ScraperPage() {
   const [search, setSearch] = useState("");
   const [source, setSource] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [trackingId, setTrackingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -64,15 +64,15 @@ export default function ScraperPage() {
     }
   };
 
-  const handleTrack = async (jobId: string) => {
-    setTrackingId(jobId);
+  const handleSave = async (jobId: string) => {
+    setSavingId(jobId);
     try {
-      await api.quickSaveJob(jobId);
-      setToast("Added to tracker");
+      await api.saveJobToInbox(jobId);
+      setToast("Added to Job Inbox");
     } catch (e) {
-      setToast(e instanceof Error ? e.message : "Failed to track job");
+      setToast(e instanceof Error ? e.message : "Failed to save job");
     } finally {
-      setTrackingId(null);
+      setSavingId(null);
       setTimeout(() => setToast(null), 3000);
     }
   };
@@ -137,8 +137,8 @@ export default function ScraperPage() {
                 job={job}
                 matchScore={match?.score}
                 matchedKeywords={match?.matched_keywords}
-                onTrack={handleTrack}
-                tracking={trackingId === job.id}
+                onSave={handleSave}
+                saving={savingId === job.id}
               />
             );
           })}

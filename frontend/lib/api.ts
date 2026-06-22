@@ -60,6 +60,60 @@ export const api = {
       body: JSON.stringify({ url }),
     }),
 
+  getInbox: (params?: Record<string, string>) => {
+    const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+    return request<{ items: import("@/types").InboxJob[]; total: number; page: number; limit: number }>(
+      `/api/v1/inbox${qs}`
+    );
+  },
+
+  addInboxJob: (data: import("@/types").InboxManualCreate) =>
+    request<import("@/types").InboxJob>("/api/v1/inbox/manual", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  saveJobToInbox: (jobId: string) =>
+    request<import("@/types").InboxJob>(`/api/v1/inbox/jobs/${jobId}`, { method: "POST" }),
+
+  importInboxUrl: (url: string) =>
+    request<import("@/types").InboxJob>("/api/v1/inbox/import-url", {
+      method: "POST",
+      body: JSON.stringify({ url }),
+    }),
+
+  updateInboxStatus: (id: string, status: import("@/types").InboxStatus) =>
+    request<import("@/types").InboxJob>(`/api/v1/inbox/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  rescoreInbox: () => request<{ scored: number }>("/api/v1/inbox/rescore", { method: "POST" }),
+
+  rescoreInboxJob: (id: string) =>
+    request<import("@/types").InboxJob>(`/api/v1/inbox/${id}/rescore`, { method: "POST" }),
+
+  updateInboxResumeCategory: (id: string, category: string | null) =>
+    request<import("@/types").InboxJob>(`/api/v1/inbox/${id}/resume-category`, {
+      method: "PATCH",
+      body: JSON.stringify({ category }),
+    }),
+
+  generateInboxResume: (id: string, data: { category?: string; create_cover_letter?: boolean } = {}) =>
+    request<{ resume_id: string; status: string; inbox_status: string; category: string; existing: boolean }>(
+      `/api/v1/inbox/${id}/generate-resume`,
+      { method: "POST", body: JSON.stringify(data) }
+    ),
+
+  getScoringPreferences: () =>
+    request<import("@/types").ScoringPreferences>("/api/v1/inbox/preferences"),
+
+  updateScoringPreferences: (data: Pick<import("@/types").ScoringPreferences, "work_authorization" | "target_provinces" | "relocation_open" | "threshold_overrides">) =>
+    request<import("@/types").ScoringPreferences>("/api/v1/inbox/preferences", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
   triggerScraper: () =>
     request<{ new_jobs: number; message: string }>("/api/v1/scraper/trigger", { method: "POST" }),
 

@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 
-from app.api.routes import analytics, applications, auth, cover_letters, documents_api, jobs, profile, resumes, scraper
+from app.api.routes import analytics, applications, auth, cover_letters, documents_api, inbox, jobs, profile, resumes, scraper
 from app.api.routes import settings as settings_routes
 from app.api.schemas import HealthResponse
 from app.core.config import settings
@@ -97,6 +97,7 @@ app.add_middleware(
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["jobs"])
+app.include_router(inbox.router, prefix="/api/v1/inbox", tags=["inbox"])
 app.include_router(applications.router, prefix="/api/v1/applications", tags=["applications"])
 app.include_router(scraper.router, prefix="/api/v1/scraper", tags=["scraper"])
 app.include_router(profile.router, prefix="/api/v1/profile", tags=["profile"])

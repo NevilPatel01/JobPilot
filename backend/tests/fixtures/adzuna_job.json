@@ -1,0 +1,11 @@
+{
+  "id": "adz-123",
+  "title": "Application Support Analyst",
+  "company": {"display_name": "Example Financial"},
+  "location": {"display_name": "Toronto, Ontario, Canada", "area": ["Canada", "Ontario", "Toronto"]},
+  "description": "Support production applications using SQL and ServiceNow in a hybrid environment.",
+  "salary_min": 72000,
+  "salary_max": 88000,
+  "created": "2026-06-20T14:30:00Z",
+  "redirect_url": "https://example.com/jobs/adz-123?utm_source=adzuna"
+}

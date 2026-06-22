@@ -9,8 +9,9 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models.job import Job
 from app.models.user import User
+from app.jobs.pipeline.ingest import ingest_job
+from app.jobs.pipeline.normalizer import normalize_raw_job
 from app.scrapers.url_importer import import_from_url
-from app.services.dedup import upsert_jobs
 from app.services.job_filters import apply_canada_filter
 from app.services.location import is_canadian_job
 from app.scrapers.base import RawJob
@@ -85,7 +86,7 @@ async def import_job_url(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        raw = await import_from_url(body.url)
+        raw = await import_from_url(str(body.url))
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"Could not load URL: {e}")
 
@@ -95,9 +96,8 @@ async def import_job_url(
             detail="This job does not appear to be a Canadian position. JobPilot only tracks Canada-eligible roles.",
         )
 
-    await upsert_jobs(db, [raw], "custom")
-    result = await db.execute(select(Job).where(Job.url == body.url))
-    job = result.scalar_one_or_none()
-    if not job:
-        raise HTTPException(status_code=500, detail="Failed to save imported job")
-    return JobResponse.model_validate(job)
+    normalized = normalize_raw_job(raw, "url_import")
+    result = await ingest_job(db, normalized, user_id=user.id, captured_via="url")
+    await db.commit()
+    await db.refresh(result.job)
+    return JobResponse.model_validate(result.job)

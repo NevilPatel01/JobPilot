@@ -63,6 +63,15 @@ if [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
   bun install --prefix "$ROOT_DIR/frontend"
 fi
 
+# --- Tectonic (LaTeX → PDF) ---
+echo "Ensuring Tectonic is available for PDF preview..."
+"$ROOT_DIR/scripts/ensure-tectonic.sh"
+if command -v tectonic >/dev/null 2>&1; then
+  export TECTONIC_PATH="$(command -v tectonic)"
+elif [[ -x "$ROOT_DIR/backend/.bin/tectonic" ]]; then
+  export TECTONIC_PATH="$ROOT_DIR/backend/.bin/tectonic"
+fi
+
 # Backend/frontend run on the host; Postgres is in Docker on localhost:5432.
 # Always use localhost here — backend/.env.example uses the Docker service name
 # "postgres", which only resolves inside the compose network, not on your Mac.

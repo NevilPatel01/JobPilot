@@ -1,0 +1,17 @@
+{
+  "job_id": "js-456",
+  "job_title": "Cloud Support Technician",
+  "employer_name": "Example Cloud",
+  "job_city": "Calgary",
+  "job_state": "Alberta",
+  "job_country": "CA",
+  "job_description": "Remote cloud support role using Azure, Linux, and Docker.",
+  "job_is_remote": true,
+  "job_employment_type": "FULLTIME",
+  "job_salary_currency": "CAD",
+  "job_salary_period": "HOUR",
+  "job_min_salary": 32,
+  "job_max_salary": 40,
+  "job_posted_at_datetime_utc": "2026-06-19T10:00:00Z",
+  "job_apply_link": "https://example.com/jobs/js-456"
+}

@@ -9,8 +9,8 @@ interface JobCardProps {
   job: Job;
   matchScore?: number;
   matchedKeywords?: string[];
-  onTrack: (jobId: string) => void;
-  tracking?: boolean;
+  onSave: (jobId: string) => void;
+  saving?: boolean;
 }
 
 const sourceColors: Record<string, string> = {
@@ -20,7 +20,7 @@ const sourceColors: Record<string, string> = {
   custom: "bg-zinc-500/10 text-zinc-400 ring-zinc-500/20",
 };
 
-export function JobCard({ job, matchScore, matchedKeywords, onTrack, tracking }: JobCardProps) {
+export function JobCard({ job, matchScore, matchedKeywords, onSave, saving }: JobCardProps) {
   const verifiedDays = daysSince(job.last_verified);
   const preview = job.description ? stripHtml(job.description).slice(0, 160) : null;
 
@@ -73,9 +73,9 @@ export function JobCard({ job, matchScore, matchedKeywords, onTrack, tracking }:
               <ExternalLink className="h-3.5 w-3.5" />
               View Job
             </a>
-            <button onClick={() => onTrack(job.id)} disabled={tracking} className="btn-primary py-1.5 text-xs">
+            <button onClick={() => onSave(job.id)} disabled={saving} className="btn-primary py-1.5 text-xs">
               <BookmarkPlus className="h-3.5 w-3.5" />
-              Track
+              Save to Inbox
             </button>
           </div>
         </div>

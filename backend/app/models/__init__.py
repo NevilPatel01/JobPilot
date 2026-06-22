@@ -3,6 +3,14 @@ from app.models.application import UserApplication
 from app.models.community import CommunityChannel, CommunityPost
 from app.models.cover_letter import CoverLetterChatMessage, CoverLetterDocument, CoverLetterPendingChange
 from app.models.job import Job
+from app.models.job_intelligence import (
+    InboxJob,
+    JobFitScore,
+    JobSourceConfig,
+    ResumeCategoryTemplate,
+    ScraperRun,
+    UserScoringPrefs,
+)
 from app.models.notification import Notification
 from app.models.profile_structured import UserProfileStructured
 from app.models.rag_chunk import DocumentChunk
@@ -11,6 +19,12 @@ from app.models.user import User
 
 __all__ = [
     "Job",
+    "InboxJob",
+    "JobFitScore",
+    "ResumeCategoryTemplate",
+    "JobSourceConfig",
+    "ScraperRun",
+    "UserScoringPrefs",
     "User",
     "UserApplication",
     "CommunityChannel",

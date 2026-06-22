@@ -14,6 +14,7 @@ from app.core.pipeline_logging import log_pipeline_event, log_pipeline_step
 from app.services.webhook import dispatch_pipeline_webhook, get_stored_webhook_url
 from app.models.cover_letter import CoverLetterDocument
 from app.models.resume import AgentRun, ATSScore, ResumeDocument
+from app.models.job_intelligence import InboxJob
 from app.schemas.resume_content import CoverLetterContent, ResumeContent, resume_to_text
 from app.scrapers.company_researcher import research_company
 from app.services.llm.client import create_chat_model, get_user_llm_config
@@ -197,7 +198,8 @@ async def tailor_resume(state: PipelineState, db: AsyncSession) -> PipelineState
     company = state.get("company_research", {}).get("summary", "")
 
     prompt = f"""Tailor this resume JSON for the target job. Return ONLY valid JSON matching the same schema.
-Improve bullet points with metrics and keywords from the JD. Do not invent employers or degrees.
+Reorder and rephrase existing content for relevance. Preserve every factual claim and numeric value exactly.
+Do not add skills, tools, metrics, responsibilities, employers, titles, projects, education, or dates that are absent from the source resume.
 
 Current resume:
 {content.model_dump_json()}
@@ -429,6 +431,12 @@ async def run_generation_pipeline(
         }
         resume.insights_json.pop("pipeline_error", None)
         resume.status = "completed"
+
+        if resume.inbox_job_id:
+            inbox_job = await db.get(InboxJob, resume.inbox_job_id)
+            if inbox_job:
+                inbox_job.resume_id = resume.id
+                inbox_job.status = "resume_ready"
 
         if state.get("cover_letter_content"):
             await _persist_cover_letter(db, resume, state["cover_letter_content"])

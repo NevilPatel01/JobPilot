@@ -15,6 +15,81 @@ export interface Job {
   first_seen: string;
   last_verified: string;
   is_active: boolean;
+  province: string | null;
+  city: string | null;
+  remote_type: string | null;
+  job_type: string | null;
+  requirements: string[] | null;
+  skills: string[] | null;
+  seniority: string | null;
+  experience_min: number | null;
+  experience_max: number | null;
+  apply_url: string | null;
+  posted_date: string | null;
+  closing_date: string | null;
+}
+
+export type InboxStatus =
+  | "new"
+  | "ai_reviewed"
+  | "shortlisted"
+  | "resume_ready"
+  | "applied"
+  | "archived"
+  | "duplicate";
+
+export interface InboxJob {
+  id: string;
+  user_id: string;
+  status: InboxStatus;
+  captured_via: string;
+  ai_recommended_category: string | null;
+  user_selected_category: string | null;
+  tracker_summary: string | null;
+  application_id: string | null;
+  fit_score_id: string | null;
+  resume_id: string | null;
+  duplicate_of_id: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  job: Job;
+  fit_score: JobFitScore | null;
+}
+
+export interface JobFitScore {
+  id: string;
+  score: number;
+  label: "low" | "stretch" | "reviewed" | "recommended" | "priority";
+  signals: Record<string, { points: number; max: number; detail: string }>;
+  matched_skills: string[];
+  missing_skills: string[];
+  risk_flags: string[];
+  recommended_action: string;
+  explanation: string;
+  recommended_category: string | null;
+  category_confidence: number | null;
+  scored_at: string;
+  updated_at: string;
+}
+
+export interface InboxManualCreate {
+  title: string;
+  company: string;
+  apply_url: string;
+  description?: string;
+  location?: string;
+  skills?: string[];
+}
+
+export interface ScoringPreferences {
+  user_id: string;
+  work_authorization: string;
+  target_provinces: string[];
+  relocation_open: boolean;
+  threshold_overrides: Record<string, number> | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Application {

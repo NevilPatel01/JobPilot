@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Download, MessageSquare, Check, X, RefreshCw, Loader2, Columns2, FileCode } from "lucide-react";
+import { Download, MessageSquare, Check, X, RefreshCw, Loader2, Columns2, FileCode, Target, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ChatMessage, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
@@ -283,6 +283,26 @@ export default function ResumeEditorPage() {
     }
   };
 
+  const applyWithResume = async () => {
+    try {
+      if (resume?.inbox_job_id) {
+        await api.updateInboxStatus(resume.inbox_job_id, "applied");
+      } else {
+        const app = await api.createApplication({
+          job_title: resume?.title,
+          company: resume?.company_name || "Unknown",
+          job_url: resume?.company_url || undefined,
+          status: "to_apply",
+          notes: `Resume: ${resume?.id}`,
+        });
+        await api.updateResume(id, { application_id: app.id });
+      }
+      window.location.href = "/tracker";
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not add application to Tracker");
+    }
+  };
+
   if (!resume || !content) {
     return <div className="flex h-full items-center justify-center text-zinc-500">Loading editor...</div>;
   }
@@ -333,17 +353,7 @@ export default function ResumeEditorPage() {
           )}
           <Link href={`/resumes/${id}/review`} className="btn-secondary text-xs">ATS Review</Link>
           <button
-            onClick={async () => {
-              const app = await api.createApplication({
-                job_title: resume.title,
-                company: resume.company_name || "Unknown",
-                job_url: resume.company_url || undefined,
-                status: "to_apply",
-                notes: `Resume: ${resume.id}`,
-              });
-              await api.updateResume(id, { application_id: app.id });
-              window.location.href = "/tracker";
-            }}
+            onClick={applyWithResume}
             className="btn-secondary text-xs"
           >
             Apply with Resume
@@ -400,6 +410,20 @@ export default function ResumeEditorPage() {
               <MessageSquare className="mb-2 h-4 w-4 text-indigo-400" />
               I&apos;ve tailored your resume for <strong>{resume.title}</strong>. Ask me to edit bullets, sections, or tone.
             </div>
+
+            {resume.why_this_version && (
+              <details open className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3 text-xs text-zinc-400">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-indigo-200">
+                  <Target className="h-3.5 w-3.5" /> Why this resume version
+                </summary>
+                <div className="mt-3 space-y-2">
+                  <p><span className="text-zinc-500">Category:</span> <span className="text-zinc-200">{resume.resume_category?.replaceAll("_", " ")}</span>{resume.why_this_version.fit_score != null ? ` · Fit ${resume.why_this_version.fit_score}` : ""}</p>
+                  {resume.why_this_version.matched_keywords?.length ? <div><p className="text-zinc-500">Matched keywords</p><div className="mt-1 flex flex-wrap gap-1">{resume.why_this_version.matched_keywords.map((keyword) => <span key={keyword} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">{keyword}</span>)}</div></div> : null}
+                  {resume.why_this_version.missing_keywords?.length ? <div><p className="text-zinc-500">Job-description gaps</p><div className="mt-1 flex flex-wrap gap-1">{resume.why_this_version.missing_keywords.map((keyword) => <span key={keyword} className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-500">{keyword}</span>)}</div></div> : null}
+                  <p className="flex gap-1.5 border-t border-zinc-800 pt-2 text-[11px] text-zinc-500"><ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />{resume.why_this_version.truthfulness}</p>
+                </div>
+              </details>
+            )}
 
             {insights.tailoring_insights && insights.tailoring_insights.length > 0 && (
               <details className="rounded-lg border border-zinc-800 p-2 text-xs text-zinc-400">
