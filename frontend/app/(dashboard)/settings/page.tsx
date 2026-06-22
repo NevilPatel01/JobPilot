@@ -1,15 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Save, Key, Trash2, Copy } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Save, Key, Trash2, Copy, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ApiKeyConfig, ApiToken } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
-
-const PROVIDERS = [
-  { id: "openai", label: "OpenAI", defaultModel: "gpt-4o-mini", defaultEmbedding: "text-embedding-3-small" },
-  { id: "custom", label: "Custom (OpenAI-compatible)", defaultModel: "gpt-4o-mini", defaultEmbedding: "text-embedding-3-small" },
-];
+import { AUTO_MODEL, LLM_PRESETS, getProviderPreset } from "@/lib/llmPresets";
 
 export default function SettingsPage() {
   const [keys, setKeys] = useState<ApiKeyConfig[]>([]);
@@ -17,12 +13,18 @@ export default function SettingsPage() {
   const [provider, setProvider] = useState("openai");
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
-  const [modelName, setModelName] = useState("gpt-4o-mini");
-  const [embeddingModel, setEmbeddingModel] = useState("text-embedding-3-small");
+  const [modelName, setModelName] = useState(AUTO_MODEL);
+  const [embeddingModel, setEmbeddingModel] = useState(AUTO_MODEL);
+  const [fetchedChatModels, setFetchedChatModels] = useState<string[]>([]);
+  const [fetchedEmbedModels, setFetchedEmbedModels] = useState<string[]>([]);
+  const [autoReason, setAutoReason] = useState<string | null>(null);
   const [tokenName, setTokenName] = useState("");
   const [newToken, setNewToken] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [probing, setProbing] = useState(false);
+
+  const preset = getProviderPreset(provider);
 
   const load = () => {
     api.getApiKeys().then(setKeys).catch(console.error);
@@ -30,6 +32,52 @@ export default function SettingsPage() {
   };
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    setModelName(AUTO_MODEL);
+    setEmbeddingModel(AUTO_MODEL);
+    setFetchedChatModels([]);
+    setFetchedEmbedModels([]);
+    setAutoReason(null);
+  }, [provider]);
+
+  const probeModels = useCallback(async () => {
+    if (!apiKey) return;
+    setProbing(true);
+    try {
+      const models = await api.probeApiKeyModels({ provider, api_key: apiKey, base_url: baseUrl || undefined });
+      setFetchedChatModels(models.chat_models);
+      setFetchedEmbedModels(models.embedding_models);
+      const auto = await api.autoSelectApiKeyModels({ provider, api_key: apiKey, base_url: baseUrl || undefined });
+      setAutoReason(auto.reason);
+    } catch {
+      setFetchedChatModels([]);
+      setFetchedEmbedModels([]);
+      setAutoReason(null);
+    } finally {
+      setProbing(false);
+    }
+  }, [apiKey, baseUrl, provider]);
+
+  useEffect(() => {
+    if (!apiKey || apiKey.length < 8) return;
+    const timer = setTimeout(() => { probeModels().catch(console.error); }, 600);
+    return () => clearTimeout(timer);
+  }, [apiKey, baseUrl, provider, probeModels]);
+
+  const chatOptions = [
+    ...preset.models,
+    ...fetchedChatModels
+      .filter((m) => !preset.models.some((p) => p.id === m))
+      .map((m) => ({ id: m, label: m })),
+  ];
+
+  const embedOptions = [
+    ...preset.embeddings,
+    ...fetchedEmbedModels
+      .filter((m) => !preset.embeddings.some((p) => p.id === m))
+      .map((m) => ({ id: m, label: m })),
+  ];
 
   const saveKey = async () => {
     if (!apiKey) return;
@@ -44,6 +92,7 @@ export default function SettingsPage() {
         is_default: true,
       });
       setApiKey("");
+      setAutoReason(null);
       load();
     } finally {
       setSaving(false);
@@ -54,7 +103,13 @@ export default function SettingsPage() {
     if (!apiKey) return;
     setTesting(true);
     try {
-      await api.testApiKey({ provider, api_key: apiKey, base_url: baseUrl || undefined, model_name: modelName, embedding_model: embeddingModel });
+      await api.testApiKey({
+        provider,
+        api_key: apiKey,
+        base_url: baseUrl || undefined,
+        model_name: modelName,
+        embedding_model: embeddingModel,
+      });
       alert("API key is valid!");
     } catch {
       alert("API key validation failed");
@@ -88,14 +143,33 @@ export default function SettingsPage() {
 
           <div className="mt-4 space-y-3">
             <select className="input-field" value={provider} onChange={(e) => setProvider(e.target.value)}>
-              {PROVIDERS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              {LLM_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
             </select>
             <input className="input-field" type="password" placeholder="API Key" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
             {provider === "custom" && (
               <input className="input-field" placeholder="Base URL (e.g. https://api.groq.com/openai/v1)" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
             )}
-            <input className="input-field" placeholder="Model name" value={modelName} onChange={(e) => setModelName(e.target.value)} />
-            <input className="input-field" placeholder="Embedding model" value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)} />
+            <div>
+              <label className="mb-1 block text-xs text-zinc-500">Chat model</label>
+              <select className="input-field" value={modelName} onChange={(e) => setModelName(e.target.value)} disabled={probing}>
+                {chatOptions.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-zinc-500">Embedding model</label>
+              <select className="input-field" value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)} disabled={probing}>
+                {embedOptions.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+              </select>
+            </div>
+            {probing && (
+              <p className="text-xs text-zinc-500">Detecting available models...</p>
+            )}
+            {autoReason && (modelName === AUTO_MODEL || embeddingModel === AUTO_MODEL) && (
+              <p className="flex items-start gap-1.5 text-xs text-indigo-300">
+                <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
+                {autoReason}
+              </p>
+            )}
             <div className="flex gap-2">
               <button onClick={testKey} disabled={testing || !apiKey} className="btn-secondary flex-1">{testing ? "Testing..." : "Test Key"}</button>
               <button onClick={saveKey} disabled={saving || !apiKey} className="btn-primary flex-1">
