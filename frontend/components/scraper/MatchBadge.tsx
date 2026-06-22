@@ -2,7 +2,11 @@ import { cn } from "@/lib/utils";
 
 export function MatchBadge({ score, keywords }: { score: number; keywords?: string[] }) {
   const color =
-    score >= 60 ? "bg-indigo-600/20 text-indigo-400" : score >= 30 ? "bg-amber-500/20 text-amber-500" : "bg-red-500/20 text-red-500";
+    score >= 60
+      ? "bg-primary/15 text-primary"
+      : score >= 30
+        ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+        : "bg-red-500/15 text-red-700 dark:text-red-400";
 
   return (
     <span

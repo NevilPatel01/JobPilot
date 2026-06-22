@@ -149,20 +149,20 @@ export default function CoverLetterEditorPage() {
   };
 
   if (!letter || !content) {
-    return <div className="flex h-full items-center justify-center text-zinc-500">Loading editor...</div>;
+    return <div className="flex h-full items-center justify-center text-muted-foreground">Loading editor...</div>;
   }
 
   const jdAnalysis = (linkedResume?.insights_json?.jd_analysis || {}) as Record<string, unknown>;
   const companyResearch = (linkedResume?.insights_json?.company_research || {}) as { summary?: string };
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
+    <div className="flex h-full flex-col bg-background">
+      <header className="flex items-center justify-between border-b border-border px-4 py-2">
         <div className="flex items-center gap-3">
-          <Link href="/cover-letters" className="text-xs text-zinc-500 hover:text-white">
+          <Link href="/cover-letters" className="text-xs text-muted-foreground hover:text-foreground">
             ← Cover Letters
           </Link>
-          <h1 className="truncate text-sm font-medium text-white">{letter.title}</h1>
+          <h1 className="truncate text-sm font-medium text-foreground">{letter.title}</h1>
           <span className={cn("text-xs", saved ? "text-emerald-400" : "text-amber-400")}>
             {saved ? "Saved" : "Saving..."}
           </span>
@@ -200,10 +200,10 @@ export default function CoverLetterEditorPage() {
 
       <div className="grid flex-1 grid-cols-[300px_1fr_340px] overflow-hidden">
         {/* Chat */}
-        <div className="flex flex-col border-r border-zinc-800">
+        <div className="flex flex-col border-r border-border">
           <div className="flex-1 space-y-4 overflow-y-auto p-4">
-            <div className="rounded-lg bg-indigo-600/10 p-3 text-sm text-zinc-300">
-              <MessageSquare className="mb-2 h-4 w-4 text-indigo-400" />
+            <div className="rounded-lg bg-primary/10 p-3 text-sm text-foreground">
+              <MessageSquare className="mb-2 h-4 w-4 text-primary" />
               Ask me to adjust tone, shorten paragraphs, or highlight specific achievements.
             </div>
             {messages.map((m) => (
@@ -211,17 +211,17 @@ export default function CoverLetterEditorPage() {
                 key={m.id}
                 className={cn(
                   "rounded-lg p-3 text-sm",
-                  m.role === "assistant" ? "bg-zinc-900 text-zinc-300" : "bg-indigo-600/10 text-white"
+                  m.role === "assistant" ? "bg-card text-foreground" : "bg-primary/10 text-foreground"
                 )}
               >
                 {m.content}
                 {m.pending_changes
                   .filter((c) => c.status === "pending")
                   .map((ch) => (
-                    <div key={ch.id} className="mt-3 overflow-hidden rounded border border-zinc-700 font-mono text-xs">
+                    <div key={ch.id} className="mt-3 overflow-hidden rounded border border-border font-mono text-xs">
                       <div className="bg-red-950/50 p-2 text-red-300 line-through">{ch.old_value}</div>
                       <div className="bg-emerald-950/50 p-2 text-emerald-300">{ch.new_value}</div>
-                      <div className="flex gap-2 border-t border-zinc-700 p-2">
+                      <div className="flex gap-2 border-t border-border p-2">
                         <button onClick={() => handleChange(ch, "reject")} className="btn-secondary flex-1 text-xs">
                           <X className="h-3 w-3" /> Reject
                         </button>
@@ -234,7 +234,7 @@ export default function CoverLetterEditorPage() {
               </div>
             ))}
           </div>
-          <div className="border-t border-zinc-800 p-3">
+          <div className="border-t border-border p-3">
             <textarea
               className="input-field min-h-[60px] text-sm"
               placeholder={
@@ -256,12 +256,12 @@ export default function CoverLetterEditorPage() {
         </div>
 
         {/* Preview */}
-        <div className="overflow-hidden bg-zinc-900 p-4">
-          <ResumePreviewFrame html={previewHtml} className="h-full w-full rounded-lg border border-zinc-800 bg-white" />
+        <div className="overflow-hidden bg-card p-4">
+          <ResumePreviewFrame html={previewHtml} className="h-full w-full rounded-lg border border-border bg-white" />
         </div>
 
         {/* Editor + JD sidebar */}
-        <div className="flex flex-col overflow-hidden border-l border-zinc-800">
+        <div className="flex flex-col overflow-hidden border-l border-border">
           <div className="flex-1 overflow-y-auto p-4">
             <CoverLetterStructuredEditor
               letter={letter}
@@ -271,18 +271,18 @@ export default function CoverLetterEditorPage() {
             />
           </div>
           {linkedResume?.job_description && (
-            <div className="max-h-[240px] overflow-y-auto border-t border-zinc-800 p-4">
-              <h3 className="text-xs font-medium uppercase tracking-widest text-zinc-500">Job Description</h3>
-              <p className="mt-2 whitespace-pre-wrap text-xs text-zinc-400">{linkedResume.job_description}</p>
+            <div className="max-h-[240px] overflow-y-auto border-t border-border p-4">
+              <h3 className="text-xs font-medium uppercase tracking-widest text-muted-foreground">Job Description</h3>
+              <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">{linkedResume.job_description}</p>
               {companyResearch.summary && (
-                <p className="mt-3 text-xs text-zinc-500">
-                  <span className="font-medium text-zinc-400">Company: </span>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  <span className="font-medium text-muted-foreground">Company: </span>
                   {companyResearch.summary}
                 </p>
               )}
               {Object.keys(jdAnalysis).length > 0 && (
-                <details className="mt-2 text-xs text-zinc-500">
-                  <summary className="cursor-pointer text-zinc-400">JD analysis</summary>
+                <details className="mt-2 text-xs text-muted-foreground">
+                  <summary className="cursor-pointer text-muted-foreground">JD analysis</summary>
                   <pre className="mt-1 whitespace-pre-wrap">{JSON.stringify(jdAnalysis, null, 2)}</pre>
                 </details>
               )}

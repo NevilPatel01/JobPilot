@@ -79,45 +79,45 @@ export default function CreateResumePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <div className="glass-panel p-4">
-            <label className="text-xs font-medium text-zinc-400">Resume Title</label>
+            <label className="text-xs font-medium text-muted-foreground">Resume Title</label>
             <input className="input-field mt-1" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Anthropic Software Engineer" />
           </div>
 
           <div className="glass-panel p-4">
-            <label className="text-xs font-medium text-zinc-400">Job Description</label>
+            <label className="text-xs font-medium text-muted-foreground">Job Description</label>
             <textarea className="input-field mt-1 min-h-[160px]" value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} placeholder="Paste the full job description..." />
           </div>
 
           <div className="glass-panel p-4">
-            <label className="text-xs font-medium text-zinc-400">Company Website URL (optional)</label>
+            <label className="text-xs font-medium text-muted-foreground">Company Website URL (optional)</label>
             <input className="input-field mt-1" value={companyUrl} onChange={(e) => setCompanyUrl(e.target.value)} placeholder="https://stripe.com" />
-            <p className="mt-1 text-xs text-zinc-600">We&apos;ll research this company to better tailor your resume.</p>
+            <p className="mt-1 text-xs text-muted-foreground">We&apos;ll research this company to better tailor your resume.</p>
           </div>
 
           <div className="glass-panel p-4">
-            <label className="text-xs font-medium text-zinc-400">Resume Source</label>
+            <label className="text-xs font-medium text-muted-foreground">Resume Source</label>
             <div className="mt-2 grid grid-cols-2 gap-3">
               <button
                 type="button"
                 onClick={() => setSourceType("profile")}
-                className={cn("rounded-lg border p-4 text-left transition", sourceType === "profile" ? "border-indigo-500 bg-indigo-500/10" : "border-zinc-800")}
+                className={cn("rounded-lg border p-4 text-left transition", sourceType === "profile" ? "border-primary bg-primary/10" : "border-border")}
               >
-                <User className="h-5 w-5 text-indigo-400" />
-                <div className="mt-2 text-sm font-medium text-white">Use Profile</div>
-                <div className="text-xs text-zinc-500">From your saved profile data</div>
+                <User className="h-5 w-5 text-primary" />
+                <div className="mt-2 text-sm font-medium text-foreground">Use Profile</div>
+                <div className="text-xs text-muted-foreground">From your saved profile data</div>
               </button>
-              <label className={cn("cursor-pointer rounded-lg border p-4 text-left transition", sourceType === "upload" ? "border-indigo-500 bg-indigo-500/10" : "border-zinc-800")}>
-                <Upload className="h-5 w-5 text-indigo-400" />
-                <div className="mt-2 text-sm font-medium text-white">Upload Resume</div>
-                <div className="text-xs text-zinc-500">{uploading ? "Parsing PDF..." : "PDF upload"}</div>
+              <label className={cn("cursor-pointer rounded-lg border p-4 text-left transition", sourceType === "upload" ? "border-primary bg-primary/10" : "border-border")}>
+                <Upload className="h-5 w-5 text-primary" />
+                <div className="mt-2 text-sm font-medium text-foreground">Upload Resume</div>
+                <div className="text-xs text-muted-foreground">{uploading ? "Parsing PDF..." : "PDF upload"}</div>
                 <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
               </label>
             </div>
 
             {parseFeedback && sourceType === "upload" && (
-              <div className="mt-4 rounded-lg border border-zinc-800 bg-zinc-900/50 p-4">
+              <div className="mt-4 rounded-lg border border-border bg-card/50 p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">Parse quality</p>
+                  <p className="text-xs font-medium uppercase tracking-widest text-primary">Parse quality</p>
                   <span
                     className={cn(
                       "text-xs font-medium",
@@ -141,9 +141,9 @@ export default function CreateResumePage() {
                     ["Summary", parseFeedback.section_counts.has_summary ?? 0],
                     ["Contact", parseFeedback.section_counts.has_contact_name ?? 0],
                   ].map(([label, count]) => (
-                    <div key={String(label)} className="rounded border border-zinc-800 px-2 py-2">
-                      <div className="text-lg font-semibold text-white">{count as number}</div>
-                      <div className="text-zinc-500">{label as string}</div>
+                    <div key={String(label)} className="rounded border border-border px-2 py-2">
+                      <div className="text-lg font-semibold text-foreground">{count as number}</div>
+                      <div className="text-muted-foreground">{label as string}</div>
                     </div>
                   ))}
                 </div>
@@ -170,7 +170,7 @@ export default function CreateResumePage() {
           </div>
 
           <div className="glass-panel p-4">
-            <label className="flex items-center gap-2 text-sm text-zinc-300">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input type="checkbox" checked={createCoverLetter} onChange={(e) => setCreateCoverLetter(e.target.checked)} className="rounded" />
               Also create cover letter
             </label>
@@ -194,13 +194,13 @@ export default function CreateResumePage() {
         </div>
 
         <div className="glass-panel flex flex-col justify-center p-8">
-          <FileText className="h-10 w-10 text-indigo-400" />
-          <p className="mt-4 text-sm font-medium text-white">Professional LaTeX resume</p>
-          <p className="mt-2 text-sm text-zinc-400">
+          <FileText className="h-10 w-10 text-primary" />
+          <p className="mt-4 text-sm font-medium text-foreground">Professional LaTeX resume</p>
+          <p className="mt-2 text-sm text-muted-foreground">
             Your resume is generated in Jake&apos;s Resume LaTeX style (Charter font, Font Awesome icons) and compiled to PDF with Tectonic.
             After creation you can edit the LaTeX source directly or refine structured sections — then export a polished PDF.
           </p>
-          <ul className="mt-4 space-y-2 text-xs text-zinc-500">
+          <ul className="mt-4 space-y-2 text-xs text-muted-foreground">
             <li>• AI tailoring updates structured content, then syncs LaTeX</li>
             <li>• Edit raw LaTeX for fine-grained formatting control</li>
             <li>• Live PDF preview in the editor</li>

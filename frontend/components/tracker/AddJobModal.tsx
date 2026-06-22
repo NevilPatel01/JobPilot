@@ -64,17 +64,17 @@ export function AddJobModal({ open, onClose, defaultStatus, onCreate }: AddJobMo
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm">
-      <div className="flex h-full w-full max-w-md flex-col border-l border-zinc-800/80 bg-zinc-900/95 backdrop-blur-xl">
-        <div className="flex items-center justify-between border-b border-zinc-800/80 px-6 py-4">
-          <h2 className="text-lg font-semibold text-white">Add Job</h2>
-          <button onClick={onClose} className="rounded-md p-1 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300">
+      <div className="flex h-full w-full max-w-md flex-col border-l border-border bg-card/95 backdrop-blur-xl">
+        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+          <h2 className="text-lg font-semibold text-foreground">Add Job</h2>
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto p-6">
-          <div className="rounded-lg border border-indigo-500/20 bg-indigo-600/5 p-4">
-            <label className="text-xs font-medium text-indigo-300">Import from URL (Canada-eligible roles only)</label>
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <label className="text-xs font-medium text-primary">Import from URL (Canada-eligible roles only)</label>
             <div className="mt-2 flex gap-2">
               <input
                 type="url"
@@ -96,7 +96,7 @@ export function AddJobModal({ open, onClose, defaultStatus, onCreate }: AddJobMo
             { key: "salary_range", label: "Salary Range", required: false },
           ].map(({ key, label, required }) => (
             <div key={key}>
-              <label className="text-xs font-medium text-zinc-500">{label}</label>
+              <label className="text-xs font-medium text-muted-foreground">{label}</label>
               <input
                 required={required}
                 value={form[key as keyof typeof form]}
@@ -107,7 +107,7 @@ export function AddJobModal({ open, onClose, defaultStatus, onCreate }: AddJobMo
           ))}
 
           <div>
-            <label className="text-xs font-medium text-zinc-500">Notes</label>
+            <label className="text-xs font-medium text-muted-foreground">Notes</label>
             <textarea
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}

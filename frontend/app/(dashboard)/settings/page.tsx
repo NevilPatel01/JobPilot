@@ -194,12 +194,12 @@ export default function SettingsPage() {
         <div className="glass-panel p-6 lg:col-span-2">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10 ring-1 ring-indigo-500/20">
-                <MapPinned className="h-4 w-4 text-indigo-400" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                <MapPinned className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <h2 className="text-sm font-semibold text-white">Job fit preferences</h2>
-                <p className="mt-1 text-xs text-zinc-500">Used to prioritize Canadian opportunities with the strongest hiring and PR fit.</p>
+                <h2 className="text-sm font-semibold text-foreground">Job fit preferences</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Used to prioritize Canadian opportunities with the strongest hiring and PR fit.</p>
               </div>
             </div>
             <button onClick={saveScoringPreferences} disabled={savingPrefs || !scoringPrefs || scoringPrefs.target_provinces.length === 0} className="btn-primary">
@@ -209,7 +209,7 @@ export default function SettingsPage() {
 
           {scoringPrefs ? (
             <div className="mt-5 grid gap-5 md:grid-cols-[220px_1fr_auto]">
-              <label className="text-xs font-medium text-zinc-500">
+              <label className="text-xs font-medium text-muted-foreground">
                 Work authorization
                 <select className="input-field mt-2" value={scoringPrefs.work_authorization} onChange={(event) => setScoringPrefs({ ...scoringPrefs, work_authorization: event.target.value })}>
                   <option value="work_permit">Work permit</option>
@@ -219,22 +219,22 @@ export default function SettingsPage() {
                 </select>
               </label>
               <div>
-                <p className="text-xs font-medium text-zinc-500">Target provinces</p>
+                <p className="text-xs font-medium text-muted-foreground">Target provinces</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {TARGET_PROVINCES.map((province) => {
                     const selected = scoringPrefs.target_provinces.includes(province.code);
-                    return <button key={province.code} type="button" onClick={() => toggleProvince(province.code)} className={`rounded-lg border px-3 py-2 text-sm transition ${selected ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-200" : "border-zinc-800 bg-zinc-950/50 text-zinc-500 hover:border-zinc-700"}`}><span className="font-semibold">{province.code}</span><span className="ml-1.5 text-xs opacity-70">{province.label}</span></button>;
+                    return <button key={province.code} type="button" onClick={() => toggleProvince(province.code)} className={`rounded-lg border px-3 py-2 text-sm transition ${selected ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background/50 text-muted-foreground hover:border-border"}`}><span className="font-semibold">{province.code}</span><span className="ml-1.5 text-xs opacity-70">{province.label}</span></button>;
                   })}
                 </div>
               </div>
-              <label className="flex items-center gap-3 self-end rounded-lg border border-zinc-800 bg-zinc-950/50 px-4 py-2.5 text-sm text-zinc-400">
-                <input type="checkbox" checked={scoringPrefs.relocation_open} onChange={(event) => setScoringPrefs({ ...scoringPrefs, relocation_open: event.target.checked })} className="h-4 w-4 accent-indigo-500" />
+              <label className="flex items-center gap-3 self-end rounded-lg border border-border bg-background/50 px-4 py-2.5 text-sm text-muted-foreground">
+                <input type="checkbox" checked={scoringPrefs.relocation_open} onChange={(event) => setScoringPrefs({ ...scoringPrefs, relocation_open: event.target.checked })} className="h-4 w-4 accent-primary" />
                 Open to relocation
               </label>
               <div className="md:col-span-3">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium text-zinc-500">Fit score upper bounds</p>
-                  <button type="button" className="text-xs text-zinc-600 transition hover:text-zinc-300" onClick={() => setScoringPrefs({ ...scoringPrefs, threshold_overrides: null })}>Reset defaults</button>
+                  <p className="text-xs font-medium text-muted-foreground">Fit score upper bounds</p>
+                  <button type="button" className="text-xs text-muted-foreground transition hover:text-foreground" onClick={() => setScoringPrefs({ ...scoringPrefs, threshold_overrides: null })}>Reset defaults</button>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-4">
                   {[
@@ -243,23 +243,23 @@ export default function SettingsPage() {
                     ["reviewed_max", "Reviewed", 74],
                     ["recommended_max", "Recommended", 84],
                   ].map(([key, label, fallback]) => (
-                    <label key={String(key)} className="rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2 text-xs text-zinc-500">
+                    <label key={String(key)} className="rounded-lg border border-border bg-background/50 px-3 py-2 text-xs text-muted-foreground">
                       {label}
-                      <input type="number" min="0" max="99" className="mt-1 w-full bg-transparent text-base font-semibold text-zinc-200 outline-none" value={thresholdValue(String(key), Number(fallback))} onChange={(event) => updateThreshold(String(key), Number(event.target.value))} />
+                      <input type="number" min="0" max="99" className="mt-1 w-full bg-transparent text-base font-semibold text-foreground outline-none" value={thresholdValue(String(key), Number(fallback))} onChange={(event) => updateThreshold(String(key), Number(event.target.value))} />
                     </label>
                   ))}
                 </div>
               </div>
             </div>
-          ) : <p className="mt-5 text-sm text-zinc-600">Loading preferences...</p>}
+          ) : <p className="mt-5 text-sm text-muted-foreground">Loading preferences...</p>}
         </div>
 
         <div className="glass-panel p-6">
           <div className="flex items-center gap-2">
-            <Key className="h-4 w-4 text-indigo-400" />
-            <h2 className="text-sm font-semibold text-white">LLM API Keys</h2>
+            <Key className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold text-foreground">LLM API Keys</h2>
           </div>
-          <p className="mt-1 text-xs text-zinc-500">Your keys are encrypted at rest. JobPilot never shares them.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Your keys are encrypted at rest. JobPilot never shares them.</p>
 
           <div className="mt-4 space-y-3">
             <select className="input-field" value={provider} onChange={(e) => setProvider(e.target.value)}>
@@ -270,22 +270,22 @@ export default function SettingsPage() {
               <input className="input-field" placeholder="Base URL (e.g. https://api.groq.com/openai/v1)" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
             )}
             <div>
-              <label className="mb-1 block text-xs text-zinc-500">Chat model</label>
+              <label className="mb-1 block text-xs text-muted-foreground">Chat model</label>
               <select className="input-field" value={modelName} onChange={(e) => setModelName(e.target.value)} disabled={probing}>
                 {chatOptions.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-zinc-500">Embedding model</label>
+              <label className="mb-1 block text-xs text-muted-foreground">Embedding model</label>
               <select className="input-field" value={embeddingModel} onChange={(e) => setEmbeddingModel(e.target.value)} disabled={probing}>
                 {embedOptions.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
               </select>
             </div>
             {probing && (
-              <p className="text-xs text-zinc-500">Detecting available models...</p>
+              <p className="text-xs text-muted-foreground">Detecting available models...</p>
             )}
             {autoReason && (modelName === AUTO_MODEL || embeddingModel === AUTO_MODEL) && (
-              <p className="flex items-start gap-1.5 text-xs text-indigo-300">
+              <p className="flex items-start gap-1.5 text-xs text-primary">
                 <Sparkles className="mt-0.5 h-3 w-3 shrink-0" />
                 {autoReason}
               </p>
@@ -300,15 +300,15 @@ export default function SettingsPage() {
 
           {keys.length > 0 && (
             <div className="mt-6 space-y-2">
-              <h3 className="text-xs font-medium text-zinc-400">Saved keys</h3>
+              <h3 className="text-xs font-medium text-muted-foreground">Saved keys</h3>
               {keys.map((k) => (
-                <div key={k.id} className="flex items-center justify-between rounded-lg bg-zinc-800/40 px-3 py-2 text-sm">
+                <div key={k.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm">
                   <div>
-                    <span className="text-white">{k.provider}</span>
-                    <span className="ml-2 text-zinc-500">{k.model_name}</span>
-                    {k.is_default && <span className="ml-2 text-xs text-indigo-400">default</span>}
+                    <span className="text-foreground">{k.provider}</span>
+                    <span className="ml-2 text-muted-foreground">{k.model_name}</span>
+                    {k.is_default && <span className="ml-2 text-xs text-primary">default</span>}
                   </div>
-                  <button onClick={() => api.deleteApiKey(k.id).then(load)} className="text-zinc-500 hover:text-red-400">
+                  <button onClick={() => api.deleteApiKey(k.id).then(load)} className="text-muted-foreground hover:text-red-400">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -318,8 +318,8 @@ export default function SettingsPage() {
         </div>
 
         <div className="glass-panel p-6">
-          <h2 className="text-sm font-semibold text-white">Public API Tokens</h2>
-          <p className="mt-1 text-xs text-zinc-500">Use with X-API-Key header on /api/v1/documents/* endpoints</p>
+          <h2 className="text-sm font-semibold text-foreground">Public API Tokens</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Use with X-API-Key header on /api/v1/documents/* endpoints</p>
 
           <div className="mt-4 flex gap-2">
             <input className="input-field flex-1" placeholder="Token name" value={tokenName} onChange={(e) => setTokenName(e.target.value)} />
@@ -338,12 +338,12 @@ export default function SettingsPage() {
 
           <div className="mt-4 space-y-2">
             {tokens.map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-lg bg-zinc-800/40 px-3 py-2 text-sm">
+              <div key={t.id} className="flex items-center justify-between rounded-lg bg-muted/40 px-3 py-2 text-sm">
                 <div>
-                  <span className="text-white">{t.name}</span>
-                  <span className="ml-2 font-mono text-xs text-zinc-500">{t.token_prefix}...</span>
+                  <span className="text-foreground">{t.name}</span>
+                  <span className="ml-2 font-mono text-xs text-muted-foreground">{t.token_prefix}...</span>
                 </div>
-                <button onClick={() => api.deleteApiToken(t.id).then(load)} className="text-zinc-500 hover:text-red-400">
+                <button onClick={() => api.deleteApiToken(t.id).then(load)} className="text-muted-foreground hover:text-red-400">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>

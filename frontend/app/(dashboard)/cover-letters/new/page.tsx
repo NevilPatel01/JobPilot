@@ -52,7 +52,7 @@ export default function CreateCoverLetterPage() {
 
   return (
     <div>
-      <Link href="/cover-letters" className="mb-4 inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-white">
+      <Link href="/cover-letters" className="mb-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-3 w-3" /> Back to cover letters
       </Link>
 
@@ -63,7 +63,7 @@ export default function CreateCoverLetterPage() {
 
       <div className="glass-panel mx-auto max-w-xl space-y-5 p-6">
         {resumes.length === 0 ? (
-          <div className="text-center text-sm text-zinc-400">
+          <div className="text-center text-sm text-muted-foreground">
             <p>No eligible resumes found.</p>
             <p className="mt-2">Create and complete a resume first, or use one that doesn&apos;t already have a cover letter.</p>
             <Link href="/resumes/new" className="btn-primary mt-4 inline-flex">Create Resume</Link>
@@ -71,7 +71,7 @@ export default function CreateCoverLetterPage() {
         ) : (
           <>
             <div>
-              <label className="text-xs text-zinc-400">Resume</label>
+              <label className="text-xs text-muted-foreground">Resume</label>
               <select
                 className="input-field mt-1 w-full text-sm"
                 value={resumeId}
@@ -87,14 +87,14 @@ export default function CreateCoverLetterPage() {
             </div>
 
             {selected?.job_description && (
-              <div className="rounded-lg border border-zinc-800 p-3">
-                <p className="text-xs font-medium text-zinc-400">Job description preview</p>
-                <p className="mt-1 line-clamp-4 text-xs text-zinc-500">{selected.job_description}</p>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs font-medium text-muted-foreground">Job description preview</p>
+                <p className="mt-1 line-clamp-4 text-xs text-muted-foreground">{selected.job_description}</p>
               </div>
             )}
 
             <div>
-              <label className="text-xs text-zinc-400">Hiring manager (optional)</label>
+              <label className="text-xs text-muted-foreground">Hiring manager (optional)</label>
               <input
                 className="input-field mt-1 text-sm"
                 value={hiringManager}
@@ -104,7 +104,7 @@ export default function CreateCoverLetterPage() {
             </div>
 
             <div>
-              <label className="text-xs text-zinc-400">Letter date</label>
+              <label className="text-xs text-muted-foreground">Letter date</label>
               <input
                 className="input-field mt-1 text-sm"
                 value={letterDate}
@@ -113,7 +113,7 @@ export default function CreateCoverLetterPage() {
             </div>
 
             <div>
-              <label className="text-xs text-zinc-400">Additional context (optional)</label>
+              <label className="text-xs text-muted-foreground">Additional context (optional)</label>
               <textarea
                 className="input-field mt-1 min-h-[80px] text-sm"
                 value={additionalContext}

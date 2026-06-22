@@ -33,7 +33,7 @@ export default function AnalyticsPage() {
       <PageHeader title="Analytics" description="Application trends and pipeline insights" />
 
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Jobs Tracked" value={data.total_tracked} icon={Briefcase} accent="text-indigo-400" />
+        <StatCard label="Jobs Tracked" value={data.total_tracked} icon={Briefcase} accent="text-primary" />
         <StatCard label="Applications Sent" value={data.total_applied} icon={Send} accent="text-sky-400" />
         <StatCard label="Interview Rate" value={`${data.interview_rate}%`} icon={TrendingUp} accent="text-emerald-400" />
         <StatCard label="Active Listings" value={data.active_jobs_in_db} icon={Database} accent="text-amber-400" />

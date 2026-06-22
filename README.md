@@ -1,13 +1,24 @@
 # JobPilot
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/Demo-jobs.nevil.ca-6366f1)](https://jobs.nevil.ca)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](docker-compose.yml)
 [![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=next.js)](frontend/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi)](backend/)
 
-A free, open-source **job search command centre** for tech professionals. JobPilot aggregates remote job listings, tracks applications on a Kanban board, and includes an **AI resume builder** — tailor resumes and cover letters per job with multi-agent RAG, accept/reject diffs, and ATS scoring.
+**Open-source job search command centre** — scrape Canadian tech jobs, track applications on a Kanban board, and build **ATS-optimized resumes and cover letters** with a multi-agent AI pipeline. Self-host with your own LLM API keys (OpenAI, Anthropic, or compatible providers).
+
+**Live demo:** [jobs.nevil.ca](https://jobs.nevil.ca) · **Source:** [github.com/NevilPatel01/JobPilot](https://github.com/NevilPatel01/JobPilot)
 
 > **Paste a job URL, we do the rest.** The URL importer auto-fills job details. The resume builder researches the company, analyzes the JD, and tailors your documents professionally.
+
+### Built with
+
+`FastAPI` · `Next.js` · `PostgreSQL` · `pgvector` · `LangGraph` · `Playwright` · `Tectonic` · `Chart.js` · `Docker`
+
+### Topics
+
+`job-search` · `resume-builder` · `cover-letter-generator` · `application-tracker` · `ats-resume` · `kanban-board` · `canadian-jobs` · `ai-resume` · `latex-resume` · `open-source` · `self-hosted` · `fastapi` · `nextjs` · `postgresql` · `pgvector` · `typescript` · `react` · `docker` · `langgraph` · `job-scraper`
 
 ---
 
@@ -45,7 +56,7 @@ A free, open-source **job search command centre** for tech professionals. JobPil
 |---------|-------------|
 | **Landing Page** | Public marketing site at `/` with feature overview and GitHub sign-in CTA |
 | **GitHub OAuth** | Production-ready sign-in via NextAuth (Google optional) |
-| **Dark UI** | Premium zinc/indigo dashboard inspired by Linear and Supabase |
+| **Light & Dark UI** | Accessible light/dark themes with high-contrast, professional styling |
 | **Open Source** | MIT licensed — self-host with your own LLM keys |
 
 ---

@@ -13,7 +13,7 @@ function StatusBadge({ status }: { status: string }) {
     processing: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
     completed: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
     failed: "bg-red-500/15 text-red-300 ring-red-500/30",
-    draft: "bg-zinc-500/15 text-zinc-300 ring-zinc-500/30",
+    draft: "bg-muted text-foreground ring-border",
   };
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${colors[status] || colors.draft}`}>
@@ -64,7 +64,7 @@ export default function ResumesPage() {
       />
 
       <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <input
           className="input-field w-full pl-10"
           placeholder="Search resumes..."
@@ -75,7 +75,7 @@ export default function ResumesPage() {
 
       <div className="glass-panel overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-800 text-xs uppercase text-zinc-500">
+          <thead className="border-b border-border text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">Status</th>
@@ -86,25 +86,25 @@ export default function ResumesPage() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-500">Loading...</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">Loading...</td></tr>
             )}
             {!loading && resumes.length === 0 && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-500">No resumes yet. Create your first one!</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No resumes yet. Create your first one!</td></tr>
             )}
             {resumes.map((r) => (
-              <tr key={r.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+              <tr key={r.id} className="border-b border-border/50 hover:bg-muted/30">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-white">{r.title}</div>
+                  <div className="font-medium text-foreground">{r.title}</div>
                   {r.status === "processing" && (
-                    <div className="text-xs text-zinc-500">Tailoring resume for this role...</div>
+                    <div className="text-xs text-muted-foreground">Tailoring resume for this role...</div>
                   )}
                   {r.status === "failed" && r.pipeline_error && (
                     <div className="mt-1 text-xs text-red-400">{r.pipeline_error}</div>
                   )}
                 </td>
                 <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
-                <td className="px-4 py-3 text-zinc-400">{r.company_name || r.company_url || "—"}</td>
-                <td className="px-4 py-3 text-zinc-500">{formatDate(r.updated_at)}</td>
+                <td className="px-4 py-3 text-muted-foreground">{r.company_name || r.company_url || "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{formatDate(r.updated_at)}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     {r.status === "failed" && (

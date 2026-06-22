@@ -2,47 +2,96 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --font-inter: 'Inter', system-ui, sans-serif;
-  --accent: #6366f1;
-  --accent-glow: rgba(99, 102, 241, 0.15);
-  --surface: #18181b;
-  --surface-elevated: #1c1c21;
-  --border-subtle: rgba(63, 63, 70, 0.6);
-}
+@layer base {
+  :root {
+    --font-inter: 'Inter', system-ui, sans-serif;
 
-body {
-  @apply bg-zinc-950 text-zinc-300 antialiased;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-glow), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(99, 102, 241, 0.06), transparent);
-}
+    /* Light — high-contrast slate + indigo */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 42%;
+    --border: 214 32% 88%;
+    --input: 214 32% 88%;
+    --ring: 234 89% 58%;
+    --primary: 234 89% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --accent: 234 89% 58%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --success: 142 71% 36%;
+    --warning: 32 95% 44%;
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 88%;
+    --sidebar-accent: 234 89% 97%;
+    --accent-glow: rgba(79, 70, 229, 0.07);
+    --scrollbar: 215 16% 75%;
+  }
 
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #3f3f46 transparent;
+  .dark {
+    --background: 240 10% 4%;
+    --foreground: 240 5% 92%;
+    --card: 240 6% 10%;
+    --card-foreground: 240 5% 92%;
+    --muted: 240 4% 16%;
+    --muted-foreground: 240 5% 58%;
+    --border: 240 4% 22%;
+    --input: 240 4% 22%;
+    --ring: 239 84% 67%;
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 240 5% 92%;
+    --accent: 239 84% 67%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 63% 55%;
+    --success: 142 60% 45%;
+    --warning: 38 92% 50%;
+    --sidebar: 240 6% 8%;
+    --sidebar-foreground: 240 5% 92%;
+    --sidebar-border: 240 4% 18%;
+    --sidebar-accent: 239 84% 67%;
+    --accent-glow: rgba(99, 102, 241, 0.12);
+    --scrollbar: 240 4% 28%;
+  }
+
+  * {
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--scrollbar)) transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, var(--accent-glow), transparent),
+      radial-gradient(ellipse 60% 40% at 100% 0%, var(--accent-glow), transparent);
+  }
 }
 
 @layer components {
   .glass-panel {
-    @apply rounded-xl border border-zinc-800/80 bg-zinc-900/80 backdrop-blur-sm;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+    @apply rounded-xl border border-border bg-card/90 backdrop-blur-sm shadow-sm;
   }
 
   .glass-panel-hover {
-    @apply glass-panel transition-all duration-200 hover:border-zinc-700/80 hover:-translate-y-0.5;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03) inset, 0 4px 24px -4px rgba(0, 0, 0, 0.4);
+    @apply glass-panel transition-all duration-200 hover:border-border hover:-translate-y-0.5 hover:shadow-md;
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-lg shadow-indigo-600/20 transition-all duration-200 hover:bg-indigo-500 hover:shadow-indigo-500/25 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all duration-200 hover:opacity-90 disabled:opacity-50;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700/80 bg-zinc-900/50 px-4 py-2 text-sm font-medium text-zinc-300 transition-all duration-200 hover:border-zinc-600 hover:bg-zinc-800 hover:text-white;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground transition-all duration-200 hover:bg-muted disabled:opacity-50;
   }
 
   .input-field {
-    @apply w-full rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-sm text-zinc-300 placeholder:text-zinc-600 transition-colors focus:border-indigo-600/60 focus:outline-none focus:ring-1 focus:ring-indigo-600/30;
+    @apply w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-ring/25;
   }
 }

@@ -304,7 +304,7 @@ export default function ResumeEditorPage() {
   };
 
   if (!resume || !content) {
-    return <div className="flex h-full items-center justify-center text-zinc-500">Loading editor...</div>;
+    return <div className="flex h-full items-center justify-center text-muted-foreground">Loading editor...</div>;
   }
 
   const insights = (resume.insights_json || {}) as {
@@ -316,11 +316,11 @@ export default function ResumeEditorPage() {
   const saveLabel = !contentSaved || !latexSaved ? "Saving..." : "Saved";
 
   return (
-    <div className="flex h-full flex-col bg-zinc-950">
-      <header className="flex items-center justify-between border-b border-zinc-800 px-4 py-2">
+    <div className="flex h-full flex-col bg-background">
+      <header className="flex items-center justify-between border-b border-border px-4 py-2">
         <div className="flex items-center gap-3">
-          <Link href="/resumes" className="text-xs text-zinc-500 hover:text-white">← Resumes</Link>
-          <h1 className="truncate text-sm font-medium text-white">{resume.title}</h1>
+          <Link href="/resumes" className="text-xs text-muted-foreground hover:text-foreground">← Resumes</Link>
+          <h1 className="truncate text-sm font-medium text-foreground">{resume.title}</h1>
           <span className={cn("text-xs", contentSaved && latexSaved ? "text-emerald-400" : "text-amber-400")}>{saveLabel}</span>
           {resume.status === "processing" && (
             <span className="flex items-center gap-1 text-xs text-amber-400">
@@ -361,21 +361,21 @@ export default function ResumeEditorPage() {
           <button
             type="button"
             onClick={() => setPreviewMode("source")}
-            className={cn("btn-secondary text-xs", previewMode === "source" && "ring-1 ring-indigo-500/40")}
+            className={cn("btn-secondary text-xs", previewMode === "source" && "ring-1 ring-primary/40")}
           >
             <FileCode className="h-3 w-3" /> Source
           </button>
           <button
             type="button"
             onClick={() => setPreviewMode("split")}
-            className={cn("btn-secondary text-xs", previewMode === "split" && "ring-1 ring-indigo-500/40")}
+            className={cn("btn-secondary text-xs", previewMode === "split" && "ring-1 ring-primary/40")}
           >
             <Columns2 className="h-3 w-3" /> Split
           </button>
           <button
             type="button"
             onClick={() => setPreviewMode("preview")}
-            className={cn("btn-secondary text-xs", previewMode === "preview" && "ring-1 ring-indigo-500/40")}
+            className={cn("btn-secondary text-xs", previewMode === "preview" && "ring-1 ring-primary/40")}
           >
             PDF
           </button>
@@ -404,48 +404,48 @@ export default function ResumeEditorPage() {
 
       <div className="grid flex-1 grid-cols-[320px_1fr_360px] overflow-hidden">
         {/* Chat pane */}
-        <div className="flex flex-col border-r border-zinc-800">
+        <div className="flex flex-col border-r border-border">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="rounded-lg bg-indigo-600/10 p-3 text-sm text-zinc-300">
-              <MessageSquare className="mb-2 h-4 w-4 text-indigo-400" />
+            <div className="rounded-lg bg-primary/10 p-3 text-sm text-foreground">
+              <MessageSquare className="mb-2 h-4 w-4 text-primary" />
               I&apos;ve tailored your resume for <strong>{resume.title}</strong>. Ask me to edit bullets, sections, or tone.
             </div>
 
             {resume.why_this_version && (
-              <details open className="rounded-lg border border-indigo-500/20 bg-indigo-500/5 p-3 text-xs text-zinc-400">
-                <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-indigo-200">
+              <details open className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-primary">
                   <Target className="h-3.5 w-3.5" /> Why this resume version
                 </summary>
                 <div className="mt-3 space-y-2">
-                  <p><span className="text-zinc-500">Category:</span> <span className="text-zinc-200">{resume.resume_category?.replaceAll("_", " ")}</span>{resume.why_this_version.fit_score != null ? ` · Fit ${resume.why_this_version.fit_score}` : ""}</p>
-                  {resume.why_this_version.matched_keywords?.length ? <div><p className="text-zinc-500">Matched keywords</p><div className="mt-1 flex flex-wrap gap-1">{resume.why_this_version.matched_keywords.map((keyword) => <span key={keyword} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">{keyword}</span>)}</div></div> : null}
-                  {resume.why_this_version.missing_keywords?.length ? <div><p className="text-zinc-500">Job-description gaps</p><div className="mt-1 flex flex-wrap gap-1">{resume.why_this_version.missing_keywords.map((keyword) => <span key={keyword} className="rounded bg-zinc-800 px-1.5 py-0.5 text-zinc-500">{keyword}</span>)}</div></div> : null}
-                  <p className="flex gap-1.5 border-t border-zinc-800 pt-2 text-[11px] text-zinc-500"><ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />{resume.why_this_version.truthfulness}</p>
+                  <p><span className="text-muted-foreground">Category:</span> <span className="text-foreground">{resume.resume_category?.replaceAll("_", " ")}</span>{resume.why_this_version.fit_score != null ? ` · Fit ${resume.why_this_version.fit_score}` : ""}</p>
+                  {resume.why_this_version.matched_keywords?.length ? <div><p className="text-muted-foreground">Matched keywords</p><div className="mt-1 flex flex-wrap gap-1">{resume.why_this_version.matched_keywords.map((keyword) => <span key={keyword} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">{keyword}</span>)}</div></div> : null}
+                  {resume.why_this_version.missing_keywords?.length ? <div><p className="text-muted-foreground">Job-description gaps</p><div className="mt-1 flex flex-wrap gap-1">{resume.why_this_version.missing_keywords.map((keyword) => <span key={keyword} className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">{keyword}</span>)}</div></div> : null}
+                  <p className="flex gap-1.5 border-t border-border pt-2 text-[11px] text-muted-foreground"><ShieldCheck className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />{resume.why_this_version.truthfulness}</p>
                 </div>
               </details>
             )}
 
             {insights.tailoring_insights && insights.tailoring_insights.length > 0 && (
-              <details className="rounded-lg border border-zinc-800 p-2 text-xs text-zinc-400">
-                <summary className="cursor-pointer font-medium text-zinc-300">Resume tailoring insights</summary>
+              <details className="rounded-lg border border-border p-2 text-xs text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-foreground">Resume tailoring insights</summary>
                 <ul className="mt-2 list-disc pl-4">{insights.tailoring_insights.map((i, idx) => <li key={idx}>{i}</li>)}</ul>
               </details>
             )}
             {insights.jd_analysis && (
-              <details className="rounded-lg border border-zinc-800 p-2 text-xs text-zinc-400">
-                <summary className="cursor-pointer font-medium text-zinc-300">JD analysis</summary>
+              <details className="rounded-lg border border-border p-2 text-xs text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-foreground">JD analysis</summary>
                 <pre className="mt-2 whitespace-pre-wrap">{JSON.stringify(insights.jd_analysis, null, 2)}</pre>
               </details>
             )}
             {insights.company_research?.summary && (
-              <details className="rounded-lg border border-zinc-800 p-2 text-xs text-zinc-400">
-                <summary className="cursor-pointer font-medium text-zinc-300">Company research</summary>
+              <details className="rounded-lg border border-border p-2 text-xs text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-foreground">Company research</summary>
                 <p className="mt-2">{insights.company_research.summary}</p>
               </details>
             )}
 
             {pendingChanges.length > 0 && (
-              <div className="flex gap-2 rounded-lg border border-zinc-700 bg-zinc-900/80 p-2">
+              <div className="flex gap-2 rounded-lg border border-border bg-card/80 p-2">
                 <button onClick={() => handleBatchChanges("reject")} className="btn-secondary flex-1 text-xs">
                   <X className="h-3 w-3" /> Reject all ({pendingChanges.length})
                 </button>
@@ -456,16 +456,16 @@ export default function ResumeEditorPage() {
             )}
 
             {messages.map((m) => (
-              <div key={m.id} className={cn("rounded-lg p-3 text-sm", m.role === "assistant" ? "bg-zinc-900 text-zinc-300" : "bg-indigo-600/10 text-white")}>
+              <div key={m.id} className={cn("rounded-lg p-3 text-sm", m.role === "assistant" ? "bg-card text-foreground" : "bg-primary/10 text-foreground")}>
                 {m.content}
                 {m.pending_changes.filter((c) => c.status === "pending").map((ch) => (
-                  <div key={ch.id} className="mt-3 overflow-hidden rounded border border-zinc-700 font-mono text-xs">
-                    <div className="border-b border-zinc-700 bg-zinc-800/80 px-2 py-1 text-[11px] font-sans text-zinc-400">
+                  <div key={ch.id} className="mt-3 overflow-hidden rounded border border-border font-mono text-xs">
+                    <div className="border-b border-border bg-muted/80 px-2 py-1 text-[11px] font-sans text-muted-foreground">
                       {ch.path_label || ch.path}
                     </div>
                     <div className="whitespace-pre-wrap bg-red-950/50 p-2 text-red-300 line-through">{formatDiffValue(ch.old_value)}</div>
                     <div className="whitespace-pre-wrap bg-emerald-950/50 p-2 text-emerald-300">{formatDiffValue(ch.new_value)}</div>
-                    <div className="flex gap-2 border-t border-zinc-700 p-2">
+                    <div className="flex gap-2 border-t border-border p-2">
                       <button onClick={() => handleChange(ch, "reject")} className="btn-secondary flex-1 text-xs"><X className="h-3 w-3" /> Reject</button>
                       <button onClick={() => handleChange(ch, "accept")} className="btn-primary flex-1 text-xs"><Check className="h-3 w-3" /> Accept</button>
                     </div>
@@ -474,7 +474,7 @@ export default function ResumeEditorPage() {
               </div>
             ))}
           </div>
-          <div className="border-t border-zinc-800 p-3">
+          <div className="border-t border-border p-3">
             <textarea
               className="input-field min-h-[60px] text-sm"
               placeholder={pendingChanges.length ? "Approve or reject pending changes first." : "Trim, tailor, sharpen..."}
@@ -490,12 +490,12 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* LaTeX source + PDF preview */}
-        <div className="flex flex-col overflow-hidden bg-zinc-900 p-4">
-          <div className="mb-2 rounded-lg border border-indigo-500/30 bg-indigo-950/30 px-3 py-2 text-xs text-indigo-200">
+        <div className="flex flex-col overflow-hidden bg-card p-4">
+          <div className="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
             LaTeX compiles to PDF via Tectonic — preview reflects the exact exported document.
           </div>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-xs font-medium uppercase tracking-widest text-indigo-400">LaTeX · PDF Preview</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-primary">LaTeX · PDF Preview</p>
             <button
               type="button"
               onClick={regenerateLatexFromContent}
@@ -515,7 +515,7 @@ export default function ResumeEditorPage() {
             )}
           >
             {previewMode !== "preview" && (
-              <div className="h-full min-h-0 overflow-hidden rounded-lg border border-zinc-800">
+              <div className="h-full min-h-0 overflow-hidden rounded-lg border border-border">
                 <LatexEditor value={latex} onChange={setLatex} className="h-full text-xs" />
               </div>
             )}
@@ -526,7 +526,7 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* Structured editor */}
-        <div className="overflow-y-auto border-l border-zinc-800 p-4">
+        <div className="overflow-y-auto border-l border-border p-4">
           <StructuredProfileEditor content={content} onChange={setContent} />
         </div>
       </div>

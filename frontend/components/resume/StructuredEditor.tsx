@@ -15,7 +15,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
   return (
     <div className="space-y-6">
       <section className="glass-panel p-4">
-        <h3 className="text-sm font-semibold text-white">Contact</h3>
+        <h3 className="text-sm font-semibold text-foreground">Contact</h3>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {(["full_name", "email", "phone", "location"] as const).map((field) => (
             <input
@@ -33,7 +33,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
 
       <section className="glass-panel p-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Summary</h3>
+          <h3 className="text-sm font-semibold text-foreground">Summary</h3>
         </div>
         <textarea
           className="input-field mt-2 min-h-[80px]"
@@ -55,12 +55,12 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
         }
       >
         {content.experience.map((exp, i) => (
-          <div key={exp.id} className="mb-4 rounded-lg border border-zinc-800 p-3">
+          <div key={exp.id} className="mb-4 rounded-lg border border-border p-3">
             <div className="flex justify-between">
-              <span className="text-xs text-zinc-500">Role {i + 1}</span>
+              <span className="text-xs text-muted-foreground">Role {i + 1}</span>
               <button
                 onClick={() => update({ experience: content.experience.filter((e) => e.id !== exp.id) })}
-                className="text-zinc-500 hover:text-red-400"
+                className="text-muted-foreground hover:text-red-400"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -141,7 +141,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
         }
       >
         {content.projects.map((proj, i) => (
-          <div key={proj.id} className="mb-3 rounded-lg border border-zinc-800 p-3">
+          <div key={proj.id} className="mb-3 rounded-lg border border-border p-3">
             <input className="input-field" placeholder="Project name" value={proj.name}
               onChange={(e) => {
                 const projects = [...content.projects];
@@ -205,7 +205,7 @@ function SectionList({
   return (
     <section className="glass-panel p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-white">{title}</h3>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <button onClick={onAdd} className="btn-secondary text-xs">
           <Plus className="h-3 w-3" /> Add
         </button>

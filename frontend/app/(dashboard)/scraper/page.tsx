@@ -92,7 +92,7 @@ export default function ScraperPage() {
 
       <div className="mb-6 flex flex-wrap gap-3">
         <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-600" />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search title or company..."
@@ -114,7 +114,7 @@ export default function ScraperPage() {
       </div>
 
       {toast && (
-        <div className="mb-4 rounded-lg border border-indigo-500/30 bg-indigo-600/10 px-4 py-2.5 text-sm text-indigo-300">
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2.5 text-sm text-primary">
           {toast}
         </div>
       )}
@@ -123,9 +123,9 @@ export default function ScraperPage() {
         <SkeletonLoader />
       ) : jobs.length === 0 ? (
         <div className="glass-panel flex flex-col items-center py-16 text-center">
-          <Inbox className="h-10 w-10 text-zinc-700" />
-          <p className="mt-4 font-medium text-zinc-400">No jobs yet</p>
-          <p className="mt-1 text-sm text-zinc-600">Click Scrape Now to pull Canada-eligible listings</p>
+          <Inbox className="h-10 w-10 text-muted-foreground/60" />
+          <p className="mt-4 font-medium text-muted-foreground">No jobs yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Click Scrape Now to pull Canada-eligible listings</p>
         </div>
       ) : (
         <div className="space-y-3">

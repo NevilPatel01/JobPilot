@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HireMeButton } from "@/components/ui/HireMeButton";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -40,15 +41,15 @@ export function Sidebar() {
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-zinc-800/80 bg-zinc-900/95 backdrop-blur-xl">
-      <div className="border-b border-zinc-800/80 px-5 py-5">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
+      <div className="border-b border-sidebar-border px-5 py-5">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-600/20 ring-1 ring-indigo-500/30">
-            <Sparkles className="h-4 w-4 text-indigo-400" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/25">
+            <Sparkles className="h-4 w-4 text-primary" />
           </div>
           <div>
-            <span className="text-base font-semibold tracking-tight text-white">JobPilot</span>
-            <p className="text-[10px] font-medium uppercase tracking-widest text-zinc-600">Job Search OS</p>
+            <span className="text-base font-semibold tracking-tight text-sidebar-foreground">JobPilot</span>
+            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Job Search OS</p>
           </div>
         </div>
         <Link
@@ -70,38 +71,39 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
                 active
-                  ? "bg-indigo-600/15 text-indigo-300 shadow-sm shadow-indigo-600/5 ring-1 ring-indigo-500/20"
-                  : "text-zinc-500 hover:bg-zinc-800/60 hover:text-zinc-200"
+                  ? "bg-primary/12 text-primary shadow-sm ring-1 ring-primary/20"
+                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               )}
             >
-              <Icon className={cn("h-4 w-4", active && "text-indigo-400")} />
+              <Icon className={cn("h-4 w-4", active && "text-primary")} />
               {label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="space-y-3 border-t border-zinc-800/80 p-4">
+      <div className="space-y-3 border-t border-sidebar-border p-4">
+        <ThemeToggle />
         <HireMeButton />
         {session?.user ? (
-          <div className="flex items-center gap-3 rounded-lg bg-zinc-800/40 p-2">
+          <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-2">
             {session.user.image && (
-              <img src={session.user.image} alt="" className="h-8 w-8 rounded-full ring-2 ring-zinc-700" />
+              <img src={session.user.image} alt="" className="h-8 w-8 rounded-full ring-2 ring-border" />
             )}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">{session.user.name}</p>
-              <p className="truncate text-xs text-zinc-500">{session.user.email}</p>
+              <p className="truncate text-sm font-medium text-foreground">{session.user.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{session.user.email}</p>
             </div>
             <button
               onClick={() => signOut()}
-              className="rounded-md p-1.5 text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               title="Sign out"
             >
               <LogOut className="h-4 w-4" />
             </button>
           </div>
         ) : authDisabled ? (
-          <div className="rounded-lg bg-zinc-800/40 px-3 py-2 text-xs text-zinc-500">Dev mode</div>
+          <div className="rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">Dev mode</div>
         ) : (
           <Link href="/login" className="btn-primary w-full text-center">
             Sign in

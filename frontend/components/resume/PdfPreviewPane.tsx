@@ -12,9 +12,9 @@ interface PdfPreviewPaneProps {
 
 export function PdfPreviewPane({ pdfUrl, loading, error, className }: PdfPreviewPaneProps) {
   return (
-    <div className={cn("flex h-full flex-col overflow-hidden rounded-lg border border-zinc-800 bg-white", className)}>
+    <div className={cn("flex h-full flex-col overflow-hidden rounded-lg border border-border bg-white", className)}>
       {loading && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-xs text-zinc-500">
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 text-xs text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
           Compiling LaTeX to PDF...
         </div>
@@ -26,7 +26,7 @@ export function PdfPreviewPane({ pdfUrl, loading, error, className }: PdfPreview
         <iframe title="LaTeX PDF preview" src={pdfUrl} className="h-full w-full" />
       )}
       {!loading && !error && !pdfUrl && (
-        <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-zinc-500">
+        <div className="flex flex-1 items-center justify-center p-4 text-center text-xs text-muted-foreground">
           PDF preview will appear after LaTeX compiles.
         </div>
       )}

@@ -10,7 +10,7 @@ export function ResumePreviewFrame({ html, className }: Props) {
     <iframe
       title="Resume preview"
       srcDoc={html}
-      className={className || "h-full w-full rounded-lg border border-zinc-800 bg-white"}
+      className={className || "h-full w-full rounded-lg border border-border bg-white"}
       sandbox="allow-same-origin"
     />
   );

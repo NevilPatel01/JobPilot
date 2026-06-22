@@ -105,8 +105,8 @@ export default function ProfilePage() {
             </button>
           </div>
           <div className="glass-panel flex flex-col p-4">
-            <p className="text-xs uppercase tracking-widest text-indigo-400">LaTeX PDF Preview</p>
-            <p className="mt-1 text-xs text-zinc-500">Compiled from your structured profile via Jake&apos;s Resume template.</p>
+            <p className="text-xs uppercase tracking-widest text-primary">LaTeX PDF Preview</p>
+            <p className="mt-1 text-xs text-muted-foreground">Compiled from your structured profile via Jake&apos;s Resume template.</p>
             <div className="mt-3 h-[600px]">
               <PdfPreviewPane pdfUrl={pdfUrl} loading={pdfLoading} error={pdfError} />
             </div>
@@ -118,7 +118,7 @@ export default function ProfilePage() {
             value={resumeText}
             onChange={(e) => setResumeText(e.target.value)}
             placeholder="Paste resume text for legacy match scoring..."
-            className="min-h-[300px] w-full rounded-lg border border-zinc-800 bg-zinc-950/80 p-4 font-mono text-sm text-zinc-300"
+            className="min-h-[300px] w-full rounded-lg border border-border bg-background/80 p-4 font-mono text-sm text-foreground"
           />
           <button onClick={handleSaveLegacy} disabled={saving} className="btn-primary mt-4">
             <Save className="h-4 w-4" /> Save Plain Text
@@ -127,7 +127,7 @@ export default function ProfilePage() {
       )}
 
       {profile && (
-        <div className="mt-6 text-sm text-zinc-500">{profile.name} · {profile.email}</div>
+        <div className="mt-6 text-sm text-muted-foreground">{profile.name} · {profile.email}</div>
       )}
     </div>
   );

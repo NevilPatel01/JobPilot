@@ -13,7 +13,7 @@ type Props = {
 function field(label: string, value: string, onChange: (v: string) => void, placeholder?: string) {
   return (
     <div>
-      <label className="text-xs text-zinc-400">{label}</label>
+      <label className="text-xs text-muted-foreground">{label}</label>
       <input
         className="input-field mt-1 text-sm"
         value={value}
@@ -48,7 +48,7 @@ export function CoverLetterStructuredEditor({ letter, content, onContentChange, 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-xs font-medium uppercase tracking-widest text-indigo-400">Header</h2>
+        <h2 className="text-xs font-medium uppercase tracking-widest text-primary">Header</h2>
         <div className="mt-3 space-y-3">
           {field("Hiring manager", letter.hiring_manager_name || "", (v) => {
             onMetaChange({ hiring_manager_name: v });
@@ -71,7 +71,7 @@ export function CoverLetterStructuredEditor({ letter, content, onContentChange, 
 
       <div>
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-medium uppercase tracking-widest text-indigo-400">Body</h2>
+          <h2 className="text-xs font-medium uppercase tracking-widest text-primary">Body</h2>
           <span className={`text-xs ${wordCount >= 250 && wordCount <= 400 ? "text-emerald-400" : "text-amber-400"}`}>
             {wordCount} words {wordCount < 250 ? "(aim for 250–400)" : wordCount > 400 ? "(over limit)" : ""}
           </span>
@@ -79,7 +79,7 @@ export function CoverLetterStructuredEditor({ letter, content, onContentChange, 
         <div className="mt-3 space-y-3">
           {content.paragraphs.map((para, idx) => (
             <div key={idx} className="relative">
-              <label className="text-xs text-zinc-500">Paragraph {idx + 1}</label>
+              <label className="text-xs text-muted-foreground">Paragraph {idx + 1}</label>
               <textarea
                 className="input-field mt-1 min-h-[100px] text-sm"
                 value={para}
@@ -89,7 +89,7 @@ export function CoverLetterStructuredEditor({ letter, content, onContentChange, 
                 <button
                   type="button"
                   onClick={() => removeParagraph(idx)}
-                  className="absolute right-2 top-7 text-zinc-600 hover:text-red-400"
+                  className="absolute right-2 top-7 text-muted-foreground hover:text-red-400"
                   aria-label="Remove paragraph"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -108,7 +108,7 @@ export function CoverLetterStructuredEditor({ letter, content, onContentChange, 
       </div>
 
       <div>
-        <label className="text-xs text-zinc-400">Additional context (for AI regeneration)</label>
+        <label className="text-xs text-muted-foreground">Additional context (for AI regeneration)</label>
         <textarea
           className="input-field mt-1 min-h-[60px] text-sm"
           value={letter.additional_context || ""}

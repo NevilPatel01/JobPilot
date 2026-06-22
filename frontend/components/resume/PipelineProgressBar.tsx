@@ -29,15 +29,15 @@ export function PipelineProgressBar({ steps, includeCoverLetter = false, classNa
         const status = steps[step.id] || "pending";
         return (
           <div key={step.id} className="flex items-center gap-2 text-xs">
-            {index > 0 && <span className="hidden text-zinc-600 sm:inline">→</span>}
+            {index > 0 && <span className="hidden text-muted-foreground sm:inline">→</span>}
             <span
               className={cn(
                 "flex items-center gap-1.5 rounded-full px-2 py-1",
                 status === "running" && "bg-amber-500/20 text-amber-200",
                 status === "completed" && "bg-emerald-500/15 text-emerald-300",
                 status === "failed" && "bg-red-500/20 text-red-300",
-                status === "skipped" && "bg-zinc-800 text-zinc-500",
-                status === "pending" && "bg-zinc-900 text-zinc-500"
+                status === "skipped" && "bg-muted text-muted-foreground",
+                status === "pending" && "bg-card text-muted-foreground"
               )}
             >
               {status === "running" && <Loader2 className="h-3 w-3 animate-spin" />}

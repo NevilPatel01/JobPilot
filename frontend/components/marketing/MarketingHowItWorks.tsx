@@ -9,17 +9,17 @@ const steps = [
 
 export function MarketingHowItWorks() {
   return (
-    <section className="border-t border-zinc-800/80 bg-zinc-900/30 py-16">
+    <section className="border-t border-border bg-card/30 py-16">
       <div className="mx-auto max-w-6xl px-6">
-        <h2 className="text-center text-2xl font-semibold text-white">How it works</h2>
+        <h2 className="text-center text-2xl font-semibold text-foreground">How it works</h2>
         <div className="mt-10 grid gap-6 md:grid-cols-3">
           {steps.map(({ step, title, desc }) => (
             <div key={step} className="text-center">
-              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600/20 text-lg font-semibold text-indigo-400 ring-1 ring-indigo-500/30">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-lg font-semibold text-primary ring-1 ring-primary/25">
                 {step}
               </span>
-              <h3 className="mt-4 font-medium text-white">{title}</h3>
-              <p className="mt-2 text-sm text-zinc-500">{desc}</p>
+              <h3 className="mt-4 font-medium text-foreground">{title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{desc}</p>
             </div>
           ))}
         </div>
