@@ -148,6 +148,44 @@ The cron endpoint returns **404** when `CRON_SECRET` is unset, so local/dev inst
 
 ## Updates
 
+### Option A — GitHub Actions (recommended)
+
+Secrets are stored in **GitHub → Settings → Secrets and variables → Actions** and synced to the server on every push to `main` or when you run **Deploy (production)** manually.
+
+**One-time setup**
+
+1. Create a deploy SSH key (keep the private key out of git):
+
+```bash
+ssh-keygen -t ed25519 -f deploy_key -N "" -C "jobpilot-github-actions"
+ssh root@YOUR_LINODE_IP "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" < deploy_key.pub
+```
+
+2. Add repository **Secrets**:
+
+| Secret | Value |
+|--------|--------|
+| `DEPLOY_SSH_KEY` | Contents of `deploy_key` (private key) |
+| `DEPLOY_HOST` | Linode IP or hostname (e.g. `139.177.194.149`) |
+| `PRODUCTION_URL` | `https://your-subdomain.duckdns.org` |
+| `NEON_CONNECTION_STRING` | Same as server `backend/.env` |
+| `SECRET_KEY` | Same as server `backend/.env` |
+| `NEXTAUTH_SECRET` | Same as server `frontend/.env.local` |
+| `CRON_SECRET` | Same as server `backend/.env` (same value used by scrape workflow) |
+| `GITHUB_ID` | GitHub OAuth app Client ID |
+| `GITHUB_SECRET` | GitHub OAuth app Client Secret |
+
+When `GITHUB_ID` and `GITHUB_SECRET` are set, the sync script automatically sets `AUTH_DISABLED=false` and rebuilds.
+
+3. Push to `main` or run **Actions → Deploy (production) → Run workflow**.
+
+Use **sync env only** in the manual workflow to push secret changes without `git pull` (still rebuilds frontend so `NEXT_PUBLIC_*` vars apply).
+
+Workflow: `.github/workflows/deploy.yml`  
+Sync script: `deploy/linode/scripts/sync-production-env.sh`
+
+### Option B — Manual SSH
+
 ```bash
 cd /opt/jobpilot
 sudo bash deploy/linode/scripts/deploy.sh
@@ -197,6 +235,7 @@ sudo journalctl -u jobpilot-web -f
 | `scripts/configure-http-nginx.sh` | HTTP reverse proxy via IP (pre-HTTPS) |
 | `scripts/configure-nginx.sh` | Domain Nginx + Let's Encrypt HTTPS |
 | `scripts/configure-production-domain.sh` | Domain + env + rebuild (auth off until OAuth) |
+| `scripts/sync-production-env.sh` | Write server `.env` files from GitHub Actions secrets |
 | `scripts/deploy.sh` | `git pull` + rebuild + restart |
 | `systemd/jobpilot-api.service` | FastAPI on `127.0.0.1:8000` |
 | `systemd/jobpilot-web.service` | Next.js standalone on `127.0.0.1:3000` |

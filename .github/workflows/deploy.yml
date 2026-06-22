@@ -1,0 +1,130 @@
+name: Deploy (production)
+
+on:
+  workflow_dispatch:
+    inputs:
+      sync_env_only:
+        description: "Only sync secrets to server .env files (skip git pull / rebuild)"
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check deploy credentials
+        id: check
+        run: |
+          if [[ -z "${{ secrets.DEPLOY_SSH_KEY }}" || -z "${{ secrets.DEPLOY_HOST }}" ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Skipping deploy: set DEPLOY_SSH_KEY and DEPLOY_HOST repository secrets."
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Configure SSH
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Build secrets bundle
+        if: steps.check.outputs.skip != 'true'
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_URL }}
+          NEON_CONNECTION_STRING: ${{ secrets.NEON_CONNECTION_STRING }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          GITHUB_ID: ${{ secrets.GITHUB_ID }}
+          GITHUB_SECRET: ${{ secrets.GITHUB_SECRET }}
+          AUTH_DISABLED: ${{ secrets.AUTH_DISABLED }}
+          DISABLE_APSCHEDULER: ${{ secrets.DISABLE_APSCHEDULER }}
+        run: |
+          set -euo pipefail
+          python3 << 'PY'
+          import json, os
+
+          keys = [
+              "PRODUCTION_URL",
+              "NEON_CONNECTION_STRING",
+              "SECRET_KEY",
+              "NEXTAUTH_SECRET",
+              "CRON_SECRET",
+              "GITHUB_ID",
+              "GITHUB_SECRET",
+              "AUTH_DISABLED",
+              "DISABLE_APSCHEDULER",
+          ]
+          data = {k: os.environ[k] for k in keys if os.environ.get(k)}
+          with open("secrets.bundle.json", "w", encoding="utf-8") as f:
+              json.dump(data, f)
+          print(f"Bundled {len(data)} secret(s) for sync")
+          PY
+
+      - name: Sync env and deploy
+        if: steps.check.outputs.skip != 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          SYNC_ENV_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.sync_env_only || 'false' }}
+        run: |
+          set -euo pipefail
+          scp -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes \
+            secrets.bundle.json "root@${DEPLOY_HOST}:/tmp/jobpilot-secrets.bundle.json"
+
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes "root@${DEPLOY_HOST}" \
+            "SYNC_ENV_ONLY=${SYNC_ENV_ONLY} bash -s" << 'REMOTE'
+          set -euo pipefail
+          APP_ROOT="${APP_ROOT:-/opt/jobpilot}"
+          cd "$APP_ROOT"
+
+          python3 << 'PY'
+          import json, os, shlex
+          from pathlib import Path
+
+          bundle = Path("/tmp/jobpilot-secrets.bundle.json")
+          data = json.loads(bundle.read_text())
+          bundle.unlink(missing_ok=True)
+
+          env_file = Path("/tmp/jobpilot-sync.env")
+          with env_file.open("w", encoding="utf-8") as f:
+              for key, value in data.items():
+                  f.write(f"{key}={value}\n")
+          PY
+
+          set -a
+          # shellcheck disable=SC1091
+          source /tmp/jobpilot-sync.env
+          set +a
+          rm -f /tmp/jobpilot-sync.env
+
+          bash "$APP_ROOT/deploy/linode/scripts/sync-production-env.sh"
+
+          if [[ "${SYNC_ENV_ONLY}" == "true" ]]; then
+            echo "Env sync only — rebuilding frontend for NEXT_PUBLIC_* changes"
+            cd "$APP_ROOT/frontend"
+            npm run build
+            cp -r public .next/standalone/public
+            cp -r .next/static .next/standalone/.next/static
+            systemctl restart jobpilot-api jobpilot-web
+            echo "Services restarted after env sync."
+          else
+            bash "$APP_ROOT/deploy/linode/scripts/deploy.sh"
+          fi
+          REMOTE
+
+      - name: Verify health
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          if [[ -n "${{ secrets.PRODUCTION_URL }}" ]]; then
+            curl -fsS "${{ secrets.PRODUCTION_URL }}/api/v1/health"
+            echo ""
+          fi
