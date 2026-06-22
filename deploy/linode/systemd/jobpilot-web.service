@@ -1,0 +1,19 @@
+[Unit]
+Description=JobPilot Next.js frontend
+After=network.target jobpilot-api.service
+
+[Service]
+Type=simple
+User=__APP_USER__
+Group=__APP_USER__
+WorkingDirectory=__APP_ROOT__/frontend/.next/standalone
+EnvironmentFile=__APP_ROOT__/frontend/.env.local
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

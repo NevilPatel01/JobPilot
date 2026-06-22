@@ -1,0 +1,5 @@
+# Filled env files on the server — never commit (public repo).
+backend.env
+frontend.env.local
+*.env
+!*.example

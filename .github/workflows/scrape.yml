@@ -1,0 +1,24 @@
+name: Scrape jobs (production)
+
+on:
+  schedule:
+    # 08:00 America/Toronto ≈ 13:00 UTC (EST); adjust for EDT if needed
+    - cron: "0 13 * * *"
+    # 18:00 America/Toronto ≈ 23:00 UTC (EST)
+    - cron: "0 23 * * *"
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    if: ${{ vars.ENABLE_PRODUCTION_SCRAPE == 'true' }}
+    steps:
+      - name: Trigger production scraper
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ secrets.CRON_SECRET }}" || -z "${{ secrets.PRODUCTION_URL }}" ]]; then
+            echo "Skipping: set CRON_SECRET and PRODUCTION_URL repository secrets."
+            exit 0
+          fi
+          curl -fsS -X POST "${{ secrets.PRODUCTION_URL }}/api/v1/internal/cron/scrape" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"

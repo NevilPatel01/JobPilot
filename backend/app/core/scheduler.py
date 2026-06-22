@@ -18,6 +18,9 @@ async def _sweep_stale_resumes() -> None:
 def start_scheduler() -> None:
     if scheduler.running:
         return
+    if settings.disable_apscheduler:
+        print("[Scheduler] Disabled via DISABLE_APSCHEDULER")
+        return
     if settings.job_intelligence_enabled:
         scheduler.add_job(
             run_all_scrapers,

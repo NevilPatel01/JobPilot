@@ -1,14 +1,20 @@
+import asyncio
 import hashlib
 import re
 from datetime import date, timedelta
+from typing import Any
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
+from app.core.config import settings
 from app.jobs.pipeline.contracts import NormalizedJob
 from app.jobs.pipeline.normalizer import normalize_job
 from app.jobs.sources.base import CanadianJobSource, SourceRateLimited
 from app.jobs.sources.helpers import province_code
+
+MIN_DESCRIPTION_LEN = 200
+DETAIL_FETCH_DELAY_SECONDS = 0.35
 
 
 class JobBankSource(CanadianJobSource):
@@ -40,8 +46,97 @@ class JobBankSource(CanadianJobSource):
             parsed = self.parse_search_html(response.text, city)
             if not parsed:
                 break
+            if settings.scraper_fetch_descriptions:
+                parsed = await self.enrich_descriptions(parsed)
             jobs.extend(parsed)
         return jobs
+
+    async def enrich_descriptions(self, jobs: list[NormalizedJob]) -> list[NormalizedJob]:
+        enriched: list[NormalizedJob] = []
+        for index, job in enumerate(jobs):
+            if len(job.description) >= MIN_DESCRIPTION_LEN:
+                enriched.append(job)
+                continue
+            if index > 0:
+                await asyncio.sleep(DETAIL_FETCH_DELAY_SECONDS)
+            detail = await self.fetch_detail(job.apply_url)
+            if not detail:
+                enriched.append(job)
+                continue
+            updates: dict[str, Any] = {}
+            if detail.get("description") and len(detail["description"]) > len(job.description):
+                updates["description"] = detail["description"]
+            if detail.get("salary_min") and not job.salary_min:
+                updates["salary_min"] = detail["salary_min"]
+            if detail.get("salary_max") and not job.salary_max:
+                updates["salary_max"] = detail["salary_max"]
+            enriched.append(job.model_copy(update=updates) if updates else job)
+        return enriched
+
+    async def fetch_detail(self, url: str) -> dict[str, Any] | None:
+        if "jobbank.gc.ca" not in url:
+            return None
+        response = await self.client.get(
+            url,
+            headers={
+                "User-Agent": "JobPilot/1.0 (personal Canadian job search tool)",
+                "Accept": "text/html,application/xhtml+xml",
+                "Accept-Language": "en-CA,en;q=0.9",
+            },
+        )
+        if response.status_code == 429:
+            raise SourceRateLimited("Job Bank request rate limit reached")
+        if response.status_code >= 400:
+            return None
+        return self.parse_detail_html(response.text)
+
+    @classmethod
+    def parse_detail_html(cls, html: str) -> dict[str, Any] | None:
+        soup = BeautifulSoup(html, "html.parser")
+        description = ""
+        for selector in (
+            "div#job-description",
+            "div.job-posting-detail",
+            "section[aria-label='Job details']",
+            "div[property='description']",
+        ):
+            element = soup.select_one(selector)
+            if element:
+                text = element.get_text("\n", strip=True)
+                if len(text) > 100:
+                    description = text
+                    break
+        if not description:
+            for element in soup.find_all("div", class_=lambda value: value and "detail" in value.lower()):
+                text = element.get_text("\n", strip=True)
+                if len(text) > 200:
+                    description = text
+                    break
+        if not description:
+            return None
+
+        salary_min, salary_max = None, None
+        for label in ("Salary", "Wage", "Compensation", "Pay"):
+            marker = soup.find(string=re.compile(label, re.I))
+            if not marker or not marker.parent:
+                continue
+            parent = marker.parent
+            for _ in range(5):
+                if parent is None:
+                    break
+                salary_text = parent.get_text(" ", strip=True)
+                if "$" in salary_text and len(salary_text) < 500:
+                    salary_min, salary_max = cls.parse_salary(salary_text)
+                    break
+                parent = parent.parent
+            if salary_min or salary_max:
+                break
+
+        return {
+            "description": description,
+            "salary_min": salary_min,
+            "salary_max": salary_max,
+        }
 
     @classmethod
     def parse_search_html(cls, html: str, default_city: str) -> list[NormalizedJob]:

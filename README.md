@@ -137,7 +137,26 @@ Dev mode runs with `AUTH_DISABLED=true` — no OAuth setup required for local te
 
 ## Production Deployment
 
-### 1. GitHub OAuth App
+JobPilot is a **public repo** — never commit `.env` files, API keys, or server secrets. Use the example templates and keep filled copies on the server or in GitHub Actions secrets only.
+
+### Option A — Docker (any VPS)
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
+# Edit both files with production values, then:
+docker compose up --build -d
+```
+
+Requirements: PostgreSQL with **pgvector**, Tectonic for PDF preview (included in the backend Docker image).
+
+### Option B — Linode + Neon (no Docker)
+
+Full guide: **[deploy/linode/README.md](deploy/linode/README.md)**
+
+Includes bootstrap scripts, Nginx reverse proxy, systemd services, Let's Encrypt HTTPS, and env templates under `deploy/linode/env/*.example`. Secrets are copied to `backend/.env` and `frontend/.env.local` on the server only.
+
+### GitHub OAuth (required for sign-in)
 
 Create an OAuth App at [GitHub Developer Settings](https://github.com/settings/developers):
 
@@ -146,36 +165,45 @@ Create an OAuth App at [GitHub Developer Settings](https://github.com/settings/d
 | Homepage URL | `https://your-domain.com` |
 | Authorization callback URL | `https://your-domain.com/api/auth/callback/github` |
 
-### 2. Environment Variables
+Set `GITHUB_ID` and `GITHUB_SECRET` in `frontend/.env.local`. Use a single HTTPS host for both frontend and API (Nginx routes `/api/v1` to FastAPI and `/api/auth` to NextAuth).
 
-**Frontend (`frontend/.env.local` or Docker env):**
+### Production environment variables
+
+**Frontend (`frontend/.env.local`):**
 
 | Variable | Production value |
 |----------|------------------|
 | `AUTH_DISABLED` | `false` |
 | `NEXT_PUBLIC_AUTH_DISABLED` | `false` |
 | `NEXTAUTH_URL` | `https://your-domain.com` |
-| `NEXTAUTH_SECRET` | Random 32+ char secret |
-| `GITHUB_ID` | GitHub OAuth client ID |
-| `GITHUB_SECRET` | GitHub OAuth client secret |
-| `NEXT_PUBLIC_API_URL` | `https://api.your-domain.com` |
+| `NEXTAUTH_SECRET` | Random 32+ char secret (`openssl rand -hex 32`) |
+| `GITHUB_ID` / `GITHUB_SECRET` | GitHub OAuth app |
+| `NEXT_PUBLIC_API_URL` | `https://your-domain.com` |
 
 **Backend (`backend/.env`):**
 
 | Variable | Production value |
 |----------|------------------|
 | `AUTH_DISABLED` | `false` |
-| `SECRET_KEY` | Random 256-bit secret (JWT + key encryption) |
+| `SECRET_KEY` | Random 256-bit secret (JWT + BYOK encryption) |
 | `ALLOWED_ORIGINS` | `https://your-domain.com` |
+| `NEON_CONNECTION_STRING` or `DATABASE_URL` | PostgreSQL + pgvector (e.g. [Neon](https://neon.tech)) |
+| `CRON_SECRET` | Random secret for external scraper cron (optional) |
+| `DISABLE_APSCHEDULER` | `true` if scrapers run via GitHub Actions only |
 
-### 3. Deploy
+Users bring their own LLM API keys via Settings — no provider keys in server env.
 
-1. Provision PostgreSQL with **pgvector** extension
-2. Deploy backend with Tectonic available (included in Docker image) for PDF preview
-3. Deploy frontend with OAuth env vars
-4. Users bring their own LLM API keys via Settings
+### Scheduled job scraping (GitHub Actions)
 
-For self-hosting, use `docker compose up` on any VPS with Docker installed.
+For production without relying on in-process APScheduler, set `CRON_SECRET` in backend `.env` and add GitHub repository secrets:
+
+| Secret / variable | Purpose |
+|-------------------|---------|
+| `CRON_SECRET` | Bearer token for `POST /api/v1/internal/cron/scrape` |
+| `PRODUCTION_URL` | e.g. `https://your-domain.com` |
+| `ENABLE_PRODUCTION_SCRAPE` (repo variable) | Set to `true` to enable `.github/workflows/scrape.yml` |
+
+The cron endpoint returns **404** when `CRON_SECRET` is unset.
 
 ---
 
@@ -233,6 +261,9 @@ npm run dev
 | `SECRET_KEY` | JWT signing key + BYOK encryption |
 | `ALLOWED_ORIGINS` | Comma-separated CORS origins |
 | `AUTH_DISABLED` | `true` for local dev without OAuth |
+| `CRON_SECRET` | Enables `/api/v1/internal/cron/scrape` when set |
+| `DISABLE_APSCHEDULER` | `true` to disable in-process scraper schedule |
+| `NEON_CONNECTION_STRING` | Neon Postgres URL (auto-converts to asyncpg) |
 
 ### Frontend (`frontend/.env.local`)
 
@@ -245,7 +276,7 @@ npm run dev
 | `NEXT_PUBLIC_API_URL` | Backend URL |
 | `AUTH_DISABLED` / `NEXT_PUBLIC_AUTH_DISABLED` | Skip OAuth in dev |
 
-Never commit `.env` or `.env.local` files.
+Never commit `.env` or `.env.local` files. For Linode deploy, copy from `deploy/linode/env/*.example` on the server only.
 
 ### PDF Preview
 
@@ -264,8 +295,10 @@ JobPilot/
 │       ├── marketing/       # Landing page sections
 │       └── resume/          # LaTeX editor, PDF preview, structured forms
 ├── backend/
-│   ├── app/services/llm/    # BYOK client, model auto-selection
-│   └── app/services/resume/ # LaTeX render, Tectonic PDF compile
+│   ├── app/api/routes/      # REST + internal cron endpoint
+│   └── app/services/        # LLM, resume/PDF, scrapers
+├── deploy/linode/           # VPS deploy scripts, nginx templates, env examples
+├── .github/workflows/       # Production scraper cron (optional)
 └── docker-compose.yml
 ```
 

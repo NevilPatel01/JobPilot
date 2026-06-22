@@ -8,7 +8,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 
-from app.api.routes import analytics, applications, auth, cover_letters, documents_api, inbox, jobs, profile, resumes, scraper
+from app.api.routes import analytics, applications, auth, cover_letters, documents_api, inbox, internal, jobs, profile, resumes, scraper
 from app.api.routes import settings as settings_routes
 from app.api.schemas import HealthResponse
 from app.core.config import settings
@@ -106,5 +106,6 @@ app.include_router(settings_routes.router, prefix="/api/v1/settings", tags=["set
 app.include_router(resumes.router, prefix="/api/v1/resumes", tags=["resumes"])
 app.include_router(cover_letters.router, prefix="/api/v1/cover-letters", tags=["cover-letters"])
 app.include_router(documents_api.router, prefix="/api/v1/documents", tags=["documents-api"])
+app.include_router(internal.router, prefix="/api/v1/internal", tags=["internal"])
 
 socket_app = socketio.ASGIApp(sio, other_asgi_app=app)

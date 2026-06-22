@@ -3,7 +3,6 @@ import json
 from app.jobs.sources.adzuna import AdzunaSource
 from app.jobs.sources.job_bank import JobBankSource
 from app.jobs.sources.jsearch import JSearchSource
-from app.jobs.sources.job_bank import JobBankSource
 from app.services.scraper_runner import ROLE_PRIORITY, build_query_queue
 from tests.conftest import FIXTURES
 
@@ -53,6 +52,17 @@ def test_job_bank_fixture_parses_listing_and_annualizes_salary() -> None:
     assert job.salary_min == 58240
     assert job.salary_max == 70720
     assert job.source_job_id == "445566"
+    assert "technical support" in job.description.casefold()
+
+
+def test_job_bank_detail_fixture_parses_full_description() -> None:
+    html = (FIXTURES / "job_bank_detail.html").read_text()
+    detail = JobBankSource.parse_detail_html(html)
+
+    assert detail is not None
+    assert "Microsoft 365" in detail["description"]
+    assert detail["salary_min"] == 58240
+    assert detail["salary_max"] == 70720
 
 
 def test_job_bank_salary_rejects_unlabelled_hourly_values() -> None:

@@ -1,10 +1,36 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def normalize_database_url(url: str) -> str:
+    """Accept Neon-style postgresql:// URLs and ensure asyncpg driver prefix."""
+    if not url:
+        return url
+    if url.startswith("postgres://"):
+        url = "postgresql://" + url[len("postgres://") :]
+    if url.startswith("postgresql://") and "+asyncpg" not in url.split("://", 1)[0]:
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    # asyncpg uses ssl=require, not sslmode=require (Neon default)
+    url = url.replace("sslmode=require", "ssl=require")
+    url = url.replace("sslmode=verify-full", "ssl=require")
+    url = url.replace("sslmode=prefer", "ssl=prefer")
+    return url
+
+
+def sync_database_url(url: str) -> str:
+    """psycopg2 URL for Alembic migrations (no asyncpg driver)."""
+    url = normalize_database_url(url)
+    url = url.replace("postgresql+asyncpg://", "postgresql://")
+    url = url.replace("ssl=require", "sslmode=require")
+    url = url.replace("ssl=prefer", "sslmode=prefer")
+    return url
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+asyncpg://jobpilot:password@localhost:5432/jobpilot"
+    neon_connection_string: str = ""
     secret_key: str = "dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 10080
@@ -36,6 +62,39 @@ class Settings(BaseSettings):
     scraper_dry_run: bool = False
     scraper_max_queries_per_source: int = 12
     scraper_max_pages: int = 1
+    scraper_fetch_descriptions: bool = True
+    fit_score_low_max: int = 40
+    fit_score_stretch_max: int = 59
+    fit_score_reviewed_max: int = 74
+    fit_score_recommended_max: int = 84
+    gmail_forward_enabled: bool = False
+    gmail_inbound_domain: str = ""
+    gmail_oauth_enabled: bool = False
+    gmail_client_id: str = ""
+    gmail_client_secret: str = ""
+    job_catalog_retention_days: int = 180
+    inbox_auto_archive_days: int = 45
+    raw_payload_retention_days: int = 45
+    followup_first_business_days: int = 5
+    followup_second_business_days: int = 10
+    cron_secret: str = ""
+    disable_apscheduler: bool = False
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_database_url_field(cls, value: object) -> object:
+        if isinstance(value, str):
+            return normalize_database_url(value)
+        return value
+
+    @property
+    def resolved_database_url(self) -> str:
+        raw = (self.neon_connection_string or self.database_url).strip()
+        return normalize_database_url(raw)
+
+    @property
+    def resolved_sync_database_url(self) -> str:
+        return sync_database_url(self.resolved_database_url)
 
     @property
     def cors_origins(self) -> list[str]:

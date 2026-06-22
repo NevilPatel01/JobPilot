@@ -1,10 +1,18 @@
-# secrets
+# secrets — never commit filled env files (repo is public)
 .env
 .env.*
 !.env.example
 !.env.local.example
 backend/.env
 frontend/.env.local
+deploy/linode/env/backend.env
+deploy/linode/env/frontend.env.local
+# TLS keys / certs if generated locally
+*.pem
+*.key
+deploy/linode/nginx/*.conf
+!deploy/linode/nginx/*.template
+!deploy/linode/nginx/jobpilot-http.conf
 
 # private planning docs (local only)
 docs/
