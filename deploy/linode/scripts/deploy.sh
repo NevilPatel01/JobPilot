@@ -5,7 +5,11 @@ set -euo pipefail
 APP_ROOT="${APP_ROOT:-/opt/jobpilot}"
 
 cd "$APP_ROOT"
-git pull --ff-only
+if [[ -d "$APP_ROOT/.git" ]]; then
+  git pull --ff-only
+else
+  echo "No git repo at APP_ROOT — skipping git pull (use GitHub Actions rsync deploy)."
+fi
 
 cd "$APP_ROOT/backend"
 source .venv/bin/activate

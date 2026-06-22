@@ -36,6 +36,23 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Rsync application code
+        if: steps.check.outputs.skip != 'true' && (github.event_name != 'workflow_dispatch' || inputs.sync_env_only != true)
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude 'backend/.venv' \
+            --exclude 'backend/.env' \
+            --exclude 'frontend/node_modules' \
+            --exclude 'frontend/.env.local' \
+            --exclude 'frontend/.next' \
+            --exclude 'docs' \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes" \
+            ./ "root@${DEPLOY_HOST}:/opt/jobpilot/"
+
       - name: Build secrets bundle
         if: steps.check.outputs.skip != 'true'
         env:
