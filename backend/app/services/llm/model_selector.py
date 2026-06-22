@@ -6,7 +6,7 @@ import re
 
 import httpx
 
-from app.services.llm.client import LLMConfig
+from app.services.llm.client import KEYWORD_SEARCH_EMBEDDING, LLMConfig, infer_provider_from_api_key, normalize_llm_config
 
 AUTO = "auto"
 
@@ -76,11 +76,14 @@ async def fetch_anthropic_models(config: LLMConfig) -> list[str]:
 
 
 async def list_provider_models(config: LLMConfig) -> dict[str, list[str]]:
+    config = normalize_llm_config(config)
     if config.provider == "anthropic":
         all_models = await fetch_anthropic_models(config)
         chat = [m for m in all_models if not CHAT_EXCLUDE.search(m)]
-        embeddings = OPENAI_EMBEDDING_PRESETS.copy()
-        return {"chat_models": chat or ANTHROPIC_CHAT_PRESETS.copy(), "embedding_models": embeddings}
+        return {
+            "chat_models": chat or ANTHROPIC_CHAT_PRESETS.copy(),
+            "embedding_models": [KEYWORD_SEARCH_EMBEDDING],
+        }
 
     all_models = await fetch_openai_models(config)
     chat = [m for m in all_models if not CHAT_EXCLUDE.search(m)]
@@ -109,7 +112,7 @@ def pick_chat_model(models: list[str], provider: str) -> str:
 
 def pick_embedding_model(models: list[str], provider: str) -> str:
     if provider == "anthropic":
-        return OPENAI_EMBEDDING_PRESETS[0]
+        return KEYWORD_SEARCH_EMBEDDING
     candidates = [m for m in models if m and EMBED_INCLUDE.search(m)]
     if not candidates:
         return OPENAI_EMBEDDING_PRESETS[0]
@@ -117,13 +120,20 @@ def pick_embedding_model(models: list[str], provider: str) -> str:
 
 
 async def auto_select_models(config: LLMConfig) -> dict[str, str]:
+    config = normalize_llm_config(config)
     listed = await list_provider_models(config)
     chat = pick_chat_model(listed["chat_models"], config.provider)
     embed = pick_embedding_model(listed["embedding_models"], config.provider)
-    reason = (
-        f"Selected {chat} for chat and {embed} for embeddings "
-        f"(cost-efficient defaults for {config.provider})"
-    )
+    if embed == KEYWORD_SEARCH_EMBEDDING:
+        reason = (
+            f"Selected {chat} for chat. Semantic search will use keyword matching "
+            f"(Anthropic does not provide embeddings). Add an OpenAI key in Settings for vector search."
+        )
+    else:
+        reason = (
+            f"Selected {chat} for chat and {embed} for embeddings "
+            f"(cost-efficient defaults for {config.provider})"
+        )
     return {"model_name": chat, "embedding_model": embed, "reason": reason}
 
 

@@ -40,8 +40,8 @@ export const LLM_PRESETS: ProviderPreset[] = [
       { id: "claude-3-opus-latest", label: "Claude 3 Opus (premium)" },
     ],
     embeddings: [
-      { id: AUTO_MODEL, label: "Auto — OpenAI embedding (requires OpenAI key or preset)" },
-      { id: "text-embedding-3-small", label: "text-embedding-3-small (via OpenAI-compatible API)" },
+      { id: AUTO_MODEL, label: "Auto — keyword search (add OpenAI key for vectors)" },
+      { id: "keyword-search", label: "Keyword search (no OpenAI key required)" },
     ],
   },
   {

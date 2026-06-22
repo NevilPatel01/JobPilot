@@ -46,6 +46,12 @@ export default function SettingsPage() {
   useEffect(() => { load(); }, []);
 
   useEffect(() => {
+    if (apiKey.startsWith("sk-ant-")) setProvider("anthropic");
+    else if (apiKey.startsWith("sk-or-v1-")) setProvider("custom");
+    else if (apiKey.startsWith("sk-")) setProvider("openai");
+  }, [apiKey]);
+
+  useEffect(() => {
     setModelName(AUTO_MODEL);
     setEmbeddingModel(AUTO_MODEL);
     setFetchedChatModels([]);

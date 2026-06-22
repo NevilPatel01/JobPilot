@@ -17,10 +17,12 @@ import {
   Mail,
   Settings,
   Plus,
+  PanelLeftClose,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HireMeButton } from "@/components/ui/HireMeButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { useSidebar } from "@/components/layout/SidebarContext";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
@@ -38,19 +40,36 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { isOpen, close } = useSidebar();
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 flex h-screen w-60 flex-col border-r border-sidebar-border bg-sidebar/95 backdrop-blur-xl transition-transform duration-300 ease-in-out",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}
+    >
       <div className="border-b border-sidebar-border px-5 py-5">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/25">
-            <Sparkles className="h-4 w-4 text-primary" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 ring-1 ring-primary/25">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-base font-semibold tracking-tight text-sidebar-foreground">JobPilot</span>
+              <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Job Search OS</p>
+            </div>
           </div>
-          <div>
-            <span className="text-base font-semibold tracking-tight text-sidebar-foreground">JobPilot</span>
-            <p className="text-[10px] font-medium uppercase tracking-widest text-muted-foreground">Job Search OS</p>
-          </div>
+          <button
+            type="button"
+            onClick={close}
+            className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close sidebar"
+            title="Close sidebar"
+          >
+            <PanelLeftClose className="h-5 w-5" />
+          </button>
         </div>
         <Link
           href="/resumes/new"

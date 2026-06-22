@@ -18,7 +18,7 @@ from app.core.crypto import encrypt_value
 from app.core.database import get_db
 from app.models.api_key import UserApiKey, UserApiToken
 from app.models.user import User
-from app.services.llm.client import LLMConfig, test_api_key
+from app.services.llm.client import LLMConfig, infer_provider_from_api_key, normalize_llm_config, test_api_key
 from app.services.llm.model_selector import AUTO, auto_select_models, list_provider_models
 
 router = APIRouter()
@@ -31,17 +31,20 @@ def _mask_key(key: str) -> str:
 
 
 async def _resolve_models(body: ApiKeyCreate) -> tuple[str, str]:
+    provider = infer_provider_from_api_key(body.api_key, body.provider)
     model_name = body.model_name or AUTO
     embedding_model = body.embedding_model or AUTO
     if model_name != AUTO and embedding_model != AUTO:
         return model_name, embedding_model
 
-    config = LLMConfig(
-        provider=body.provider,
-        api_key=body.api_key,
-        base_url=body.base_url,
-        model_name=DEFAULT_MODEL_PLACEHOLDER,
-        embedding_model=DEFAULT_EMBEDDING_PLACEHOLDER,
+    config = normalize_llm_config(
+        LLMConfig(
+            provider=provider,
+            api_key=body.api_key,
+            base_url=body.base_url,
+            model_name=DEFAULT_MODEL_PLACEHOLDER,
+            embedding_model=DEFAULT_EMBEDDING_PLACEHOLDER,
+        )
     )
     selected = await auto_select_models(config)
     return (
@@ -77,12 +80,15 @@ async def probe_api_key_models(
     body: ApiKeyProbe,
     user: User = Depends(get_current_user),
 ):
-    config = LLMConfig(
-        provider=body.provider,
-        api_key=body.api_key,
-        base_url=body.base_url,
-        model_name=DEFAULT_MODEL_PLACEHOLDER,
-        embedding_model=DEFAULT_EMBEDDING_PLACEHOLDER,
+    provider = infer_provider_from_api_key(body.api_key, body.provider)
+    config = normalize_llm_config(
+        LLMConfig(
+            provider=provider,
+            api_key=body.api_key,
+            base_url=body.base_url,
+            model_name=DEFAULT_MODEL_PLACEHOLDER,
+            embedding_model=DEFAULT_EMBEDDING_PLACEHOLDER,
+        )
     )
     ok = await test_api_key(config)
     if not ok:
@@ -96,12 +102,15 @@ async def auto_select_api_key_models(
     body: ApiKeyProbe,
     user: User = Depends(get_current_user),
 ):
-    config = LLMConfig(
-        provider=body.provider,
-        api_key=body.api_key,
-        base_url=body.base_url,
-        model_name=DEFAULT_MODEL_PLACEHOLDER,
-        embedding_model=DEFAULT_EMBEDDING_PLACEHOLDER,
+    provider = infer_provider_from_api_key(body.api_key, body.provider)
+    config = normalize_llm_config(
+        LLMConfig(
+            provider=provider,
+            api_key=body.api_key,
+            base_url=body.base_url,
+            model_name=DEFAULT_MODEL_PLACEHOLDER,
+            embedding_model=DEFAULT_EMBEDDING_PLACEHOLDER,
+        )
     )
     ok = await test_api_key(config)
     if not ok:
@@ -116,10 +125,11 @@ async def upsert_api_key(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    provider = infer_provider_from_api_key(body.api_key, body.provider)
     model_name, embedding_model = await _resolve_models(body)
 
     result = await db.execute(
-        select(UserApiKey).where(UserApiKey.user_id == user.id, UserApiKey.provider == body.provider)
+        select(UserApiKey).where(UserApiKey.user_id == user.id, UserApiKey.provider == provider)
     )
     existing = result.scalar_one_or_none()
 
@@ -129,6 +139,7 @@ async def upsert_api_key(
             k.is_default = False
 
     if existing:
+        existing.provider = provider
         existing.api_key_enc = encrypt_value(body.api_key)
         existing.base_url = body.base_url
         existing.model_name = model_name
@@ -138,7 +149,7 @@ async def upsert_api_key(
     else:
         key_row = UserApiKey(
             user_id=user.id,
-            provider=body.provider,
+            provider=provider,
             api_key_enc=encrypt_value(body.api_key),
             base_url=body.base_url,
             model_name=model_name,
@@ -165,18 +176,21 @@ async def test_user_api_key(
     body: ApiKeyCreate,
     user: User = Depends(get_current_user),
 ):
+    provider = infer_provider_from_api_key(body.api_key, body.provider)
     model_name = body.model_name or DEFAULT_MODEL_PLACEHOLDER
     embedding_model = body.embedding_model or DEFAULT_EMBEDDING_PLACEHOLDER
     if model_name == AUTO or embedding_model == AUTO:
         resolved = await _resolve_models(body)
         model_name, embedding_model = resolved
 
-    config = LLMConfig(
-        provider=body.provider,
-        api_key=body.api_key,
-        base_url=body.base_url,
-        model_name=model_name,
-        embedding_model=embedding_model,
+    config = normalize_llm_config(
+        LLMConfig(
+            provider=provider,
+            api_key=body.api_key,
+            base_url=body.base_url,
+            model_name=model_name,
+            embedding_model=embedding_model,
+        )
     )
     ok = await test_api_key(config)
     if not ok:

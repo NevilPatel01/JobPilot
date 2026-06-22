@@ -1,9 +1,25 @@
+import re
+
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rag_chunk import DocumentChunk
-from app.services.llm.client import LLMConfig, create_embeddings
+from app.services.llm.client import LLMConfig, create_embeddings, resolve_embeddings_config
 from app.services.rag.chunker import chunk_resume_content, chunk_text
+
+_TERM_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9._+#/-]{2,}")
+
+
+def _query_terms(query: str) -> list[str]:
+    terms = [t.lower() for t in _TERM_RE.findall(query)]
+    if terms:
+        return terms[:24]
+    return [t for t in query.lower().split() if t][:12]
+
+
+def _keyword_score(text: str, terms: list[str]) -> int:
+    lower = text.lower()
+    return sum(lower.count(term) for term in terms)
 
 
 async def delete_chunks(db: AsyncSession, user_id, source_type: str, source_id: str | None = None) -> None:
@@ -14,6 +30,25 @@ async def delete_chunks(db: AsyncSession, user_id, source_type: str, source_id: 
     if source_id is not None:
         q = q.where(DocumentChunk.source_id == source_id)
     await db.execute(q)
+
+
+async def _search_chunks_keyword(
+    db: AsyncSession,
+    user_id,
+    query: str,
+    limit: int = 8,
+    source_types: list[str] | None = None,
+) -> list[DocumentChunk]:
+    terms = _query_terms(query)
+    stmt = select(DocumentChunk).where(DocumentChunk.user_id == user_id)
+    if source_types:
+        stmt = stmt.where(DocumentChunk.source_type.in_(source_types))
+    result = await db.execute(stmt.limit(400))
+    chunks = list(result.scalars().all())
+    if not chunks:
+        return []
+    ranked = sorted(chunks, key=lambda c: _keyword_score(c.chunk_text, terms), reverse=True)
+    return ranked[:limit]
 
 
 async def ingest_text(
@@ -29,8 +64,12 @@ async def ingest_text(
     if not chunks:
         return 0
 
-    embeddings = create_embeddings(llm_config)
-    vectors = await embeddings.aembed_documents(chunks)
+    embed_config = await resolve_embeddings_config(db, user_id, llm_config)
+    if embed_config:
+        embeddings = create_embeddings(embed_config)
+        vectors = await embeddings.aembed_documents(chunks)
+    else:
+        vectors = [None] * len(chunks)
 
     for chunk, vector in zip(chunks, vectors):
         db.add(
@@ -59,8 +98,12 @@ async def ingest_resume_content(
         return 0
 
     texts = [t for _, t in labeled]
-    embeddings = create_embeddings(llm_config)
-    vectors = await embeddings.aembed_documents(texts)
+    embed_config = await resolve_embeddings_config(db, user_id, llm_config)
+    if embed_config:
+        embeddings = create_embeddings(embed_config)
+        vectors = await embeddings.aembed_documents(texts)
+    else:
+        vectors = [None] * len(texts)
 
     for (_, chunk), vector in zip(labeled, vectors):
         db.add(
@@ -84,7 +127,11 @@ async def search_chunks(
     limit: int = 8,
     source_types: list[str] | None = None,
 ) -> list[DocumentChunk]:
-    embeddings = create_embeddings(llm_config)
+    embed_config = await resolve_embeddings_config(db, user_id, llm_config)
+    if not embed_config:
+        return await _search_chunks_keyword(db, user_id, query, limit, source_types)
+
+    embeddings = create_embeddings(embed_config)
     query_vector = (await embeddings.aembed_query(query))[0]
 
     type_filter = ""
@@ -106,13 +153,16 @@ async def search_chunks(
     )
     result = await db.execute(sql, params)
     rows = result.fetchall()
-    return [
-        DocumentChunk(
-            id=r[0],
-            user_id=r[1],
-            source_type=r[2],
-            source_id=r[3],
-            chunk_text=r[4],
-        )
-        for r in rows
-    ]
+    if rows:
+        return [
+            DocumentChunk(
+                id=r[0],
+                user_id=r[1],
+                source_type=r[2],
+                source_id=r[3],
+                chunk_text=r[4],
+            )
+            for r in rows
+        ]
+
+    return await _search_chunks_keyword(db, user_id, query, limit, source_types)

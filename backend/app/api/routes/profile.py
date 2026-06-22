@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +19,7 @@ from app.services.resume.pdf_compiler import compile_latex_to_pdf, extract_pdf_t
 from app.services.resume.renderer import parse_pdf_text, render_resume_latex
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("", response_model=UserResponse)
@@ -90,7 +93,14 @@ async def upload_resume_pdf(
     llm_config = await get_user_llm_config(db, user.id)
     result = await parse_pdf_text(text, llm_config)
     if llm_config and text.strip():
-        await ingest_resume_content(db, user.id, result.content, llm_config, source_id="upload")
+        try:
+            await ingest_resume_content(db, user.id, result.content, llm_config, source_id="upload")
+        except Exception as exc:
+            logger.warning("RAG ingest after PDF upload failed: %s", exc)
+            result.warnings.append(
+                "Resume parsed successfully, but search indexing was skipped. "
+                "Re-save your profile after verifying your API key provider in Settings."
+            )
         await db.commit()
     return {
         "content": result.content,

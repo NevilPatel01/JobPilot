@@ -173,7 +173,16 @@ export const api = {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: form,
     });
-    if (!res.ok) throw new Error("Upload failed");
+    if (!res.ok) {
+      let detail = "Upload failed";
+      try {
+        const err = await res.json();
+        detail = err.detail || detail;
+      } catch {
+        // ignore
+      }
+      throw new Error(detail);
+    }
     return res.json() as Promise<{
       content: import("@/types/resume").ResumeContent;
       warnings: string[];

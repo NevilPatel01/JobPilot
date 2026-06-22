@@ -44,7 +44,7 @@ export default function CreateResumePage() {
       setSourceType("upload");
     } catch (err) {
       console.error(err);
-      alert("PDF upload failed.");
+      alert(e instanceof Error ? e.message : "PDF upload failed.");
     } finally {
       setUploading(false);
     }
