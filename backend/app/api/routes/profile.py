@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.models.job import Job
 from app.models.profile_structured import UserProfileStructured
 from app.models.user import User
+from app.jobs.scoring.service import rescore_user_inbox
 from app.schemas.resume_content import ResumeContent, empty_resume_content, resume_to_text
 from app.services.job_filters import apply_canada_filter
 from app.services.llm.client import get_user_llm_config
@@ -39,6 +40,8 @@ async def update_profile(
     elif body.skills_keywords is not None:
         user.skills_keywords = body.skills_keywords
 
+    await db.flush()
+    await rescore_user_inbox(db, user)
     await db.commit()
     await db.refresh(user)
     return UserResponse.model_validate(user)
@@ -75,6 +78,8 @@ async def update_structured_profile(
     if llm_config:
         await ingest_resume_content(db, user.id, content.model_dump(), llm_config)
 
+    await db.flush()
+    await rescore_user_inbox(db, user)
     await db.commit()
     await db.refresh(row)
     return StructuredProfileResponse(content=row.content_json, updated_at=row.updated_at)
@@ -88,8 +93,25 @@ async def upload_resume_pdf(
 ):
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
-    raw = await file.read()
-    text = extract_pdf_text(raw)
+    max_bytes = 10 * 1024 * 1024
+    raw = await file.read(max_bytes + 1)
+    if not raw:
+        raise HTTPException(status_code=400, detail="The uploaded PDF is empty")
+    if len(raw) > max_bytes:
+        raise HTTPException(status_code=413, detail="Resume PDF must be 10 MB or smaller")
+    try:
+        text = extract_pdf_text(raw)
+    except Exception as exc:
+        logger.info("Resume PDF text extraction failed: %s", exc)
+        raise HTTPException(
+            status_code=422,
+            detail="Could not read this PDF. Export it again as a standard, non-password-protected PDF.",
+        ) from exc
+    if not text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="No selectable text was found. Image-only or scanned PDFs are not supported yet.",
+        )
     llm_config = await get_user_llm_config(db, user.id)
     result = await parse_pdf_text(text, llm_config)
     if llm_config and text.strip():

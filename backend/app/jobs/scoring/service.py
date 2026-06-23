@@ -36,11 +36,31 @@ def _profile_skills(user: User, content: dict) -> tuple[str, ...]:
     return tuple(dict.fromkeys(str(skill).strip() for skill in skills if str(skill).strip()))
 
 
+def profile_has_scoring_data(user: User, content: dict) -> bool:
+    """Require career evidence before presenting a personalized fit score."""
+    if _profile_skills(user, content):
+        return True
+    evidence_fields = {
+        "experience": ("title", "company", "bullets"),
+        "projects": ("name", "bullets"),
+        "education": ("institution", "degree"),
+    }
+    for section, fields in evidence_fields.items():
+        for item in content.get(section, []):
+            for field in fields:
+                value = item.get(field)
+                if isinstance(value, list) and any(str(entry).strip() for entry in value):
+                    return True
+                if not isinstance(value, list) and str(value or "").strip():
+                    return True
+    return False
+
+
 async def build_candidate_profile(
     session: AsyncSession,
     user: User,
     prefs: UserScoringPrefs | None = None,
-) -> CandidateProfile:
+) -> CandidateProfile | None:
     if prefs is None:
         prefs = await session.get(UserScoringPrefs, user.id)
     profile_result = await session.execute(
@@ -48,6 +68,8 @@ async def build_candidate_profile(
     )
     structured = profile_result.scalar_one_or_none()
     content = structured.content_json if structured else {}
+    if not profile_has_scoring_data(user, content):
+        return None
     years = _profile_experience_years(content)
     if years is None and user.resume_text:
         match = re.search(r"\b(\d{1,2})\+?\s+years?\b", user.resume_text, re.IGNORECASE)
@@ -88,11 +110,19 @@ async def score_inbox_job(
     *,
     prefs: UserScoringPrefs | None = None,
     candidate: CandidateProfile | None = None,
-) -> JobFitScore:
+) -> JobFitScore | None:
     if prefs is None:
         prefs = await session.get(UserScoringPrefs, user.id)
     if candidate is None:
         candidate = await build_candidate_profile(session, user, prefs)
+    if candidate is None:
+        inbox_job.fit_score_id = None
+        inbox_job.fit_score = None
+        inbox_job.ai_recommended_category = None
+        if inbox_job.status == "ai_reviewed":
+            inbox_job.status = "new"
+        await session.flush()
+        return None
     result = score_job(
         _job_facts(inbox_job.job),
         candidate,
@@ -139,6 +169,8 @@ async def rescore_user_inbox(
         .options(selectinload(InboxJob.job))
     )
     items = result.scalars().all()
+    scored = 0
     for item in items:
-        await score_inbox_job(session, item, user, prefs=prefs, candidate=candidate)
-    return len(items)
+        if await score_inbox_job(session, item, user, prefs=prefs, candidate=candidate):
+            scored += 1
+    return scored

@@ -24,6 +24,7 @@ export default function CreateResumePage() {
   const [uploadedContent, setUploadedContent] = useState<ResumeContent | null>(null);
   const [parseFeedback, setParseFeedback] = useState<ParseFeedback | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [createCoverLetter, setCreateCoverLetter] = useState(false);
   const [coverMeta, setCoverMeta] = useState<CoverLetterMeta>({});
   const [creating, setCreating] = useState(false);
@@ -33,6 +34,7 @@ export default function CreateResumePage() {
     if (!file) return;
     setUploading(true);
     setParseFeedback(null);
+    setUploadError(null);
     try {
       const result = await api.uploadResumePdf(file);
       setUploadedContent(result.content);
@@ -44,7 +46,7 @@ export default function CreateResumePage() {
       setSourceType("upload");
     } catch (err) {
       console.error(err);
-      alert(e instanceof Error ? e.message : "PDF upload failed.");
+      setUploadError(err instanceof Error ? err.message : "PDF upload failed.");
     } finally {
       setUploading(false);
     }
@@ -109,10 +111,17 @@ export default function CreateResumePage() {
               <label className={cn("cursor-pointer rounded-lg border p-4 text-left transition", sourceType === "upload" ? "border-primary bg-primary/10" : "border-border")}>
                 <Upload className="h-5 w-5 text-primary" />
                 <div className="mt-2 text-sm font-medium text-foreground">Upload Resume</div>
-                <div className="text-xs text-muted-foreground">{uploading ? "Parsing PDF..." : "PDF upload"}</div>
-                <input type="file" accept=".pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
+                <div className="text-xs text-muted-foreground">{uploading ? "Parsing PDF..." : "PDF · up to 10 MB"}</div>
+                <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
               </label>
             </div>
+
+            {uploadError && (
+              <div className="mt-3 flex gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{uploadError}</span>
+              </div>
+            )}
 
             {parseFeedback && sourceType === "upload" && (
               <div className="mt-4 rounded-lg border border-border bg-card/50 p-4">
