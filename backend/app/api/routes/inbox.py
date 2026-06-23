@@ -25,7 +25,7 @@ from app.jobs.pipeline.ingest import ingest_job
 from app.jobs.inbox_actions import mark_inbox_applied
 from app.jobs.pipeline.normalizer import normalize_job, normalize_raw_job
 from app.jobs.resume_templates import RESUME_CATEGORIES, ensure_resume_template, seed_resume_templates
-from app.jobs.scoring.service import rescore_user_inbox, score_inbox_job
+from app.jobs.scoring.service import build_candidate_profile, rescore_user_inbox, score_inbox_job
 from app.models.job import Job
 from app.models.job_intelligence import InboxJob, JobFitScore, UserScoringPrefs
 from app.models.resume import ResumeDocument
@@ -65,6 +65,7 @@ async def list_inbox(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    profile_ready = await build_candidate_profile(db, user) is not None
     filters = [InboxJob.user_id == user.id]
     if status:
         filters.append(InboxJob.status == status)
@@ -73,13 +74,13 @@ async def list_inbox(
     if q:
         pattern = f"%{q}%"
         filters.append(or_(Job.title.ilike(pattern), Job.company.ilike(pattern), Job.skills.any(q)))
-    if min_score is not None:
+    if profile_ready and min_score is not None:
         filters.append(JobFitScore.score >= min_score)
-    if fit_label:
+    if profile_ready and fit_label:
         filters.append(JobFitScore.label == fit_label)
-    if risk_flag:
+    if profile_ready and risk_flag:
         filters.append(JobFitScore.risk_flags.any(risk_flag))
-    if resume_category:
+    if profile_ready and resume_category:
         filters.append(JobFitScore.recommended_category == resume_category)
 
     base = (
@@ -95,8 +96,17 @@ async def list_inbox(
         .offset((page - 1) * limit)
         .limit(limit)
     )
+    items = result.scalars().all()
+    if not profile_ready:
+        for item in items:
+            item.fit_score_id = None
+            item.fit_score = None
+            item.ai_recommended_category = None
+            if item.status == "ai_reviewed":
+                item.status = "new"
+        await db.commit()
     return InboxListResponse(
-        items=[_response(item) for item in result.scalars().all()],
+        items=[_response(item) for item in items],
         total=total,
         page=page,
         limit=limit,

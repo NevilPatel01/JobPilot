@@ -17,6 +17,8 @@ export default function ScraperPage() {
   const [source, setSource] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [trackingId, setTrackingId] = useState<string | null>(null);
+  const [profileReady, setProfileReady] = useState<boolean | null>(null);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -35,6 +37,12 @@ export default function ScraperPage() {
 
   const loadMatchScores = useCallback(async () => {
     try {
+      const status = await api.getScoringStatus();
+      setProfileReady(status.ready);
+      if (!status.ready) {
+        setMatchScores({});
+        return;
+      }
       const scores = await api.getMatchScores();
       const map: Record<string, MatchScore> = {};
       scores.forEach((s) => (map[s.job_id] = s));
@@ -61,6 +69,19 @@ export default function ScraperPage() {
     } finally {
       setScraping(false);
       setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  const handleTrack = async (jobId: string) => {
+    setTrackingId(jobId);
+    try {
+      await api.quickSaveJob(jobId);
+      setToast("Added to Tracker · To Apply");
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Could not add job to tracker");
+    } finally {
+      setTrackingId(null);
+      setTimeout(() => setToast(null), 3000);
     }
   };
 
@@ -119,6 +140,13 @@ export default function ScraperPage() {
         </div>
       )}
 
+      {profileReady === false && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/70 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">Add skills or experience to your profile to unlock meaningful job scores.</span>
+          <a href="/profile" className="font-semibold text-primary hover:underline">Complete profile</a>
+        </div>
+      )}
+
       {loading || scraping ? (
         <SkeletonLoader />
       ) : jobs.length === 0 ? (
@@ -138,7 +166,9 @@ export default function ScraperPage() {
                 matchScore={match?.score}
                 matchedKeywords={match?.matched_keywords}
                 onSave={handleSave}
+                onTrack={handleTrack}
                 saving={savingId === job.id}
+                tracking={trackingId === job.id}
               />
             );
           })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, BookmarkPlus } from "lucide-react";
+import { ArrowUpRight, BookmarkPlus, ListPlus } from "lucide-react";
 import type { Job } from "@/types";
 import { MatchBadge } from "./MatchBadge";
 import { formatDate, daysSince, stripHtml } from "@/lib/utils";
@@ -10,17 +10,19 @@ interface JobCardProps {
   matchScore?: number;
   matchedKeywords?: string[];
   onSave: (jobId: string) => void;
+  onTrack: (jobId: string) => void;
   saving?: boolean;
+  tracking?: boolean;
 }
 
 const sourceColors: Record<string, string> = {
-  remoteok: "bg-emerald-500/10 text-emerald-400 ring-emerald-500/20",
+  remoteok: "bg-success/10 text-success ring-success/20",
   weworkremotely: "bg-sky-500/10 text-sky-400 ring-sky-500/20",
   hackernews: "bg-orange-500/10 text-orange-400 ring-orange-500/20",
   custom: "bg-muted/80 text-muted-foreground ring-border",
 };
 
-export function JobCard({ job, matchScore, matchedKeywords, onSave, saving }: JobCardProps) {
+export function JobCard({ job, matchScore, matchedKeywords, onSave, onTrack, saving, tracking }: JobCardProps) {
   const verifiedDays = daysSince(job.last_verified);
   const preview = job.description ? stripHtml(job.description).slice(0, 160) : null;
 
@@ -33,7 +35,17 @@ export function JobCard({ job, matchScore, matchedKeywords, onSave, saving }: Jo
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="font-semibold tracking-tight text-foreground group-hover:text-primary">{job.title}</h3>
+              <h3 className="font-semibold tracking-tight text-foreground">
+                <a
+                  href={job.apply_url || job.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 underline-offset-4 transition-colors hover:text-primary hover:underline"
+                >
+                  {job.title}
+                  <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
+                </a>
+              </h3>
               <p className="mt-0.5 text-sm text-muted-foreground">{job.company}</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -60,7 +72,7 @@ export function JobCard({ job, matchScore, matchedKeywords, onSave, saving }: Jo
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span>Posted {formatDate(job.first_seen)}</span>
-            <span className="text-emerald-500/80">
+            <span className="text-success">
               Verified {verifiedDays === 0 ? "today" : `${verifiedDays}d ago`}
             </span>
             {job.location && <span>{job.location}</span>}
@@ -68,14 +80,14 @@ export function JobCard({ job, matchScore, matchedKeywords, onSave, saving }: Jo
             {job.is_remote && <span className="text-primary/70">Remote</span>}
           </div>
 
-          <div className="mt-4 flex gap-2">
-            <a href={job.url} target="_blank" rel="noopener noreferrer" className="btn-secondary py-1.5 text-xs">
-              <ExternalLink className="h-3.5 w-3.5" />
-              View Job
-            </a>
-            <button onClick={() => onSave(job.id)} disabled={saving} className="btn-primary py-1.5 text-xs">
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={() => onSave(job.id)} disabled={saving} className="btn-secondary py-1.5 text-xs">
               <BookmarkPlus className="h-3.5 w-3.5" />
-              Save to Inbox
+              {saving ? "Saving…" : "Save to Inbox"}
+            </button>
+            <button onClick={() => onTrack(job.id)} disabled={tracking} className="btn-primary py-1.5 text-xs">
+              <ListPlus className="h-3.5 w-3.5" />
+              {tracking ? "Adding…" : "To Apply"}
             </button>
           </div>
         </div>

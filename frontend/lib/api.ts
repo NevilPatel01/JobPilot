@@ -152,6 +152,8 @@ export const api = {
 
   getMatchScores: () => request<import("@/types").MatchScore[]>("/api/v1/profile/match-scores"),
 
+  getScoringStatus: () => request<{ ready: boolean }>("/api/v1/profile/scoring-status"),
+
   getAnalytics: () => request<import("@/types").AnalyticsSummary>("/api/v1/analytics/summary"),
 
   // Structured profile

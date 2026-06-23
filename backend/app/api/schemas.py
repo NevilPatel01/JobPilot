@@ -307,6 +307,10 @@ class MatchScoreResponse(BaseModel):
     matched_keywords: list[str]
 
 
+class ScoringStatusResponse(BaseModel):
+    ready: bool
+
+
 class ScraperTriggerResponse(BaseModel):
     new_jobs: int
     message: str

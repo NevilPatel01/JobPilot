@@ -4,13 +4,13 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas import MatchScoreResponse, ProfileUpdate, StructuredProfileResponse, StructuredProfileUpdate, UserResponse
+from app.api.schemas import MatchScoreResponse, ProfileUpdate, ScoringStatusResponse, StructuredProfileResponse, StructuredProfileUpdate, UserResponse
 from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models.job import Job
 from app.models.profile_structured import UserProfileStructured
 from app.models.user import User
-from app.jobs.scoring.service import rescore_user_inbox
+from app.jobs.scoring.service import build_candidate_profile, rescore_user_inbox
 from app.schemas.resume_content import ResumeContent, empty_resume_content, resume_to_text
 from app.services.job_filters import apply_canada_filter
 from app.services.llm.client import get_user_llm_config
@@ -150,7 +150,7 @@ async def get_match_scores(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if not user.resume_text:
+    if not user.resume_text or await build_candidate_profile(db, user) is None:
         return []
 
     result = await db.execute(apply_canada_filter(select(Job).where(Job.is_active == True)).limit(200))  # noqa: E712
@@ -167,3 +167,11 @@ async def get_match_scores(
             )
         )
     return sorted(scores, key=lambda s: s.score, reverse=True)
+
+
+@router.get("/scoring-status", response_model=ScoringStatusResponse)
+async def get_scoring_status(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    return ScoringStatusResponse(ready=await build_candidate_profile(db, user) is not None)

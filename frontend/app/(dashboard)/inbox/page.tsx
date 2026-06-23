@@ -21,6 +21,9 @@ import {
   Target,
   RefreshCw,
   FileText,
+  Info,
+  ListPlus,
+  SlidersHorizontal,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import type { InboxJob, InboxManualCreate, InboxStatus } from "@/types";
@@ -60,7 +63,7 @@ const FIT_STYLES: Record<string, string> = {
   stretch: "bg-amber-500/10 text-amber-300 ring-amber-500/20",
   reviewed: "bg-sky-500/10 text-sky-300 ring-sky-500/20",
   recommended: "bg-primary/10 text-primary ring-primary/20",
-  priority: "bg-emerald-500/10 text-emerald-300 ring-emerald-500/20",
+  priority: "bg-success/10 text-success ring-success/20",
 };
 
 const EMPTY_FORM: InboxManualCreate = {
@@ -85,6 +88,8 @@ export default function InboxPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [trackingId, setTrackingId] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,6 +119,7 @@ export default function InboxPage() {
     () => ({
       recommended: items.filter((item) => (item.fit_score?.score || 0) >= 75).length,
       priority: items.filter((item) => (item.fit_score?.score || 0) >= 85).length,
+      profileMissing: items.length > 0 && items.every((item) => !item.fit_score),
     }),
     [items]
   );
@@ -156,6 +162,25 @@ export default function InboxPage() {
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Could not generate resume");
       setGeneratingId(null);
+    }
+  };
+
+  const addToTracker = async (item: InboxJob) => {
+    setTrackingId(item.id);
+    try {
+      const application = await api.quickSaveJob(item.job.id);
+      setItems((current) =>
+        current.map((entry) =>
+          entry.id === item.id
+            ? { ...entry, application_id: application.id, tracker_summary: "To apply" }
+            : entry
+        )
+      );
+      showToast("Added to Tracker · To Apply");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Could not add job to tracker");
+    } finally {
+      setTrackingId(null);
     }
   };
 
@@ -205,26 +230,38 @@ export default function InboxPage() {
             <option key={option.value || "active"} value={option.value}>{option.label}</option>
           ))}
         </FilterSelect>
-        <FilterSelect value={province} onChange={setProvince}>
-          <option value="">All target provinces</option>
-          <option value="AB">Alberta</option>
-          <option value="BC">British Columbia</option>
-          <option value="ON">Ontario</option>
-          <option value="SK">Saskatchewan</option>
-        </FilterSelect>
-        <FilterSelect value={minScore} onChange={setMinScore}>
-          <option value="">Any fit score</option>
-          <option value="60">60+ Reviewed</option>
-          <option value="75">75+ Recommended</option>
-          <option value="85">85+ Priority</option>
-        </FilterSelect>
-        <FilterSelect value={resumeCategory} onChange={setResumeCategory}>
-          <option value="">Any resume category</option>
-          {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </FilterSelect>
+        <button type="button" className="btn-secondary" onClick={() => setFiltersOpen((open) => !open)}>
+          <SlidersHorizontal className="h-4 w-4" /> Filters
+        </button>
+        {filtersOpen && <>
+          <FilterSelect value={province} onChange={setProvince}>
+            <option value="">All target provinces</option>
+            <option value="AB">Alberta</option>
+            <option value="BC">British Columbia</option>
+            <option value="ON">Ontario</option>
+            <option value="SK">Saskatchewan</option>
+          </FilterSelect>
+          <FilterSelect value={minScore} onChange={setMinScore}>
+            <option value="">Any fit score</option>
+            <option value="60">60+ Reviewed</option>
+            <option value="75">75+ Recommended</option>
+            <option value="85">85+ Priority</option>
+          </FilterSelect>
+          <FilterSelect value={resumeCategory} onChange={setResumeCategory}>
+            <option value="">Any resume category</option>
+            {Object.entries(CATEGORY_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </FilterSelect>
+        </>}
       </div>
 
       {toast && <div className="mb-4 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">{toast}</div>}
+
+      {counts.profileMissing && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card/70 px-4 py-3 text-sm">
+          <span className="text-muted-foreground">Fit scores appear after you add real skills or experience to your profile.</span>
+          <Link href="/profile" className="font-semibold text-primary hover:underline">Complete profile</Link>
+        </div>
+      )}
 
       {loading ? (
         <div className="glass-panel flex items-center justify-center py-20 text-sm text-muted-foreground">
@@ -241,7 +278,7 @@ export default function InboxPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map((item) => <InboxCard key={item.id} item={item} onStatus={updateStatus} onCategory={updateCategory} onGenerate={generateResume} generating={generatingId === item.id} />)}
+          {items.map((item) => <InboxCard key={item.id} item={item} onStatus={updateStatus} onCategory={updateCategory} onGenerate={generateResume} onTrack={addToTracker} generating={generatingId === item.id} tracking={trackingId === item.id} />)}
         </div>
       )}
 
@@ -258,9 +295,10 @@ function FilterSelect({ value, onChange, children }: { value: string; onChange: 
   return <div className="relative"><select className="input-field min-w-[170px] appearance-none pr-9" value={value} onChange={(event) => onChange(event.target.value)}>{children}</select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /></div>;
 }
 
-function InboxCard({ item, onStatus, onCategory, onGenerate, generating }: { item: InboxJob; onStatus: (item: InboxJob, status: InboxStatus) => void; onCategory: (item: InboxJob, category: string) => void; onGenerate: (item: InboxJob) => void; generating: boolean }) {
+function InboxCard({ item, onStatus, onCategory, onGenerate, onTrack, generating, tracking }: { item: InboxJob; onStatus: (item: InboxJob, status: InboxStatus) => void; onCategory: (item: InboxJob, category: string) => void; onGenerate: (item: InboxJob) => void; onTrack: (item: InboxJob) => void; generating: boolean; tracking: boolean }) {
   const { job } = item;
   const fit = item.fit_score;
+  const [fitOpen, setFitOpen] = useState(false);
   return (
     <article className="glass-panel-hover p-5">
       <div className="flex flex-wrap items-start gap-4">
@@ -288,20 +326,29 @@ function InboxCard({ item, onStatus, onCategory, onGenerate, generating }: { ite
             <span className="capitalize">via {item.captured_via.replace("_", " ")}</span>
           </div>
           {job.skills?.length ? <div className="mt-3 flex flex-wrap gap-1.5">{job.skills.slice(0, 6).map((skill) => <span key={skill} className="rounded-md bg-muted/70 px-2 py-1 text-[11px] text-muted-foreground">{skill}</span>)}</div> : null}
-          {fit && (
+          {fit ? (
             <div className="mt-4 rounded-lg border border-border bg-background/40 p-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ring-1 ring-inset ${FIT_STYLES[fit.label]}`}>{fit.score} · {fit.label}</span>
                 {fit.recommended_category && <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><Target className="h-3.5 w-3.5 text-primary" />{CATEGORY_LABELS[fit.recommended_category] || fit.recommended_category}</span>}
                 {fit.risk_flags.length > 0 && <span className="flex items-center gap-1.5 text-xs text-amber-300"><ShieldAlert className="h-3.5 w-3.5" />{fit.risk_flags.map((flag) => flag.replaceAll("_", " ")).join(", ")}</span>}
+                <button type="button" onClick={() => setFitOpen((open) => !open)} className="ml-auto flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                  <Info className="h-3.5 w-3.5" /> {fitOpen ? "Hide details" : "Why this score"}
+                </button>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{fit.explanation}</p>
-              {(fit.matched_skills.length > 0 || fit.missing_skills.length > 0) && <div className="mt-2 flex flex-wrap gap-1.5">{fit.matched_skills.slice(0, 5).map((skill) => <span key={`matched-${skill}`} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-400">✓ {skill}</span>)}{fit.missing_skills.slice(0, 4).map((skill) => <span key={`missing-${skill}`} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">gap: {skill}</span>)}</div>}
+              {fitOpen && (
+                <div className="mt-3 border-t border-border/70 pt-3">
+                  <p className="text-xs leading-relaxed text-muted-foreground">{fit.explanation}</p>
+                  {(fit.matched_skills.length > 0 || fit.missing_skills.length > 0) && <div className="mt-2 flex flex-wrap gap-1.5">{fit.matched_skills.slice(0, 5).map((skill) => <span key={`matched-${skill}`} className="rounded bg-success/10 px-1.5 py-0.5 text-[10px] text-success">✓ {skill}</span>)}{fit.missing_skills.slice(0, 4).map((skill) => <span key={`missing-${skill}`} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">gap: {skill}</span>)}</div>}
+                </div>
+              )}
             </div>
-          )}
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <a href={job.apply_url || job.url} target="_blank" rel="noreferrer" className="btn-secondary px-3" title="Open listing"><ArrowUpRight className="h-4 w-4" /></a>
+          <button onClick={() => onTrack(item)} disabled={tracking || Boolean(item.application_id)} className="btn-primary whitespace-nowrap">
+            <ListPlus className="h-4 w-4" /> {item.application_id ? item.tracker_summary || "In Tracker" : tracking ? "Adding…" : "To Apply"}
+          </button>
           {item.status !== "shortlisted" && item.status !== "applied" && <button className="btn-secondary" onClick={() => onStatus(item, "shortlisted")}><Sparkles className="h-4 w-4" /> Shortlist</button>}
           {item.status === "shortlisted" && <button className="btn-primary" onClick={() => onStatus(item, "applied")}><Check className="h-4 w-4" /> Mark applied</button>}
           {item.status !== "archived" && <button onClick={() => onStatus(item, "archived")} className="rounded-lg p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground" title="Archive"><Archive className="h-4 w-4" /></button>}

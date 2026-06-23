@@ -14,6 +14,7 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models.application import UserApplication
 from app.models.job import Job
+from app.models.job_intelligence import InboxJob
 from app.models.user import User
 
 router = APIRouter()
@@ -105,14 +106,23 @@ async def quick_save(
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
 
-    existing = await db.execute(
+    existing_result = await db.execute(
         select(UserApplication).where(
             UserApplication.user_id == user.id,
             UserApplication.job_id == body.job_id,
         )
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=409, detail="Job already tracked")
+    existing = existing_result.scalar_one_or_none()
+    inbox_result = await db.execute(
+        select(InboxJob).where(InboxJob.user_id == user.id, InboxJob.job_id == job.id)
+    )
+    inbox = inbox_result.scalar_one_or_none()
+    if existing:
+        if inbox and inbox.application_id != existing.id:
+            inbox.application_id = existing.id
+            inbox.tracker_summary = "To apply" if existing.status == "to_apply" else existing.status.replace("_", " ").title()
+            await db.commit()
+        return ApplicationResponse.model_validate(existing)
 
     salary = None
     if job.salary_min or job.salary_max:
@@ -124,10 +134,14 @@ async def quick_save(
         status="to_apply",
         job_title=job.title,
         company=job.company,
-        job_url=job.url,
+        job_url=job.apply_url or job.url,
         salary_range=salary,
     )
     db.add(app)
+    await db.flush()
+    if inbox:
+        inbox.application_id = app.id
+        inbox.tracker_summary = "To apply"
     await db.commit()
     await db.refresh(app)
     return ApplicationResponse.model_validate(app)
