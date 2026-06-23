@@ -16,7 +16,7 @@ const columnAccents: Record<string, string> = {
   to_apply: "border-t-primary/50",
   applied: "border-t-sky-500/50",
   interviewing: "border-t-amber-500/50",
-  offer: "border-t-emerald-500/50",
+  offer: "border-t-success/60",
   rejected: "border-t-red-500/50",
 };
 

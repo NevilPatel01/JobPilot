@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import type { ResumeContent } from "@/types/resume";
 import { newId } from "@/types/resume";
 
@@ -202,15 +203,21 @@ function SectionList({
   onAdd: () => void;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <section className="glass-panel p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        <button onClick={onAdd} className="btn-secondary text-xs">
-          <Plus className="h-3 w-3" /> Add
+        <button type="button" onClick={() => setOpen((value) => !value)} className="flex flex-1 items-center gap-2 text-left text-sm font-semibold text-foreground">
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
+          {title}
         </button>
+        {open && (
+          <button type="button" onClick={onAdd} className="btn-secondary text-xs">
+            <Plus className="h-3 w-3" /> Add
+          </button>
+        )}
       </div>
-      <div className="mt-3">{children}</div>
+      {open && <div className="mt-3">{children}</div>}
     </section>
   );
 }

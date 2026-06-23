@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import {
@@ -20,23 +21,27 @@ import {
   Plus,
   PanelLeftClose,
   Puzzle,
+  ChevronDown,
+  MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { HireMeButton } from "@/components/ui/HireMeButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useSidebar } from "@/components/layout/SidebarContext";
 
-const navItems = [
+const primaryNavItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/profile", label: "User Profile", icon: User },
-  { href: "/resumes", label: "My Resumes", icon: FileText },
-  { href: "/cover-letters", label: "My Cover Letters", icon: Mail },
   { href: "/inbox", label: "Job Inbox", icon: Inbox },
-  { href: "/extension", label: "Chrome Capture", icon: Puzzle },
-  { href: "/scraper", label: "Canadian Jobs", icon: Search },
   { href: "/tracker", label: "Tracker", icon: Columns3 },
+  { href: "/scraper", label: "Find Jobs", icon: Search },
+  { href: "/resumes", label: "Resumes", icon: FileText },
+  { href: "/profile", label: "User Profile", icon: User },
+];
+
+const secondaryNavItems = [
+  { href: "/cover-letters", label: "Cover Letters", icon: Mail },
+  { href: "/extension", label: "Chrome Capture", icon: Puzzle },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "API Settings", icon: Settings },
+  { href: "/settings", label: "Settings", icon: Settings },
   { href: "/community", label: "Community", icon: MessageSquare },
 ];
 
@@ -45,6 +50,29 @@ export function Sidebar() {
   const { data: session } = useSession();
   const { isOpen, close } = useSidebar();
   const authDisabled = process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
+  const secondaryActive = secondaryNavItems.some(
+    ({ href }) => pathname === href || pathname.startsWith(`${href}/`)
+  );
+  const [moreOpen, setMoreOpen] = useState(secondaryActive);
+
+  const renderNavItem = ({ href, label, icon: Icon }: (typeof primaryNavItems)[number]) => {
+    const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
+    return (
+      <Link
+        key={href}
+        href={href}
+        className={cn(
+          "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+          active
+            ? "bg-primary/10 text-primary ring-1 ring-primary/15 before:absolute before:-left-0.5 before:h-4 before:w-0.5 before:rounded-full before:bg-primary"
+            : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+        )}
+      >
+        <Icon className={cn("h-4 w-4", active && "text-primary")} />
+        {label}
+      </Link>
+    );
+  };
 
   return (
     <aside
@@ -78,35 +106,30 @@ export function Sidebar() {
           href="/resumes/new"
           className="btn-primary mt-4 flex w-full items-center justify-center gap-2 text-sm"
         >
-          <Plus className="h-4 w-4" />
-          Create New
+          <MoreHorizontal className="h-4 w-4" />
+          New Resume
         </Link>
       </div>
 
       <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                active
-                  ? "bg-primary/10 text-primary ring-1 ring-primary/15 before:absolute before:-left-0.5 before:h-4 before:w-0.5 before:rounded-full before:bg-primary"
-                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
-              )}
-            >
-              <Icon className={cn("h-4 w-4", active && "text-primary")} />
-              {label}
-            </Link>
-          );
-        })}
+        {primaryNavItems.map(renderNavItem)}
+        <button
+          type="button"
+          onClick={() => setMoreOpen((open) => !open)}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            secondaryActive ? "text-primary" : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+          )}
+        >
+          <Plus className="h-4 w-4" />
+          <span className="flex-1 text-left">More</span>
+          <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", moreOpen && "rotate-180")} />
+        </button>
+        {moreOpen && <div className="space-y-0.5 border-l border-border/70 pl-2">{secondaryNavItems.map(renderNavItem)}</div>}
       </nav>
 
       <div className="space-y-3 border-t border-sidebar-border p-4">
         <ThemeToggle />
-        <HireMeButton />
         {session?.user ? (
           <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-2">
             {session.user.image && (

@@ -131,7 +131,7 @@ export default function CreateResumePage() {
                     className={cn(
                       "text-xs font-medium",
                       parseFeedback.confidence >= 0.7
-                        ? "text-emerald-400"
+                        ? "text-success"
                         : parseFeedback.confidence >= 0.4
                           ? "text-amber-400"
                           : "text-red-400"

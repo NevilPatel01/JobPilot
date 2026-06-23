@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus, Search, Pencil, Loader2, RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/utils";
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, string> = {
     processing: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
-    completed: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+    completed: "bg-success/15 text-success ring-success/30",
     failed: "bg-red-500/15 text-red-300 ring-red-500/30",
     draft: "bg-muted text-foreground ring-border",
   };
@@ -29,9 +29,9 @@ export default function ResumesPage() {
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
-  const load = () => {
+  const load = useCallback(() => {
     api.getResumes(search || undefined).then((r) => setResumes(r.resumes)).catch(console.error).finally(() => setLoading(false));
-  };
+  }, [search]);
 
   const handleRetry = async (id: string) => {
     setRetryingId(id);
@@ -49,7 +49,7 @@ export default function ResumesPage() {
     load();
     const interval = setInterval(load, 5000);
     return () => clearInterval(interval);
-  }, [search]);
+  }, [load]);
 
   return (
     <div>
