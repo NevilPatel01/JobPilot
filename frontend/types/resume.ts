@@ -57,6 +57,8 @@ export interface ResumeContent {
 export interface ResumeDocument {
   id: string;
   title: string;
+  job_title: string | null;
+  job_url: string | null;
   status: string;
   job_description: string | null;
   company_url: string | null;
@@ -221,6 +223,16 @@ export interface ATSScore {
   suggestion_items?: ATSSuggestionItem[];
   breakdown?: Record<string, unknown> | null;
   created_at: string;
+}
+
+export interface ResumeStatus {
+  id: string;
+  status: string;
+  last_step?: string | null;
+  pipeline_error?: string | null;
+  cover_letter_id?: string | null;
+  ats_score?: ATSScore | null;
+  updated_at: string;
 }
 
 export interface StructuredProfile {

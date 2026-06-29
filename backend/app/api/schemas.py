@@ -440,6 +440,9 @@ class CoverLetterMeta(BaseModel):
 
 class ResumeCreate(BaseModel):
     title: str
+    job_title: str | None = None
+    company_name: str | None = None
+    job_url: str | None = None
     job_description: str
     company_url: str | None = None
     source_type: str = "profile"
@@ -454,6 +457,7 @@ class ResumeCreate(BaseModel):
 
 class ResumeUpdate(BaseModel):
     title: str | None = None
+    company_name: str | None = None
     content_json: dict | None = None
     latex_source: str | None = None
     application_id: UUID | None = None
@@ -462,6 +466,8 @@ class ResumeUpdate(BaseModel):
 class ResumeResponse(BaseModel):
     id: UUID
     title: str
+    job_title: str | None = None
+    job_url: str | None = None
     status: str
     job_description: str | None
     company_url: str | None
@@ -559,6 +565,16 @@ class ATSScoreResponse(BaseModel):
 class ATSScoreHistoryResponse(BaseModel):
     scores: list[ATSScoreResponse]
     total: int
+
+
+class ResumeStatusResponse(BaseModel):
+    id: UUID
+    status: str
+    last_step: str | None = None
+    pipeline_error: str | None = None
+    cover_letter_id: UUID | None = None
+    ats_score: ATSScoreResponse | None = None
+    updated_at: datetime
 
 
 class CoverLetterCreate(BaseModel):

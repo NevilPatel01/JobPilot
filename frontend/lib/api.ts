@@ -270,8 +270,14 @@ export const api = {
   getResume: (id: string) =>
     request<import("@/types/resume").ResumeDocument>(`/api/v1/resumes/${id}`),
 
+  getResumeStatus: (id: string) =>
+    request<import("@/types/resume").ResumeStatus>(`/api/v1/resumes/${id}/status`),
+
   createResume: (data: {
     title: string;
+    job_title?: string;
+    company_name?: string;
+    job_url?: string;
     job_description: string;
     company_url?: string;
     source_type?: string;
@@ -288,6 +294,7 @@ export const api = {
     id: string,
     data: Partial<{
       title: string;
+      company_name: string;
       content_json: import("@/types/resume").ResumeContent;
       latex_source: string;
       application_id: string;
@@ -328,7 +335,10 @@ export const api = {
     const res = await fetch(`${API_URL}/api/v1/resumes/${id}/pdf${qs}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     });
-    if (!res.ok) throw new Error("PDF export failed");
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || "PDF export failed");
+    }
     return res.blob();
   },
 

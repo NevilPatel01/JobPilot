@@ -128,6 +128,9 @@ async def analyze_jd(state: PipelineState, db: AsyncSession) -> PipelineState:
 - seniority: string
 - keywords: list of important ATS keywords
 
+Target title: {state.get("job_title") or ""}
+Target company: {state.get("company_name") or ""}
+
 Job Description:
 {jd[:6000]}"""
         try:
@@ -155,7 +158,7 @@ async def research_company_step(state: PipelineState, db: AsyncSession, *, reuse
         return state
 
     if not url:
-        state["company_research"] = {}
+        state["company_research"] = {"company_name": state.get("company_name")} if state.get("company_name") else {}
         await _run_step(db, resume_id, "research_company", "completed", {"skipped": True})
         await _emit(resume_id, "agent_step", {"step": "research_company", "status": "completed", "skipped": True})
         return state
@@ -205,6 +208,8 @@ Current resume:
 {content.model_dump_json()}
 
 JD analysis: {jd}
+Target title: {state.get("job_title") or ""}
+Target company: {state.get("company_name") or ""}
 Company context: {company}
 RAG context: {rag_context[:4000]}"""
 
@@ -245,7 +250,7 @@ async def generate_cover_letter(state: PipelineState, db: AsyncSession) -> Pipel
     company = state.get("company_research") or {}
     content = CoverLetterContent(
         recipient_name=meta.get("hiring_manager_name", ""),
-        company_name=company.get("company_name", ""),
+        company_name=company.get("company_name") or state.get("company_name", ""),
         company_address=", ".join(filter(None, [meta.get("street_address"), meta.get("city"), meta.get("state_province"), meta.get("postal_code")])),
         date=meta.get("letter_date", ""),
         salutation=f"Dear {meta.get('hiring_manager_name') or 'Hiring Manager'},",
@@ -350,6 +355,8 @@ async def run_generation_pipeline(
         user_id=str(resume.user_id),
         job_description=resume.job_description or "",
         company_url=resume.company_url,
+        company_name=resume.company_name,
+        job_title=insights.get("job_title"),
         create_cover_letter=resume.create_cover_letter,
         cover_letter_meta=resume.cover_letter_meta or {},
         content=resume.content_json or {},

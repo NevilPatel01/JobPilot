@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ExternalLink, FileText, Upload, User } from "lucide-react";
+import { AlertTriangle, Briefcase, Building2, ExternalLink, FileText, Link2, Upload, User } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CoverLetterMeta, ResumeContent } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -18,6 +18,9 @@ type ParseFeedback = {
 export default function CreateResumePage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [companyName, setCompanyName] = useState("");
+  const [jobUrl, setJobUrl] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [companyUrl, setCompanyUrl] = useState("");
   const [sourceType, setSourceType] = useState<"profile" | "upload">("profile");
@@ -28,6 +31,7 @@ export default function CreateResumePage() {
   const [createCoverLetter, setCreateCoverLetter] = useState(false);
   const [coverMeta, setCoverMeta] = useState<CoverLetterMeta>({});
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -55,9 +59,13 @@ export default function CreateResumePage() {
   const handleCreate = async () => {
     if (!title || !jobDescription) return;
     setCreating(true);
+    setCreateError(null);
     try {
       const resume = await api.createResume({
         title,
+        job_title: jobTitle || undefined,
+        company_name: companyName || undefined,
+        job_url: jobUrl || undefined,
         job_description: jobDescription,
         company_url: companyUrl || undefined,
         source_type: sourceType,
@@ -68,11 +76,13 @@ export default function CreateResumePage() {
       router.push(`/resumes/${resume.id}`);
     } catch (e) {
       console.error(e);
-      alert("Failed to create resume. Check API keys in Settings.");
+      setCreateError(e instanceof Error ? e.message : "Failed to create resume. Check API keys in Settings.");
     } finally {
       setCreating(false);
     }
   };
+
+  const suggestedTitle = [companyName, jobTitle].filter(Boolean).join(" - ");
 
   return (
     <div>
@@ -81,8 +91,33 @@ export default function CreateResumePage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
           <div className="glass-panel p-4">
-            <label className="text-xs font-medium text-muted-foreground">Resume Title</label>
-            <input className="input-field mt-1" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Anthropic Software Engineer" />
+            <p className="text-xs font-medium uppercase tracking-widest text-primary">Target role</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Briefcase className="h-3.5 w-3.5" /> Job title
+                </span>
+                <input className="input-field mt-1" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Software Engineer" />
+              </label>
+              <label className="block">
+                <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Building2 className="h-3.5 w-3.5" /> Company
+                </span>
+                <input className="input-field mt-1" value={companyName} onChange={(e) => setCompanyName(e.target.value)} placeholder="Anthropic" />
+              </label>
+            </div>
+            <label className="mt-3 block">
+              <span className="text-xs font-medium text-muted-foreground">Resume title</span>
+              <input
+                className="input-field mt-1"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onFocus={() => {
+                  if (!title && suggestedTitle) setTitle(suggestedTitle);
+                }}
+                placeholder={suggestedTitle || "Anthropic - Software Engineer"}
+              />
+            </label>
           </div>
 
           <div className="glass-panel p-4">
@@ -91,9 +126,22 @@ export default function CreateResumePage() {
           </div>
 
           <div className="glass-panel p-4">
-            <label className="text-xs font-medium text-muted-foreground">Company Website URL (optional)</label>
-            <input className="input-field mt-1" value={companyUrl} onChange={(e) => setCompanyUrl(e.target.value)} placeholder="https://stripe.com" />
-            <p className="mt-1 text-xs text-muted-foreground">We&apos;ll research this company to better tailor your resume.</p>
+            <details>
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-medium uppercase tracking-widest text-primary">
+                <Link2 className="h-3.5 w-3.5" /> Optional links
+              </summary>
+              <div className="mt-3 grid gap-3">
+                <label className="block">
+                  <span className="text-xs font-medium text-muted-foreground">Job posting URL</span>
+                  <input className="input-field mt-1" value={jobUrl} onChange={(e) => setJobUrl(e.target.value)} placeholder="https://company.com/careers/job" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-muted-foreground">Company website URL</span>
+                  <input className="input-field mt-1" value={companyUrl} onChange={(e) => setCompanyUrl(e.target.value)} placeholder="https://stripe.com" />
+                </label>
+                <p className="text-xs text-muted-foreground">The company site is used for research. The job posting URL is kept with the build for reference.</p>
+              </div>
+            </details>
           </div>
 
           <div className="glass-panel p-4">
@@ -200,6 +248,12 @@ export default function CreateResumePage() {
           <button onClick={handleCreate} disabled={creating || !title || !jobDescription} className="btn-primary w-full py-3">
             {creating ? "Creating..." : createCoverLetter ? "Create Resume & Cover Letter" : "Create Resume"}
           </button>
+          {createError && (
+            <div className="flex gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{createError}</span>
+            </div>
+          )}
         </div>
 
         <div className="glass-panel flex flex-col justify-center p-8">

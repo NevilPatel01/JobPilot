@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { Download, MessageSquare, Check, X, RefreshCw, Loader2, Columns2, FileCode, Target, ShieldCheck } from "lucide-react";
+import { Download, MessageSquare, Check, X, RefreshCw, Loader2, Columns2, FileCode, Target, ShieldCheck, Mail, Gauge } from "lucide-react";
 import { api } from "@/lib/api";
-import type { ChatMessage, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
+import type { ATSScore, ChatMessage, CoverLetterDocument, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
 import { PipelineProgressBar, PIPELINE_STEPS, type PipelineStepStatus } from "@/components/resume/PipelineProgressBar";
 import { LatexEditor } from "@/components/resume/LatexEditor";
@@ -46,6 +46,8 @@ export default function ResumeEditorPage() {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [atsScore, setAtsScore] = useState<ATSScore | null>(null);
+  const [coverLetter, setCoverLetter] = useState<CoverLetterDocument | null>(null);
   const [chatInput, setChatInput] = useState("");
   const [sending, setSending] = useState(false);
   const [contentSaved, setContentSaved] = useState(true);
@@ -74,6 +76,14 @@ export default function ResumeEditorPage() {
     }
     const msgs = await api.getResumeMessages(id);
     setMessages(msgs);
+    const latestAts = await api.getATSScore(id).catch(() => null);
+    setAtsScore(latestAts);
+    if (r.cover_letter_id) {
+      const letter = await api.getCoverLetter(r.cover_letter_id).catch(() => null);
+      setCoverLetter(letter);
+    } else {
+      setCoverLetter(null);
+    }
     setContentSaved(true);
     setLatexSaved(true);
     skipLatexSave.current = false;
@@ -270,6 +280,21 @@ export default function ResumeEditorPage() {
     }
   };
 
+  const exportCoverLetterPdf = async () => {
+    if (!coverLetter) return;
+    try {
+      const blob = await api.downloadCoverLetterPdf(coverLetter.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${coverLetter.title || "cover-letter"}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Cover letter export failed");
+    }
+  };
+
   const runPipeline = async (mode: "full" | "tailor") => {
     setPipelineBusy(true);
     try {
@@ -402,9 +427,9 @@ export default function ResumeEditorPage() {
         </div>
       )}
 
-      <div className="grid flex-1 grid-cols-[320px_1fr_360px] overflow-hidden">
+      <div className="grid flex-1 grid-rows-[minmax(320px,0.65fr)_minmax(520px,1.4fr)_minmax(420px,1fr)] overflow-y-auto xl:grid-cols-[320px_1fr_360px] xl:grid-rows-none xl:overflow-hidden">
         {/* Chat pane */}
-        <div className="flex flex-col border-r border-border">
+        <div className="flex min-h-[320px] flex-col border-b border-border xl:min-h-0 xl:border-b-0 xl:border-r">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <div className="rounded-lg bg-primary/10 p-3 text-sm text-foreground">
               <MessageSquare className="mb-2 h-4 w-4 text-primary" />
@@ -441,6 +466,70 @@ export default function ResumeEditorPage() {
               <details className="rounded-lg border border-border p-2 text-xs text-muted-foreground">
                 <summary className="cursor-pointer font-medium text-foreground">Company research</summary>
                 <p className="mt-2">{insights.company_research.summary}</p>
+              </details>
+            )}
+
+            {atsScore && (
+              <details open className="rounded-lg border border-border bg-card/70 p-3 text-xs text-muted-foreground">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-foreground">
+                  <Gauge className="h-3.5 w-3.5 text-primary" /> ATS feedback
+                </summary>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+                  {[
+                    ["Overall", atsScore.overall_score],
+                    ["Keywords", atsScore.keyword_match],
+                    ["Skills", atsScore.skills_coverage ?? 0],
+                    ["Format", atsScore.formatting_score],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="rounded border border-border px-2 py-2">
+                      <div className="text-base font-semibold text-foreground">{Number(value)}</div>
+                      <div>{String(label)}</div>
+                    </div>
+                  ))}
+                </div>
+                {atsScore.matched_keywords?.length ? (
+                  <div className="mt-3">
+                    <p>Matched keywords</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {atsScore.matched_keywords.slice(0, 10).map((keyword) => (
+                        <span key={keyword} className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-300">{keyword}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {atsScore.missing_keywords?.length ? (
+                  <div className="mt-3">
+                    <p>Missing keywords</p>
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {atsScore.missing_keywords.slice(0, 10).map((keyword) => (
+                        <span key={keyword} className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">{keyword}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                {atsScore.suggestions.length > 0 && (
+                  <ul className="mt-3 list-disc space-y-1 pl-4">
+                    {atsScore.suggestions.slice(0, 3).map((suggestion) => <li key={suggestion}>{suggestion}</li>)}
+                  </ul>
+                )}
+              </details>
+            )}
+
+            {coverLetter && (
+              <details className="rounded-lg border border-border bg-card/70 p-3 text-xs text-muted-foreground">
+                <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-foreground">
+                  <Mail className="h-3.5 w-3.5 text-primary" /> Cover letter
+                </summary>
+                <div className="mt-3 space-y-2">
+                  <p><span className="text-muted-foreground">Status:</span> <span className="text-foreground">{coverLetter.status}</span></p>
+                  <p className="line-clamp-4">{Array.isArray(coverLetter.content_json.paragraphs) ? coverLetter.content_json.paragraphs.join(" ") : "Open the cover letter editor to review the generated draft."}</p>
+                  <div className="flex gap-2 pt-1">
+                    <Link href={`/cover-letters/${coverLetter.id}`} className="btn-secondary flex-1 justify-center text-xs">Edit</Link>
+                    <button type="button" onClick={exportCoverLetterPdf} className="btn-secondary flex-1 justify-center text-xs">
+                      <Download className="h-3 w-3" /> PDF
+                    </button>
+                  </div>
+                </div>
               </details>
             )}
 
@@ -490,7 +579,7 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* LaTeX source + PDF preview */}
-        <div className="flex flex-col overflow-hidden bg-card p-4">
+        <div className="flex min-h-[520px] flex-col overflow-hidden bg-card p-4 xl:min-h-0">
           <div className="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
             LaTeX compiles to PDF via Tectonic — preview reflects the exact exported document.
           </div>
@@ -526,7 +615,7 @@ export default function ResumeEditorPage() {
         </div>
 
         {/* Structured editor */}
-        <div className="overflow-y-auto border-l border-border p-4">
+        <div className="min-h-[420px] overflow-y-auto border-t border-border p-4 xl:min-h-0 xl:border-l xl:border-t-0">
           <StructuredProfileEditor content={content} onChange={setContent} />
         </div>
       </div>

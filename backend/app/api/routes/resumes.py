@@ -26,6 +26,7 @@ from app.api.schemas import (
     ResumeCreate,
     ResumeListResponse,
     ResumeResponse,
+    ResumeStatusResponse,
     ResumeUpdate,
 )
 from app.core.auth import get_current_user
@@ -38,6 +39,7 @@ from app.schemas.resume_content import empty_resume_content
 from app.services.ats.persist import save_ats_score
 from app.services.resume.pdf_compiler import compile_latex_to_pdf
 from app.services.resume.renderer import render_resume_html, render_resume_latex, resolve_export_latex
+from app.services.webhook import store_webhook_url
 
 router = APIRouter()
 
@@ -102,6 +104,8 @@ def _resume_response(
     return ResumeResponse(
         id=resume.id,
         title=resume.title,
+        job_title=insights.get("job_title"),
+        job_url=insights.get("job_url"),
         status=resume.status,
         job_description=resume.job_description,
         company_url=resume.company_url,
@@ -220,18 +224,27 @@ async def create_resume(
     else:
         content = body.content_json or empty_resume_content().model_dump()
 
+    insights = {
+        "source_content": content,
+        "job_title": body.job_title,
+        "job_url": body.job_url,
+    }
+    insights = {k: v for k, v in insights.items() if v}
+    insights = store_webhook_url(insights, body.webhook_url)
+
     resume = ResumeDocument(
         user_id=user.id,
         title=body.title,
         status="processing",
         job_description=body.job_description,
         company_url=body.company_url,
+        company_name=body.company_name,
         source_type=body.source_type,
         content_json=content,
         latex_source=render_resume_latex(content),
         create_cover_letter=body.create_cover_letter,
         cover_letter_meta=body.cover_letter_meta.model_dump() if body.cover_letter_meta else None,
-        insights_json={"source_content": content},
+        insights_json=insights,
     )
     db.add(resume)
     await db.commit()
@@ -239,6 +252,35 @@ async def create_resume(
 
     background_tasks.add_task(_pipeline_task(resume.id, "full"))
     return _resume_response(resume)
+
+
+@router.get("/{resume_id}/status", response_model=ResumeStatusResponse)
+async def get_resume_status(
+    resume_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await mark_stale_processing_resumes(db)
+    resume = await _get_resume(db, resume_id, user.id)
+    cl_result = await db.execute(select(CoverLetterDocument).where(CoverLetterDocument.resume_id == resume.id))
+    cl = cl_result.scalar_one_or_none()
+    ats_result = await db.execute(
+        select(ATSScore).where(ATSScore.resume_id == resume.id).order_by(ATSScore.created_at.desc()).limit(1)
+    )
+    ats = ats_result.scalar_one_or_none()
+    last_step, pipeline_error = await get_pipeline_status(db, resume.id)
+    if resume.status != "failed":
+        pipeline_error = None
+    insights = resume.insights_json or {}
+    return ResumeStatusResponse(
+        id=resume.id,
+        status=resume.status,
+        last_step=last_step or insights.get("last_step"),
+        pipeline_error=pipeline_error or insights.get("pipeline_error"),
+        cover_letter_id=cl.id if cl else None,
+        ats_score=_ats_response(ats) if ats else None,
+        updated_at=resume.updated_at,
+    )
 
 
 @router.get("/{resume_id}", response_model=ResumeResponse)
@@ -275,6 +317,8 @@ async def update_resume(
     resume = await _get_resume(db, resume_id, user.id)
     if body.title is not None:
         resume.title = body.title
+    if body.company_name is not None:
+        resume.company_name = body.company_name
     if body.content_json is not None:
         resume.content_json = body.content_json
     if body.latex_source is not None:
