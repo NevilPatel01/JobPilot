@@ -1,8 +1,18 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const AUTH_DISABLED =
+  process.env.AUTH_DISABLED === "true" || process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 
 let authToken: string | null = null;
 
 export function setAuthToken(token: string | null) {
+  if (AUTH_DISABLED) {
+    authToken = null;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("jobpilot_token");
+    }
+    return;
+  }
+
   authToken = token;
   if (typeof window !== "undefined") {
     if (token) localStorage.setItem("jobpilot_token", token);
@@ -11,6 +21,14 @@ export function setAuthToken(token: string | null) {
 }
 
 export function getAuthToken(): string | null {
+  if (AUTH_DISABLED) {
+    authToken = null;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("jobpilot_token");
+    }
+    return null;
+  }
+
   if (authToken) return authToken;
   if (typeof window !== "undefined") {
     return localStorage.getItem("jobpilot_token");
