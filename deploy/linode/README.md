@@ -52,36 +52,52 @@ Internet → DuckDNS → Linode (Nginx :443)
                     GitHub Actions → POST /api/v1/internal/cron/scrape
 ```
 
-## Quick deploy (on the Linode)
+## Quick deploy without Git on the Linode
 
-SSH as root (or sudo user), then:
+The server does not need Git. The application code is uploaded from your local machine or GitHub Actions with `rsync`; server-only env files stay on the server.
+
+### 1. Bootstrap the server once
+
+Upload this repo once with the local helper below, or copy the `deploy/linode` directory manually, then SSH as root and run:
 
 ```bash
 # 1. Bootstrap OS packages (Python, Node, Nginx, Certbot)
 sudo bash deploy/linode/scripts/bootstrap-server.sh
+```
 
-# 2. Clone repo (replace with your fork URL)
-sudo mkdir -p /opt/jobpilot
-sudo chown "$USER":"$USER" /opt/jobpilot
-git clone https://github.com/YOUR_USER/JobPilot.git /opt/jobpilot
+### 2. Upload from your local machine
+
+From your local checkout:
+
+```bash
+DEPLOY_HOST=139.177.194.149 bash deploy/linode/scripts/deploy-from-local.sh
+```
+
+The helper syncs the checkout to `/opt/jobpilot` and excludes `.git`, env files, virtualenvs, `node_modules`, and build output. If the server env files do not exist yet, it stops after upload and tells you to create them.
+
+### 3. Create env files on the server
+
+```bash
+ssh root@139.177.194.149
 cd /opt/jobpilot
-
-# 3. Create env files from templates (edit with real secrets on server only)
 cp deploy/linode/env/backend.env.example backend/.env
 cp deploy/linode/env/frontend.env.local.example frontend/.env.local
 nano backend/.env
 nano frontend/.env.local
+exit
+DEPLOY_HOST=139.177.194.149 bash deploy/linode/scripts/deploy-from-local.sh
+```
 
-# 4. Install app + systemd services
-sudo bash deploy/linode/scripts/install-app.sh
+### 4. Configure Nginx
 
-# 5. Optional: HTTP-only via IP before DNS is ready
+```bash
+# Optional: HTTP-only via IP before DNS is ready
 sudo bash deploy/linode/scripts/configure-http-nginx.sh
 
-# 6. Configure Nginx + HTTPS (domain + certbot email required)
+# Configure Nginx + HTTPS (domain + certbot email required)
 sudo CERTBOT_EMAIL=you@example.com bash deploy/linode/scripts/configure-nginx.sh your-subdomain.duckdns.org
 
-# 7. Check status
+# Check status
 sudo systemctl status jobpilot-api jobpilot-web nginx
 curl -s https://your-subdomain.duckdns.org/api/v1/health
 ```
@@ -179,19 +195,25 @@ When `CLIENT_ID` and `CLIENT_SECRET` are set, the sync script maps them to `GITH
 
 3. Push to `main` or run **Actions → Deploy (production) → Run workflow**.
 
-Use **sync env only** in the manual workflow to push secret changes without `git pull` (still rebuilds frontend so `NEXT_PUBLIC_*` vars apply).
+Use **sync env only** in the manual workflow to push secret changes without uploading code (still rebuilds frontend so `NEXT_PUBLIC_*` vars apply).
 
 Workflow: `.github/workflows/deploy.yml`  
 Sync script: `deploy/linode/scripts/sync-production-env.sh`
 
-### Option B — Manual SSH
+### Option B — Manual upload from this checkout
+
+```bash
+DEPLOY_HOST=139.177.194.149 bash deploy/linode/scripts/deploy-from-local.sh
+```
+
+The helper uploads code with `rsync`, preserves server-only env files, installs backend dependencies, ensures Tectonic is available, rebuilds the frontend, installs systemd units, and restarts both services. No Git is required on the server.
+
+If CI/CD already uploaded code to `/opt/jobpilot`, SSH to the server and run:
 
 ```bash
 cd /opt/jobpilot
-sudo bash deploy/linode/scripts/deploy.sh
+sudo bash deploy/linode/scripts/install-app.sh
 ```
-
-The deploy script pulls the latest code, installs backend dependencies, applies pending Alembic migrations, rebuilds the frontend, and restarts both services.
 
 ## Firewall (Linode Cloud Firewall)
 
@@ -236,7 +258,8 @@ sudo journalctl -u jobpilot-web -f
 | `scripts/configure-nginx.sh` | Domain Nginx + Let's Encrypt HTTPS |
 | `scripts/configure-production-domain.sh` | Domain + env + rebuild (auth off until OAuth) |
 | `scripts/sync-production-env.sh` | Write server `.env` files from GitHub Actions secrets |
-| `scripts/deploy.sh` | `git pull` + rebuild + restart |
+| `scripts/deploy.sh` | Rebuild + restart after code has been uploaded |
+| `scripts/deploy-from-local.sh` | Upload this checkout with `rsync`, then rebuild + restart |
 | `systemd/jobpilot-api.service` | FastAPI on `127.0.0.1:8000` |
 | `systemd/jobpilot-web.service` | Next.js standalone on `127.0.0.1:3000` |
 | `nginx/jobpilot-http.conf` | HTTP default server (IP access, no domain) |

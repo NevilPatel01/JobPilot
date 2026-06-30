@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       sync_env_only:
-        description: "Only sync secrets to server .env files (skip git pull / rebuild)"
+        description: "Only sync secrets to server .env files (skip code upload / rebuild)"
         required: false
         default: false
         type: boolean

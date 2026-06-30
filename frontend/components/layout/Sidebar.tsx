@@ -17,15 +17,12 @@ import {
   Navigation,
   FileText,
   Mail,
-  Settings,
   Plus,
   PanelLeftClose,
   Puzzle,
   ChevronDown,
-  MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useSidebar } from "@/components/layout/SidebarContext";
 
 const primaryNavItems = [
@@ -41,7 +38,6 @@ const secondaryNavItems = [
   { href: "/cover-letters", label: "Cover Letters", icon: Mail },
   { href: "/extension", label: "Chrome Capture", icon: Puzzle },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/settings", label: "Settings", icon: Settings },
   { href: "/community", label: "Community", icon: MessageSquare },
 ];
 
@@ -106,7 +102,7 @@ export function Sidebar() {
           href="/resumes/new"
           className="btn-primary mt-4 flex w-full items-center justify-center gap-2 text-sm"
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <Plus className="h-4 w-4" />
           New Resume
         </Link>
       </div>
@@ -129,7 +125,6 @@ export function Sidebar() {
       </nav>
 
       <div className="space-y-3 border-t border-sidebar-border p-4">
-        <ThemeToggle />
         {session?.user ? (
           <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-2">
             {session.user.image && (

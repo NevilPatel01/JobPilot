@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Briefcase, Building2, ExternalLink, FileText, Link2, Upload, User } from "lucide-react";
+import { AlertTriangle, Briefcase, Building2, CheckCircle2, ExternalLink, FileText, Link2, Upload, User } from "lucide-react";
 import { api } from "@/lib/api";
 import type { CoverLetterMeta, ResumeContent } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -150,14 +150,26 @@ export default function CreateResumePage() {
               <button
                 type="button"
                 onClick={() => setSourceType("profile")}
-                className={cn("rounded-lg border p-4 text-left transition", sourceType === "profile" ? "border-primary bg-primary/10" : "border-border")}
+                className={cn(
+                  "rounded-md border p-4 text-left transition hover:border-primary/45 hover:bg-muted/45",
+                  sourceType === "profile"
+                    ? "border-primary bg-primary/10 text-foreground shadow-[inset_0_1px_0_hsl(var(--primary)/0.14)]"
+                    : "border-border bg-card/55 text-muted-foreground"
+                )}
               >
-                <User className="h-5 w-5 text-primary" />
+                <User className={cn("h-5 w-5", sourceType === "profile" ? "text-primary" : "text-muted-foreground")} />
                 <div className="mt-2 text-sm font-medium text-foreground">Use Profile</div>
                 <div className="text-xs text-muted-foreground">From your saved profile data</div>
               </button>
-              <label className={cn("cursor-pointer rounded-lg border p-4 text-left transition", sourceType === "upload" ? "border-primary bg-primary/10" : "border-border")}>
-                <Upload className="h-5 w-5 text-primary" />
+              <label
+                className={cn(
+                  "cursor-pointer rounded-md border p-4 text-left transition hover:border-primary/45 hover:bg-muted/45",
+                  sourceType === "upload"
+                    ? "border-primary bg-primary/10 text-foreground shadow-[inset_0_1px_0_hsl(var(--primary)/0.14)]"
+                    : "border-border bg-card/55 text-muted-foreground"
+                )}
+              >
+                <Upload className={cn("h-5 w-5", sourceType === "upload" ? "text-primary" : "text-muted-foreground")} />
                 <div className="mt-2 text-sm font-medium text-foreground">Upload Resume</div>
                 <div className="text-xs text-muted-foreground">{uploading ? "Parsing PDF..." : "PDF · up to 10 MB"}</div>
                 <input type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleUpload} disabled={uploading} />
@@ -172,7 +184,7 @@ export default function CreateResumePage() {
             )}
 
             {parseFeedback && sourceType === "upload" && (
-              <div className="mt-4 rounded-lg border border-border bg-card/50 p-4">
+              <div className="mt-4 rounded-md border border-border bg-background/45 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-medium uppercase tracking-widest text-primary">Parse quality</p>
                   <span
@@ -198,7 +210,7 @@ export default function CreateResumePage() {
                     ["Summary", parseFeedback.section_counts.has_summary ?? 0],
                     ["Contact", parseFeedback.section_counts.has_contact_name ?? 0],
                   ].map(([label, count]) => (
-                    <div key={String(label)} className="rounded border border-border px-2 py-2">
+                    <div key={String(label)} className="rounded-md border border-border bg-card/70 px-2 py-2">
                       <div className="text-lg font-semibold text-foreground">{count as number}</div>
                       <div className="text-muted-foreground">{label as string}</div>
                     </div>
@@ -256,18 +268,49 @@ export default function CreateResumePage() {
           )}
         </div>
 
-        <div className="glass-panel flex flex-col justify-center p-8">
-          <FileText className="h-10 w-10 text-primary" />
-          <p className="mt-4 text-sm font-medium text-foreground">Professional LaTeX resume</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your resume is generated in Jake&apos;s Resume LaTeX style (Charter font, Font Awesome icons) and compiled to PDF with Tectonic.
-            After creation you can edit the LaTeX source directly or refine structured sections — then export a polished PDF.
+        <div className="glass-panel h-fit p-6 lg:sticky lg:top-8">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-primary">Build summary</p>
+              <h2 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+                {companyName || jobTitle ? [companyName, jobTitle].filter(Boolean).join(" · ") : "Untitled target"}
+              </h2>
+            </div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_10px_24px_hsl(var(--primary)/0.24)]">
+              <FileText className="h-5 w-5" />
+            </div>
+          </div>
+
+          <div className="mt-6 grid gap-3">
+            {[
+              ["Resume title", title || "Not set"],
+              ["Source", sourceType === "upload" ? "Uploaded resume" : "Saved profile"],
+              ["Job description", jobDescription.trim() ? `${jobDescription.trim().length.toLocaleString()} characters` : "Required"],
+              ["Cover letter", createCoverLetter ? "Included" : "Resume only"],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between gap-4 rounded-md border border-border bg-background/45 px-3 py-2.5">
+                <span className="text-xs text-muted-foreground">{label}</span>
+                <span className="truncate text-right text-sm font-medium text-foreground">{value}</span>
+              </div>
+            ))}
+          </div>
+
+          {parseFeedback && sourceType === "upload" && (
+            <div className="mt-4 rounded-md border border-primary/25 bg-primary/8 px-3 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <CheckCircle2 className="h-4 w-4 text-primary" />
+                Parsed at {Math.round(parseFeedback.confidence * 100)}% confidence
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {parseFeedback.section_counts.has_summary ? "Summary detected" : "Summary missing"} · {parseFeedback.section_counts.experience ?? 0} roles · {parseFeedback.section_counts.skill_categories ?? 0} skill groups
+              </p>
+            </div>
+          )}
+
+          <div className="mt-5 h-px bg-border" />
+          <p className="mt-4 text-xs leading-5 text-muted-foreground">
+            Missing fields stay empty. The builder uses only profile or uploaded resume evidence when drafting.
           </p>
-          <ul className="mt-4 space-y-2 text-xs text-muted-foreground">
-            <li>• AI tailoring updates structured content, then syncs LaTeX</li>
-            <li>• Edit raw LaTeX for fine-grained formatting control</li>
-            <li>• Live PDF preview in the editor</li>
-          </ul>
         </div>
       </div>
     </div>
