@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { PanelLeft, Settings } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarProvider, useSidebar } from "@/components/layout/SidebarContext";
@@ -32,14 +31,6 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       >
         <div className="mx-auto max-w-[1240px]">
           <div className="mb-5 flex items-center justify-end gap-2">
-            <Link
-              href="/settings"
-              className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/85 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Open settings"
-              title="Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
             <ThemeToggle compact className="bg-background/85 shadow-sm backdrop-blur" />
           </div>
           {children}

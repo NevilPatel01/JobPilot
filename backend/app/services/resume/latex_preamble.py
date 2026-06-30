@@ -1,8 +1,8 @@
-"""Jake's Resume-style LaTeX preamble (Tectonic-compatible)."""
+"""JobPilot resume LaTeX preamble (Tectonic-compatible)."""
 
 RESUME_LATEX_PREAMBLE = r"""
 %-------------------------
-% Resume in Latex — Jake's Resume style (JobPilot)
+% JobPilot Resume Template (Tectonic-compatible)
 %-------------------------
 
 \documentclass[letterpaper,11pt]{article}
@@ -20,7 +20,7 @@ RESUME_LATEX_PREAMBLE = r"""
 \usepackage{tabularx}
 \usepackage{multicol}
 \usepackage[T1]{fontenc}
-% Palatino body text — Tectonic-safe alternative to Jake's charter package
+% Palatino body text — Tectonic-safe serif font
 \usepackage{mathpazo}
 
 \pagestyle{fancy}

@@ -21,6 +21,7 @@ import {
   PanelLeftClose,
   Puzzle,
   ChevronDown,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/layout/SidebarContext";
@@ -125,6 +126,18 @@ export function Sidebar() {
       </nav>
 
       <div className="space-y-3 border-t border-sidebar-border p-4">
+        <Link
+          href="/settings"
+          className={cn(
+            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+            pathname === "/settings"
+              ? "bg-primary/10 text-primary ring-1 ring-primary/15"
+              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
+          )}
+        >
+          <Settings className="h-4 w-4" />
+          Settings
+        </Link>
         {session?.user ? (
           <div className="flex items-center gap-3 rounded-lg bg-muted/60 p-2">
             {session.user.image && (

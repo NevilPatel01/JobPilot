@@ -459,6 +459,14 @@ def _parse_pdf_stub(raw: str) -> PdfParseResult:
     )
 
 
+def _extract_json_from_llm(raw: str) -> str:
+    """Strip markdown code fences that LLMs sometimes wrap JSON in."""
+    import re
+    text = raw.strip()
+    match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    return match.group(1).strip() if match else text
+
+
 async def parse_pdf_text(raw: str, llm_config: LLMConfig | None = None) -> PdfParseResult:
     """Parse PDF plain text into structured ResumeContent with quality metadata."""
     if not raw.strip():
@@ -473,28 +481,87 @@ async def parse_pdf_text(raw: str, llm_config: LLMConfig | None = None) -> PdfPa
     from app.schemas.resume_content import ResumeContent
     from app.services.llm.client import create_chat_model
 
-    prompt = f"""Extract structured resume data from this PDF text. Return JSON with keys:
-- content: object with contact {{full_name, email, phone, location}}, links[], summary, experience[], education[], projects[], skills[]
-  Each list item needs id (uuid string), dates as strings, bullets[] for experience/projects
-  skills is list of {{id, name, skills[]}}
-- warnings: list of strings noting ambiguities, missing sections, or low-confidence fields
-- confidence: float 0-1 for overall extraction quality
+    prompt = f"""Extract every piece of resume data from the text below and return a single JSON object.
 
-Rules:
-- Do not invent employers, degrees, dates, or metrics not supported by the text
-- Use empty strings and empty lists for missing fields
-- Preserve wording in bullets where possible
+REQUIRED JSON STRUCTURE (use exact field names):
+{{
+  "content": {{
+    "contact": {{
+      "full_name": "First Last",
+      "email": "user@example.com",
+      "phone": "+1 555-000-0000",
+      "location": "City, Province/State"
+    }},
+    "links": [
+      {{"label": "LinkedIn", "url": "https://linkedin.com/in/..."}},
+      {{"label": "GitHub",   "url": "https://github.com/..."}},
+      {{"label": "Portfolio","url": "https://..."}}
+    ],
+    "summary": "Full professional summary paragraph from the resume.",
+    "experience": [
+      {{
+        "title": "Job Title",
+        "company": "Employer Name",
+        "location": "City, Province",
+        "start_date": "Mon YYYY",
+        "end_date": "Mon YYYY or Present",
+        "bullets": [
+          "Exact bullet point from the resume",
+          "Another bullet point — keep metrics and wording intact"
+        ]
+      }}
+    ],
+    "education": [
+      {{
+        "institution": "University or College Name",
+        "degree": "Degree and Field of Study",
+        "location": "City, Province",
+        "start_date": "Mon YYYY",
+        "end_date": "Mon YYYY",
+        "gpa": "3.9 or empty string if not listed"
+      }}
+    ],
+    "projects": [
+      {{
+        "name": "Project Name",
+        "url": "https://github.com/... or empty string",
+        "bullets": ["What the project does or what you built"]
+      }}
+    ],
+    "skills": [
+      {{"name": "Languages",   "skills": ["Python", "TypeScript"]}},
+      {{"name": "Frameworks",  "skills": ["React", "FastAPI"]}},
+      {{"name": "Tools",       "skills": ["Docker", "PostgreSQL"]}}
+    ]
+  }},
+  "warnings": ["list any ambiguous or missing sections here"],
+  "confidence": 0.85
+}}
 
-PDF text:
-{raw[:12000]}"""
+EXTRACTION RULES:
+- Include ALL jobs, ALL education entries, ALL projects, ALL skill groups found
+- Preserve bullet wording exactly — do not paraphrase or shorten
+- Extract LinkedIn / GitHub / portfolio URLs from the header or contact section into links[]
+- Keep every numeric metric (%, $, x) exactly as written
+- Use empty string "" for any field not found — never omit a field
+- confidence: 0.9+ if all main sections present, 0.6-0.9 if some missing, below 0.6 if very sparse
+- Return raw JSON only — no markdown, no explanation
+
+RESUME TEXT:
+{raw[:15000]}"""
 
     try:
-        llm = create_chat_model(llm_config, temperature=0.1)
+        llm = create_chat_model(llm_config, temperature=0.0)
         res = await invoke_llm(
             llm,
-            [SystemMessage(content="Return valid JSON only."), HumanMessage(content=prompt)],
+            [
+                SystemMessage(content="You are a precise resume parser. Return raw JSON only — no markdown, no explanation."),
+                HumanMessage(content=prompt),
+            ],
         )
-        parsed = json.loads(res.content if isinstance(res.content, str) else str(res.content))
+        raw_response = res.content if isinstance(res.content, str) else str(res.content)
+        json_text = _extract_json_from_llm(raw_response)
+        parsed = json.loads(json_text)
         content = ResumeContent.model_validate(parsed.get("content") or {})
         warnings = [str(w) for w in (parsed.get("warnings") or []) if w]
         confidence = float(parsed.get("confidence", 0.7))
@@ -502,7 +569,7 @@ PDF text:
 
         counts = compute_section_counts(content.model_dump())
         if not counts["has_contact_name"]:
-            warnings.append("Contact name was not detected — verify header in profile.")
+            warnings.append("Contact name was not detected — verify the header in your profile.")
         if counts["experience"] == 0:
             warnings.append("No experience entries found — add roles manually if missing.")
         if counts["education"] == 0:
@@ -515,7 +582,7 @@ PDF text:
             section_counts=counts,
         )
     except Exception as e:
-        logger.warning("LLM PDF parse failed, falling back to stub: %s", e)
+        logger.warning("LLM PDF parse failed (response: %.200s): %s", raw_response if "raw_response" in dir() else "N/A", e)
         stub = _parse_pdf_stub(raw)
         stub.warnings.insert(0, f"Structured parse failed ({e}); using summary-only fallback.")
         stub.confidence = min(stub.confidence, 0.3)

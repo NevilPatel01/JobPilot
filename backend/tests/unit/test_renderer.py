@@ -19,7 +19,7 @@ def test_render_resume_latex_escapes_special_chars():
     assert r"\_" in _latex_esc("foo_bar")
 
 
-def test_render_resume_latex_jakes_style_preamble(sample_resume):
+def test_render_resume_latex_preamble(sample_resume):
     latex = render_resume_latex(sample_resume)
     assert r"\documentclass[letterpaper,11pt]{article}" in latex
     assert r"\usepackage{fontawesome5}" not in latex  # removed — crashes Tectonic on macOS

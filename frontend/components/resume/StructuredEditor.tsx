@@ -17,6 +17,23 @@ const CONTACT_PLACEHOLDERS: Record<string, string> = {
   location: "City, Province",
 };
 
+const PROFILE_LINKS = [
+  { label: "LinkedIn", key: "linkedin", placeholder: "https://linkedin.com/in/yourname" },
+  { label: "GitHub",   key: "github",   placeholder: "https://github.com/yourusername" },
+  { label: "Portfolio", key: "portfolio", placeholder: "https://yoursite.com" },
+] as const;
+
+function getLinkUrl(links: ResumeContent["links"], key: string): string {
+  return links.find((l) => l.label.toLowerCase() === key)?.url ?? "";
+}
+
+function setLinkUrl(links: ResumeContent["links"], key: string, label: string, url: string): ResumeContent["links"] {
+  const existing = links.find((l) => l.label.toLowerCase() === key);
+  if (!url.trim()) return links.filter((l) => l.label.toLowerCase() !== key);
+  if (existing) return links.map((l) => l.label.toLowerCase() === key ? { ...l, url } : l);
+  return [...links, { id: newId(), label, url }];
+}
+
 export function StructuredProfileEditor({ content, onChange }: Props) {
   const update = (patch: Partial<ResumeContent>) => onChange({ ...content, ...patch });
 
@@ -35,6 +52,22 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
                 update({ contact: { ...content.contact, [field]: e.target.value } })
               }
             />
+          ))}
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          {PROFILE_LINKS.map(({ label, key, placeholder }) => (
+            <label key={key} className="block">
+              <span className="mb-1 block text-xs text-muted-foreground">{label} <span className="opacity-50">(optional)</span></span>
+              <input
+                className="input-field"
+                type="url"
+                placeholder={placeholder}
+                value={getLinkUrl(content.links, key)}
+                onChange={(e) =>
+                  update({ links: setLinkUrl(content.links, key, label, e.target.value) })
+                }
+              />
+            </label>
           ))}
         </div>
       </section>
