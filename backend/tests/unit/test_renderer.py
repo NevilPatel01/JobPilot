@@ -22,7 +22,7 @@ def test_render_resume_latex_escapes_special_chars():
 def test_render_resume_latex_jakes_style_preamble(sample_resume):
     latex = render_resume_latex(sample_resume)
     assert r"\documentclass[letterpaper,11pt]{article}" in latex
-    assert r"\usepackage{fontawesome5}" in latex
+    assert r"\usepackage{fontawesome5}" not in latex  # removed — crashes Tectonic on macOS
     assert r"\usepackage{mathpazo}" in latex
     assert r"\newcommand{\resumeSubheading}" in latex
     assert r"\newcommand{\resumeProjectHeading}" in latex
@@ -40,12 +40,14 @@ def test_render_resume_latex_contains_sections(sample_resume):
     assert r"\resumeItem{" in latex
 
 
-def test_render_resume_latex_header_icons(sample_resume):
+def test_render_resume_latex_header_contact(sample_resume):
     latex = render_resume_latex(sample_resume)
-    assert r"\faPhone" in latex
-    assert r"\faEnvelope" in latex
-    assert r"\faGithub" in latex
+    # FA icons removed (crashed Tectonic); contact is now plain hyperlinks
+    assert r"\faPhone" not in latex
+    assert r"\faEnvelope" not in latex
+    assert r"\faGithub" not in latex
     assert "jane@example.com" in latex
+    assert r"\href{mailto:jane@example.com}" in latex
 
 
 def test_render_resume_latex_escapes_in_bullets():
