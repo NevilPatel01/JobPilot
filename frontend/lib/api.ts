@@ -36,6 +36,15 @@ export function getAuthToken(): string | null {
   return null;
 }
 
+async function readErrorDetail(res: Response, fallback = "Request failed"): Promise<string> {
+  const err = await res.json().catch(() => ({ detail: res.statusText }));
+  return typeof err.detail === "string" && err.detail ? err.detail : fallback;
+}
+
+function isInvalidToken(detail: string): boolean {
+  return detail.trim().toLowerCase() === "invalid token";
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getAuthToken();
   const headers: Record<string, string> = {
@@ -46,8 +55,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Request failed");
+    const detail = await readErrorDetail(res);
+    if (isInvalidToken(detail)) {
+      setAuthToken(null);
+    }
+    throw new Error(detail);
   }
   return res.json();
 }
@@ -188,18 +200,27 @@ export const api = {
     const token = getAuthToken();
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(`${API_URL}/api/v1/profile/upload-resume`, {
+    const upload = (bearerToken: string | null) => fetch(`${API_URL}/api/v1/profile/upload-resume`, {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: bearerToken ? { Authorization: `Bearer ${bearerToken}` } : {},
       body: form,
     });
+
+    let res = await upload(token);
     if (!res.ok) {
-      let detail = "Upload failed";
-      try {
-        const err = await res.json();
-        detail = err.detail || detail;
-      } catch {
-        // ignore
+      const detail = await readErrorDetail(res, "Upload failed");
+      if (token && isInvalidToken(detail)) {
+        setAuthToken(null);
+        res = await upload(null);
+        if (res.ok) {
+          return res.json() as Promise<{
+            content: import("@/types/resume").ResumeContent;
+            warnings: string[];
+            confidence: number;
+            section_counts: Record<string, number>;
+          }>;
+        }
+        throw new Error(await readErrorDetail(res, "Upload failed"));
       }
       throw new Error(detail);
     }

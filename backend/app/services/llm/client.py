@@ -1,5 +1,7 @@
+import logging
 from dataclasses import dataclass
 
+from cryptography.fernet import InvalidToken
 import httpx
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from sqlalchemy import select
@@ -23,6 +25,7 @@ class LLMConfig:
 DEFAULT_MODEL = "gpt-4o-mini"
 DEFAULT_EMBEDDING = "text-embedding-3-small"
 ANTHROPIC_DEFAULT_MODEL = "claude-3-5-haiku-latest"
+logger = logging.getLogger(__name__)
 
 
 def infer_provider_from_api_key(api_key: str, declared: str | None = None) -> str:
@@ -70,6 +73,24 @@ def supports_vector_embeddings(config: LLMConfig) -> bool:
     return config.provider in ("openai", "custom") and config.embedding_model != KEYWORD_SEARCH_EMBEDDING
 
 
+def config_from_api_key_row(key: UserApiKey) -> LLMConfig | None:
+    try:
+        api_key = decrypt_value(key.api_key_enc)
+    except InvalidToken:
+        logger.warning("Skipping API key that cannot be decrypted", extra={"api_key_id": str(key.id)})
+        return None
+
+    return normalize_llm_config(
+        LLMConfig(
+            provider=key.provider,
+            api_key=api_key,
+            base_url=key.base_url,
+            model_name=key.model_name or DEFAULT_MODEL,
+            embedding_model=key.embedding_model or DEFAULT_EMBEDDING,
+        )
+    )
+
+
 async def get_user_llm_config(db: AsyncSession, user_id) -> LLMConfig | None:
     result = await db.execute(
         select(UserApiKey)
@@ -77,18 +98,11 @@ async def get_user_llm_config(db: AsyncSession, user_id) -> LLMConfig | None:
         .order_by(UserApiKey.is_default.desc(), UserApiKey.created_at.desc())
     )
     keys = result.scalars().all()
-    if not keys:
-        return None
-    key = next((k for k in keys if k.is_default), keys[0])
-    return normalize_llm_config(
-        LLMConfig(
-            provider=key.provider,
-            api_key=decrypt_value(key.api_key_enc),
-            base_url=key.base_url,
-            model_name=key.model_name or DEFAULT_MODEL,
-            embedding_model=key.embedding_model or DEFAULT_EMBEDDING,
-        )
-    )
+    for key in keys:
+        config = config_from_api_key_row(key)
+        if config:
+            return config
+    return None
 
 
 async def resolve_embeddings_config(
@@ -113,15 +127,9 @@ async def resolve_embeddings_config(
         .order_by(UserApiKey.is_default.desc(), UserApiKey.created_at.desc())
     )
     for key in result.scalars().all():
-        candidate = normalize_llm_config(
-            LLMConfig(
-                provider=key.provider,
-                api_key=decrypt_value(key.api_key_enc),
-                base_url=key.base_url,
-                model_name=key.model_name or DEFAULT_MODEL,
-                embedding_model=key.embedding_model or DEFAULT_EMBEDDING,
-            )
-        )
+        candidate = config_from_api_key_row(key)
+        if not candidate:
+            continue
         if supports_vector_embeddings(candidate):
             return candidate
     return None
