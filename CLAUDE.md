@@ -38,9 +38,13 @@ pip install -r requirements.txt
 # Run tests
 pytest
 pytest tests/test_specific.py::test_name  # single test
+pytest tests/integration/test_pipeline.py  # resume pipeline integration tests (mocked LLM, no DB)
 
 # Lint (none configured; use ruff if needed)
 ```
+
+To verify the whole AI resume + cover-letter loop (tests + real PDF render + optional real LLM
+run) in one shot, run the `/verify-resume-pipeline` skill (`.claude/skills/verify-resume-pipeline/`).
 
 ### Frontend
 ```bash

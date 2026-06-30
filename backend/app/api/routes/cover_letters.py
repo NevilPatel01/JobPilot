@@ -175,15 +175,18 @@ async def update_cover_letter(
         letter.title = body.title
     if body.content_json is not None:
         letter.content_json = body.content_json
-    if body.latex_source is not None:
-        letter.latex_source = body.latex_source
     for field in _HEADER_FIELDS:
         value = getattr(body, field, None)
         if value is not None:
             setattr(letter, field, value)
     _sync_content_header(letter)
     contact = await _get_contact(db, letter)
-    letter.latex_source = render_cover_letter_latex(letter.content_json, contact)
+    # An explicit latex_source override wins (intentional raw-LaTeX save);
+    # otherwise keep the LaTeX in sync with the structured content + header.
+    if body.latex_source is not None:
+        letter.latex_source = body.latex_source
+    else:
+        letter.latex_source = render_cover_letter_latex(letter.content_json, contact)
     await db.commit()
     await db.refresh(letter)
     return CoverLetterResponse.model_validate(letter)

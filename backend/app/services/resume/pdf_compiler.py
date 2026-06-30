@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 import re
 import shutil
@@ -7,6 +8,8 @@ import tempfile
 from pathlib import Path
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _bundled_tectonic() -> Path | None:
@@ -59,7 +62,12 @@ def resolve_tectonic_candidates() -> list[str]:
     return list(dict.fromkeys(candidates))
 
 
-def compile_latex_to_pdf(latex_source: str) -> bytes:
+def compile_latex_to_pdf_with_status(latex_source: str) -> tuple[bytes, bool]:
+    """Compile LaTeX to PDF, returning (pdf_bytes, used_fallback).
+
+    used_fallback is True when Tectonic was unavailable or failed and the
+    plain-text fallback PDF was produced instead.
+    """
     candidates = resolve_tectonic_candidates()
     errors: list[str] = []
     with tempfile.TemporaryDirectory() as tmp:
@@ -76,7 +84,7 @@ def compile_latex_to_pdf(latex_source: str) -> bytes:
                 )
                 pdf_path = Path(tmp) / "resume.pdf"
                 if pdf_path.exists():
-                    return pdf_path.read_bytes()
+                    return pdf_path.read_bytes(), False
                 errors.append(f"{tectonic}: PDF was not generated")
             except subprocess.CalledProcessError as e:
                 stderr = e.stderr.decode(errors="replace")[:700] if e.stderr else str(e)
@@ -84,7 +92,16 @@ def compile_latex_to_pdf(latex_source: str) -> bytes:
             except Exception as e:
                 errors.append(f"{tectonic}: {e}")
 
-    return render_latex_fallback_pdf(latex_source, errors)
+    logger.warning(
+        "Tectonic unavailable or failed; serving plain-text fallback PDF. Errors: %s",
+        " | ".join(errors) or "no tectonic candidates found",
+    )
+    return render_latex_fallback_pdf(latex_source, errors), True
+
+
+def compile_latex_to_pdf(latex_source: str) -> bytes:
+    pdf_bytes, _ = compile_latex_to_pdf_with_status(latex_source)
+    return pdf_bytes
 
 
 def _decode_latex_text(text: str) -> str:
