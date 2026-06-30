@@ -18,7 +18,6 @@ RESUME_LATEX_PREAMBLE = r"""
 \usepackage{fancyhdr}
 \usepackage[english]{babel}
 \usepackage{tabularx}
-\usepackage{fontawesome5}
 \usepackage{multicol}
 \usepackage[T1]{fontenc}
 % Palatino body text — Tectonic-safe alternative to Jake's charter package
@@ -55,7 +54,7 @@ RESUME_LATEX_PREAMBLE = r"""
 \newcommand{\resumeSubheading}[4]{
   \vspace{-2pt}\item
     \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
-      \textbf{#1} & #4 \\
+      \textbf{#1} & \small{#4} \\
       \textit{\small#2} & \textit{\small #3} \\
     \end{tabular*}\vspace{-7pt}
 }
@@ -63,13 +62,13 @@ RESUME_LATEX_PREAMBLE = r"""
 \newcommand{\resumeProjectHeading}[2]{
     \item
     \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
-      \small#1 & #2 \\
+      \small#1 & \small{#2} \\
     \end{tabular*}\vspace{-7pt}
 }
 
 \newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
 
-\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny\textbullet}}$}
 
 \newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
 \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}

@@ -233,7 +233,7 @@ def _link_by_kind(links: list[dict], *kinds: str) -> dict | None:
 
 
 def _header_contact_line(contact: dict, links: list[dict]) -> str:
-    """Build centered header line with Font Awesome icons."""
+    """Build centered header line with plain hyperlinks (no fontawesome)."""
     parts: list[str] = []
 
     location = (contact.get("location") or "").strip()
@@ -242,31 +242,31 @@ def _header_contact_line(contact: dict, links: list[dict]) -> str:
 
     phone = (contact.get("phone") or "").strip()
     if phone:
-        parts.append(r"\small{\faPhone\ " + _latex_esc(phone) + "}")
+        parts.append(_latex_esc(phone))
 
     email = (contact.get("email") or "").strip()
     if email:
         parts.append(
-            r"\href{mailto:" + _latex_url(email) + r"}{\faEnvelope\ " + _latex_esc(email) + "}"
+            r"\href{mailto:" + _latex_url(email) + r"}{" + _latex_esc(email) + "}"
         )
 
     linkedin = _link_by_kind(links, "linkedin", "linked.in")
     if linkedin:
         url = linkedin["url"].strip()
         label = (linkedin.get("label") or "LinkedIn").strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{\faLinkedin\ " + _latex_esc(label) + "}")
+        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
 
     github = _link_by_kind(links, "github")
     if github:
         url = github["url"].strip()
         label = (github.get("label") or "GitHub").strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{\faGithub\ " + _latex_esc(label) + "}")
+        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
 
     portfolio = _link_by_kind(links, "portfolio", "website", "personal", "blog")
     if portfolio:
         url = portfolio["url"].strip()
         label = (portfolio.get("label") or "Portfolio").strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{\faGlobe\ " + _latex_esc(label) + "}")
+        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
 
     used_urls = {
         (linkedin or {}).get("url", ""),
@@ -278,7 +278,7 @@ def _header_contact_line(contact: dict, links: list[dict]) -> str:
         if not url or url in used_urls:
             continue
         label = (link.get("label") or url).strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{\faGlobe\ " + _latex_esc(label) + "}")
+        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
 
     return r" $|$ ".join(parts)
 

@@ -10,6 +10,13 @@ interface Props {
   onChange: (content: ResumeContent) => void;
 }
 
+const CONTACT_PLACEHOLDERS: Record<string, string> = {
+  full_name: "Your Full Name",
+  email: "you@example.com",
+  phone: "+1 555-000-0000",
+  location: "City, Province",
+};
+
 export function StructuredProfileEditor({ content, onChange }: Props) {
   const update = (patch: Partial<ResumeContent>) => onChange({ ...content, ...patch });
 
@@ -22,7 +29,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
             <input
               key={field}
               className="input-field"
-              placeholder={field.replace("_", " ")}
+              placeholder={CONTACT_PLACEHOLDERS[field] ?? field.replace("_", " ")}
               value={content.contact[field]}
               onChange={(e) =>
                 update({ contact: { ...content.contact, [field]: e.target.value } })
@@ -33,19 +40,18 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
       </section>
 
       <section className="glass-panel p-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Summary</h3>
-        </div>
+        <h3 className="text-sm font-semibold text-foreground">Summary</h3>
         <textarea
           className="input-field mt-2 min-h-[80px]"
           value={content.summary}
           onChange={(e) => update({ summary: e.target.value })}
-          placeholder="Professional summary..."
+          placeholder="e.g. Full-stack engineer with 4 years building scalable web apps in React and Python. Focused on product impact and clean APIs."
         />
       </section>
 
       <SectionList
         title="Experience"
+        isEmpty={content.experience.length === 0}
         onAdd={() =>
           update({
             experience: [
@@ -106,6 +112,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
 
       <SectionList
         title="Education"
+        isEmpty={content.education.length === 0}
         onAdd={() =>
           update({
             education: [
@@ -135,6 +142,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
 
       <SectionList
         title="Projects"
+        isEmpty={content.projects.length === 0}
         onAdd={() =>
           update({
             projects: [...content.projects, { id: newId(), name: "", url: "", bullets: [""] }],
@@ -165,6 +173,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
 
       <SectionList
         title="Skills"
+        isEmpty={content.skills.length === 0}
         onAdd={() =>
           update({ skills: [...content.skills, { id: newId(), name: "Languages", skills: [] }] })
         }
@@ -198,18 +207,21 @@ function SectionList({
   title,
   onAdd,
   children,
+  isEmpty = false,
 }: {
   title: string;
   onAdd: () => void;
   children: React.ReactNode;
+  isEmpty?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(isEmpty);
   return (
     <section className="glass-panel p-4">
       <div className="flex items-center justify-between">
-        <button type="button" onClick={() => setOpen((value) => !value)} className="flex flex-1 items-center gap-2 text-left text-sm font-semibold text-foreground">
+        <button type="button" onClick={() => setOpen((v) => !v)} className="flex flex-1 items-center gap-2 text-left text-sm font-semibold text-foreground">
           <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
           {title}
+          {isEmpty && <span className="text-xs font-normal text-muted-foreground">(empty)</span>}
         </button>
         {open && (
           <button type="button" onClick={onAdd} className="btn-secondary text-xs">

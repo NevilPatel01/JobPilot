@@ -17,6 +17,7 @@ from app.models.resume import AgentRun, ATSScore, ResumeDocument
 from app.models.job_intelligence import InboxJob
 from app.schemas.resume_content import CoverLetterContent, ResumeContent, resume_to_text
 from app.scrapers.company_researcher import research_company
+from app.services.ats.persist import save_ats_score
 from app.services.llm.client import create_chat_model, get_user_llm_config
 from app.services.rag.ingest import ingest_resume_content, ingest_text, search_chunks
 from app.services.resume.renderer import render_resume_latex
@@ -197,23 +198,40 @@ async def tailor_resume(state: PipelineState, db: AsyncSession) -> PipelineState
     llm = create_chat_model(llm_config)
     chunks = await search_chunks(db, state["user_id"], state.get("job_description", ""), llm_config)
     rag_context = "\n---\n".join(c.chunk_text for c in chunks[:6])
-    jd = json.dumps(state.get("jd_analysis", {}))
+    jd_analysis = state.get("jd_analysis") or {}
+    jd = json.dumps(jd_analysis)
     company = state.get("company_research", {}).get("summary", "")
 
-    prompt = f"""Tailor this resume JSON for the target job. Return ONLY valid JSON matching the same schema.
-Reorder and rephrase existing content for relevance. Preserve every factual claim and numeric value exactly.
-Do not add skills, tools, metrics, responsibilities, employers, titles, projects, education, or dates that are absent from the source resume.
+    ats_keywords = ", ".join(str(k) for k in (jd_analysis.get("keywords") or [])[:25])
+    required_skills = ", ".join(str(s) for s in (jd_analysis.get("required_skills") or [])[:20])
 
-Current resume:
+    prompt = f"""You are an expert ATS-optimized resume writer. Tailor the resume JSON for the target job.
+
+STRICT RULES:
+1. Return ONLY valid JSON matching the exact same schema as the input.
+2. Preserve every factual claim, employer, job title, date, degree, project name, and metric exactly.
+3. Do NOT invent skills, tools, certifications, companies, projects, or accomplishments absent from the source.
+4. Naturally weave the ATS keywords below into bullets and summary (no keyword stuffing).
+5. Reorder bullets within each experience entry so the most job-relevant accomplishments appear first.
+6. Write the summary to directly address the role's core requirements using the candidate's real experience.
+7. Use strong action verbs and preserve existing numeric metrics in bullets.
+
+ATS KEYWORDS TO INCORPORATE NATURALLY:
+{ats_keywords or "(see JD analysis)"}
+
+REQUIRED SKILLS TO HIGHLIGHT:
+{required_skills or "(see JD analysis)"}
+
+Current resume JSON:
 {content.model_dump_json()}
 
 JD analysis: {jd}
 Target title: {state.get("job_title") or ""}
 Target company: {state.get("company_name") or ""}
 Company context: {company}
-RAG context: {rag_context[:4000]}"""
+RAG context: {rag_context[:3000]}"""
 
-    insights = ["Aligned experience bullets with job requirements", "Incorporated company context into summary and bullets", "Optimized keywords for ATS parsing"]
+    insights = ["Aligned experience bullets with job requirements", "Incorporated ATS keywords naturally into content", "Optimized summary and skills for target role"]
 
     try:
         res = await invoke_llm(

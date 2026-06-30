@@ -132,7 +132,7 @@ async def search_chunks(
         return await _search_chunks_keyword(db, user_id, query, limit, source_types)
 
     embeddings = create_embeddings(embed_config)
-    query_vector = (await embeddings.aembed_query(query))[0]
+    query_vector = await embeddings.aembed_query(query)
 
     type_filter = ""
     params: dict = {"user_id": str(user_id), "limit": limit, "query_vec": str(query_vector)}
