@@ -21,23 +21,23 @@ def test_render_resume_latex_escapes_special_chars():
 
 def test_render_resume_latex_preamble(sample_resume):
     latex = render_resume_latex(sample_resume)
-    assert r"\documentclass[letterpaper,11pt]{article}" in latex
+    assert r"\documentclass[letterpaper,10pt]{article}" in latex
     assert r"\usepackage{fontawesome5}" not in latex  # removed — crashes Tectonic on macOS
-    assert r"\usepackage{mathpazo}" in latex
-    assert r"\newcommand{\resumeSubheading}" in latex
-    assert r"\newcommand{\resumeProjectHeading}" in latex
-    assert r"\newcommand{\resumeItem}" in latex
+    assert r"\usepackage{carlito}" not in latex  # removed — digit glyphs extract as garbage
+    assert r"\usepackage[default]{lato}" in latex
+    assert r"\newcommand{\entryrow}" in latex
+    assert r"\titleformat{\section}" in latex
 
 
 def test_render_resume_latex_contains_sections(sample_resume):
     latex = render_resume_latex(sample_resume)
     assert r"\section{Technical Skills}" in latex
-    assert r"\section{Experience}" in latex
+    assert r"\section{Work Experience}" in latex
     assert r"\section{Projects}" in latex
     assert r"\section{Education}" in latex
     assert "Jane Developer" in latex
-    assert r"\resumeSubheading" in latex
-    assert r"\resumeItem{" in latex
+    assert r"\entryrow{" in latex
+    assert r"\item " in latex
 
 
 def test_render_resume_latex_header_contact(sample_resume):
@@ -73,16 +73,16 @@ def test_resolve_export_latex_uses_stored_source(sample_resume):
     custom = r"\documentclass{article}\begin{document}CUSTOM\end{document}"
     latex = resolve_export_latex(sample_resume, custom)
     assert "CUSTOM" in latex
-    assert r"\section{Experience}" not in latex
+    assert r"\section{Work Experience}" not in latex
 
 
 def test_resolve_export_latex_generates_when_empty(sample_resume):
     latex = resolve_export_latex(sample_resume, None)
     assert "Jane Developer" in latex
-    assert r"\section{Experience}" in latex
+    assert r"\section{Work Experience}" in latex
 
     latex_blank = resolve_export_latex(sample_resume, "   ")
-    assert r"\section{Experience}" in latex_blank
+    assert r"\section{Work Experience}" in latex_blank
 
 
 def test_render_cover_letter_html(sample_resume):

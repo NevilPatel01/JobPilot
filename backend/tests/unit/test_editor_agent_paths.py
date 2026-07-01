@@ -1,11 +1,26 @@
 import json
 
+import pytest
+
 from app.agents.editor_agent import (
     apply_change,
     coerce_change_value,
+    extract_json_object,
     format_path_label,
     serialize_diff_value,
 )
+
+
+def test_extract_json_object_handles_fences_and_prose():
+    assert extract_json_object('{"reply":"ok"}') == {"reply": "ok"}
+    assert extract_json_object('```json\n{"reply":"ok"}\n```') == {"reply": "ok"}
+    assert extract_json_object('Here you go:\n{"reply":"ok","changes":[]}')["reply"] == "ok"
+
+
+def test_extract_json_object_raises_friendly_on_empty_or_invalid():
+    for bad in ["", "   ", "not json"]:
+        with pytest.raises(ValueError):
+            extract_json_object(bad)
 
 
 def test_apply_change_updates_summary(sample_resume):

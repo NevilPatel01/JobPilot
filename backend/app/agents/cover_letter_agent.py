@@ -3,7 +3,8 @@ import json
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.editor_agent import _get_by_path, apply_change
+from app.agents.editor_agent import _get_by_path, apply_change, extract_json_object
+from app.agents.retry import invoke_llm
 from app.services.llm.client import create_chat_model, get_user_llm_config
 
 __all__ = ["run_cover_letter_agent", "apply_change"]
@@ -36,8 +37,14 @@ Return JSON with:
 Only suggest changes needed. Max 3 changes. Keep total letter length between 250-400 words when editing paragraphs."""
 
     try:
-        res = await llm.ainvoke([SystemMessage(content="Return valid JSON only."), HumanMessage(content=prompt)])
-        parsed = json.loads(res.content if isinstance(res.content, str) else str(res.content))
+        res = await invoke_llm(
+            llm,
+            [
+                SystemMessage(content="You are a cover letter editor. Return ONLY a raw JSON object — no markdown, no code fences, no prose."),
+                HumanMessage(content=prompt),
+            ],
+        )
+        parsed = extract_json_object(res.content if isinstance(res.content, str) else str(res.content))
         changes = []
         for ch in parsed.get("changes", []):
             path = ch.get("path", "")

@@ -1,12 +1,48 @@
 import json
+import re
 from copy import deepcopy
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.retry import invoke_llm
 from app.services.llm.client import create_chat_model, get_user_llm_config
 from app.services.rag.ingest import search_chunks
+
+
+def extract_json_object(raw: str) -> dict:
+    """Best-effort parse of a JSON object out of an LLM response.
+
+    Models frequently wrap JSON in ```json code fences or add a sentence of
+    prose. Naive json.loads on that raises "Expecting value: line 1 column 1".
+    This strips fences and falls back to the first balanced {...} block.
+    """
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("The AI returned an empty response. Please try again.")
+
+    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
+    if fenced:
+        text = fenced.group(1).strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Fall back to the first balanced top-level object.
+    start = text.find("{")
+    if start != -1:
+        depth = 0
+        for i in range(start, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    return json.loads(text[start : i + 1])
+    raise ValueError("The AI response was not valid JSON. Please rephrase your request.")
 
 
 _SECTION_LABELS = {
@@ -205,8 +241,14 @@ Return JSON with:
 Only suggest changes needed. Max 3 changes."""
 
     try:
-        res = await llm.ainvoke([SystemMessage(content="Return valid JSON only."), HumanMessage(content=prompt)])
-        parsed = json.loads(res.content if isinstance(res.content, str) else str(res.content))
+        res = await invoke_llm(
+            llm,
+            [
+                SystemMessage(content="You are a resume editor. Return ONLY a raw JSON object — no markdown, no code fences, no prose."),
+                HumanMessage(content=prompt),
+            ],
+        )
+        parsed = extract_json_object(res.content if isinstance(res.content, str) else str(res.content))
         changes = []
         for ch in parsed.get("changes", []):
             path = ch.get("path", "")

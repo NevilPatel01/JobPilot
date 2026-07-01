@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageSquare, Target, ShieldCheck, Gauge, Mail, Download, Check, X } from "lucide-react";
+import { MessageSquare, Target, ShieldCheck, Gauge, Mail, Download, Check, X, FileEdit, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ATSScore, ChatMessage, CoverLetterDocument, PendingChange, ResumeDocument } from "@/types/resume";
 
@@ -15,6 +16,61 @@ function formatDiffValue(value: string | null): string {
     // plain text
   }
   return value;
+}
+
+function toLines(value: string | null): string[] {
+  return formatDiffValue(value)
+    .split("\n")
+    .map((l) => l.replace(/\s+$/, ""))
+    .filter((l) => l.length > 0);
+}
+
+// Claude-Code-style diff: a section header + removed (red, "−") and added
+// (green, "+") lines with gutter markers.
+function DiffBlock({ label, oldValue, newValue }: { label: string; oldValue: string | null; newValue: string | null }) {
+  const removed = toLines(oldValue);
+  const added = toLines(newValue);
+  return (
+    <div className="mt-3 overflow-hidden rounded-md border border-border">
+      <div className="flex items-center gap-1.5 border-b border-border bg-muted/70 px-2 py-1 text-[11px] text-muted-foreground">
+        <FileEdit className="h-3 w-3 text-primary" />
+        <span className="font-medium text-foreground">{label}</span>
+        <span className="ml-auto tabular-nums">
+          <span className="text-red-400">−{removed.length}</span> <span className="text-emerald-400">+{added.length}</span>
+        </span>
+      </div>
+      <div className="font-mono text-[11px] leading-relaxed">
+        {removed.map((line, i) => (
+          <div key={`r${i}`} className="flex gap-2 bg-red-950/40 px-2 py-[1px] text-red-300">
+            <span className="select-none text-red-500/70">-</span>
+            <span className="whitespace-pre-wrap break-words">{line}</span>
+          </div>
+        ))}
+        {added.map((line, i) => (
+          <div key={`a${i}`} className="flex gap-2 bg-emerald-950/40 px-2 py-[1px] text-emerald-300">
+            <span className="select-none text-emerald-500/70">+</span>
+            <span className="whitespace-pre-wrap break-words">{line}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const THINKING_STAGES = ["Reading your resume…", "Analyzing your request…", "Checking the job description…", "Drafting edits…"];
+
+function ThinkingIndicator() {
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setStage((v) => (v + 1 < THINKING_STAGES.length ? v + 1 : v)), 1600);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+      <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />
+      <span className="animate-pulse text-muted-foreground">{THINKING_STAGES[stage]}</span>
+    </div>
+  );
 }
 
 interface ChatPaneProps {
@@ -199,15 +255,16 @@ export function ChatPane({
 
         {messages.map((m) => (
           <div key={m.id} className={cn("rounded-lg p-3 text-sm", m.role === "assistant" ? "bg-card text-foreground" : "bg-primary/10 text-foreground")}>
+            {m.role === "assistant" && (
+              <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-primary">
+                <Sparkles className="h-3 w-3" /> AI Editor
+              </div>
+            )}
             {m.content}
             {m.pending_changes.filter((c) => c.status === "pending").map((ch) => (
-              <div key={ch.id} className="mt-3 overflow-hidden rounded border border-border font-mono text-xs">
-                <div className="border-b border-border bg-muted/80 px-2 py-1 text-[11px] font-sans text-muted-foreground">
-                  {ch.path_label || ch.path}
-                </div>
-                <div className="whitespace-pre-wrap bg-red-950/50 p-2 text-red-300 line-through">{formatDiffValue(ch.old_value)}</div>
-                <div className="whitespace-pre-wrap bg-emerald-950/50 p-2 text-emerald-300">{formatDiffValue(ch.new_value)}</div>
-                <div className="flex gap-2 border-t border-border p-2">
+              <div key={ch.id} className="mt-3">
+                <DiffBlock label={ch.path_label || ch.path} oldValue={ch.old_value} newValue={ch.new_value} />
+                <div className="mt-2 flex gap-2">
                   <button onClick={() => onHandleChange(ch, "reject")} className="btn-secondary flex-1 text-xs"><X className="h-3 w-3" /> Reject</button>
                   <button onClick={() => onHandleChange(ch, "accept")} className="btn-primary flex-1 text-xs"><Check className="h-3 w-3" /> Accept</button>
                 </div>
@@ -215,6 +272,8 @@ export function ChatPane({
             ))}
           </div>
         ))}
+
+        {sending && <ThinkingIndicator />}
       </div>
 
       <div className="border-t border-border p-3">
