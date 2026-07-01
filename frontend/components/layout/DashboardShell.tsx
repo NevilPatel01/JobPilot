@@ -1,13 +1,23 @@
 "use client";
 
 import { PanelLeft } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { SidebarProvider, useSidebar } from "@/components/layout/SidebarContext";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
+// Full-bleed, app-like pages that manage their own height/scroll (the resume
+// editor). They get no page padding or max-width so they can use the full
+// viewport — and reclaim the sidebar's space when it is collapsed.
+function isFullBleedRoute(pathname: string): boolean {
+  return pathname !== "/resumes/new" && /^\/resumes\/[^/]+$/.test(pathname);
+}
+
 function DashboardContent({ children }: { children: React.ReactNode }) {
   const { isOpen, open } = useSidebar();
+  const pathname = usePathname();
+  const fullBleed = isFullBleedRoute(pathname || "");
 
   return (
     <div className="min-h-screen">
@@ -25,16 +35,21 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
       )}
       <main
         className={cn(
-          "min-h-screen px-5 py-7 transition-[margin-left] duration-300 ease-in-out sm:px-8 sm:py-9",
-          isOpen ? "ml-60" : "ml-0"
+          "transition-[margin-left] duration-300 ease-in-out",
+          isOpen ? "ml-60" : "ml-0",
+          fullBleed ? "h-screen overflow-hidden" : "min-h-screen px-5 py-7 sm:px-8 sm:py-9"
         )}
       >
-        <div className="mx-auto max-w-[1240px]">
-          <div className="mb-5 flex items-center justify-end gap-2">
-            <ThemeToggle compact className="bg-background/85 shadow-sm backdrop-blur" />
+        {fullBleed ? (
+          children
+        ) : (
+          <div className="mx-auto max-w-[1240px]">
+            <div className="mb-5 flex items-center justify-end gap-2">
+              <ThemeToggle compact className="bg-background/85 shadow-sm backdrop-blur" />
+            </div>
+            {children}
           </div>
-          {children}
-        </div>
+        )}
       </main>
     </div>
   );

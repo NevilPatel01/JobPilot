@@ -109,7 +109,7 @@ export function ChatPane({
   };
 
   return (
-    <div className="flex min-h-[320px] flex-col border-b border-border xl:min-h-0 xl:border-b-0 xl:border-r">
+    <div className="flex min-h-[320px] flex-col border-b border-border xl:h-full xl:min-h-0 xl:w-[340px] xl:shrink-0 xl:border-b-0 xl:border-r">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="rounded-lg bg-primary/10 p-3 text-sm text-foreground">
           <MessageSquare className="mb-2 h-4 w-4 text-primary" />

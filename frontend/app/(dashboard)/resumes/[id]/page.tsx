@@ -11,8 +11,25 @@ import { LatexEditor } from "@/components/resume/LatexEditor";
 import { PdfPreviewPane } from "@/components/resume/PdfPreviewPane";
 import { EditorHeader } from "@/components/resume/editor/EditorHeader";
 import { ChatPane } from "@/components/resume/editor/ChatPane";
+import { useSidebar } from "@/components/layout/SidebarContext";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
+
+function usePersistentToggle(key: string, initial = true): [boolean, () => void] {
+  const [value, setValue] = useState(initial);
+  useEffect(() => {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) setValue(stored === "true");
+  }, [key]);
+  const toggle = useCallback(() => {
+    setValue((v) => {
+      const next = !v;
+      localStorage.setItem(key, String(next));
+      return next;
+    });
+  }, [key]);
+  return [value, toggle];
+}
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -26,7 +43,10 @@ export default function ResumeEditorPage() {
   const [resume, setResume] = useState<ResumeDocument | null>(null);
   const [content, setContent] = useState<ResumeContent | null>(null);
   const [latex, setLatex] = useState("");
-  const [previewMode, setPreviewMode] = useState<"split" | "source" | "preview">("split");
+  const { isOpen: sidebarOpen } = useSidebar();
+  const [showChat, toggleChat] = usePersistentToggle("jobpilot-editor-chat");
+  const [showLatex, toggleLatex] = usePersistentToggle("jobpilot-editor-latex");
+  const [showDetails, toggleDetails] = usePersistentToggle("jobpilot-editor-details");
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -209,7 +229,7 @@ export default function ResumeEditorPage() {
       setLatex(updated.latex_source || "");
       setLatexSaved(true);
       skipLatexSave.current = false;
-      if (previewMode !== "source") await refreshPdfPreview();
+      await refreshPdfPreview();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "LaTeX regeneration failed");
     } finally {
@@ -291,8 +311,13 @@ export default function ResumeEditorPage() {
         contentSaved={contentSaved}
         latexSaved={latexSaved}
         pipelineBusy={pipelineBusy}
-        previewMode={previewMode}
-        onSetPreviewMode={setPreviewMode}
+        leftInset={!sidebarOpen}
+        showChat={showChat}
+        showLatex={showLatex}
+        showDetails={showDetails}
+        onToggleChat={toggleChat}
+        onToggleLatex={toggleLatex}
+        onToggleDetails={toggleDetails}
         onRunPipeline={runPipeline}
         onExportPdf={exportPdf}
         onApplyWithResume={applyWithResume}
@@ -311,28 +336,32 @@ export default function ResumeEditorPage() {
         </div>
       )}
 
-      <div className="grid flex-1 grid-rows-[minmax(320px,0.65fr)_minmax(520px,1.4fr)_minmax(420px,1fr)] overflow-y-auto xl:grid-cols-[320px_1fr_360px] xl:grid-rows-none xl:overflow-hidden">
-        <ChatPane
-          resume={resume}
-          messages={messages}
-          atsScore={atsScore}
-          coverLetter={coverLetter}
-          chatInput={chatInput}
-          sending={sending}
-          pendingChanges={pendingChanges}
-          onChatInputChange={setChatInput}
-          onSendChat={sendChat}
-          onHandleChange={handleChange}
-          onHandleBatchChanges={handleBatchChanges}
-          onExportCoverLetterPdf={exportCoverLetterPdf}
-        />
+      <div className="flex flex-1 flex-col overflow-y-auto xl:flex-row xl:overflow-hidden">
+        {showChat && (
+          <ChatPane
+            resume={resume}
+            messages={messages}
+            atsScore={atsScore}
+            coverLetter={coverLetter}
+            chatInput={chatInput}
+            sending={sending}
+            pendingChanges={pendingChanges}
+            onChatInputChange={setChatInput}
+            onSendChat={sendChat}
+            onHandleChange={handleChange}
+            onHandleBatchChanges={handleBatchChanges}
+            onExportCoverLetterPdf={exportCoverLetterPdf}
+          />
+        )}
 
-        <div className="flex min-h-[520px] flex-col overflow-hidden bg-card p-4 xl:min-h-0">
+        <div className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden bg-card p-4 xl:min-h-0">
           <div className="mb-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-xs text-primary">
             LaTeX compiles to PDF via Tectonic — preview reflects the exact exported document.
           </div>
           <div className="mb-3 flex items-center justify-between gap-2">
-            <p className="text-xs font-medium uppercase tracking-widest text-primary">LaTeX · PDF Preview</p>
+            <p className="text-xs font-medium uppercase tracking-widest text-primary">
+              {showLatex ? "LaTeX · PDF Preview" : "PDF Preview"}
+            </p>
             <button
               type="button"
               onClick={regenerateLatexFromContent}
@@ -343,27 +372,21 @@ export default function ResumeEditorPage() {
               Regenerate from content
             </button>
           </div>
-          <div
-            className={cn(
-              "grid min-h-0 flex-1 gap-3",
-              previewMode === "split" && "grid-cols-2",
-              (previewMode === "source" || previewMode === "preview") && "grid-cols-1"
-            )}
-          >
-            {previewMode !== "preview" && (
+          <div className={cn("grid min-h-0 flex-1 gap-3", showLatex ? "grid-cols-1 xl:grid-cols-2" : "grid-cols-1")}>
+            {showLatex && (
               <div className="h-full min-h-0 overflow-hidden rounded-lg border border-border">
                 <LatexEditor value={latex} onChange={setLatex} className="h-full text-xs" />
               </div>
             )}
-            {previewMode !== "source" && (
-              <PdfPreviewPane pdfUrl={pdfUrl} loading={pdfLoading} error={pdfError} />
-            )}
+            <PdfPreviewPane pdfUrl={pdfUrl} loading={pdfLoading} error={pdfError} />
           </div>
         </div>
 
-        <div className="min-h-[420px] overflow-y-auto border-t border-border p-4 xl:min-h-0 xl:border-l xl:border-t-0">
-          <StructuredProfileEditor content={content} onChange={setContent} />
-        </div>
+        {showDetails && (
+          <div className="min-h-[420px] overflow-y-auto border-t border-border p-4 xl:h-full xl:w-[380px] xl:min-h-0 xl:shrink-0 xl:border-l xl:border-t-0">
+            <StructuredProfileEditor content={content} onChange={setContent} />
+          </div>
+        )}
       </div>
     </div>
   );
