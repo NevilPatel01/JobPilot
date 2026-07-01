@@ -34,30 +34,30 @@
   }
 
   .dark {
-    --background: 222 24% 7%;
-    --foreground: 210 18% 92%;
-    --card: 222 20% 10%;
-    --card-foreground: 210 18% 92%;
-    --muted: 220 17% 15%;
-    --muted-foreground: 215 12% 69%;
-    --border: 218 16% 23%;
-    --input: 218 16% 26%;
-    --ring: 174 68% 44%;
-    --primary: 174 68% 44%;
-    --primary-foreground: 222 28% 8%;
-    --secondary: 220 17% 15%;
-    --secondary-foreground: 210 18% 92%;
+    --background: 224 36% 3%;
+    --foreground: 210 22% 94%;
+    --card: 224 28% 7%;
+    --card-foreground: 210 22% 94%;
+    --muted: 223 24% 11%;
+    --muted-foreground: 215 15% 74%;
+    --border: 220 18% 18%;
+    --input: 220 18% 22%;
+    --ring: 174 72% 45%;
+    --primary: 174 72% 45%;
+    --primary-foreground: 224 36% 4%;
+    --secondary: 223 24% 11%;
+    --secondary-foreground: 210 22% 94%;
     --accent: 32 72% 52%;
-    --accent-foreground: 222 28% 8%;
+    --accent-foreground: 224 36% 4%;
     --destructive: 0 58% 58%;
     --success: 153 52% 42%;
     --warning: 38 75% 52%;
-    --sidebar: 222 26% 6%;
-    --sidebar-foreground: 210 18% 92%;
-    --sidebar-border: 218 16% 19%;
-    --sidebar-accent: 174 32% 18%;
-    --surface-tint: 174 30% 13%;
-    --scrollbar: 218 10% 34%;
+    --sidebar: 224 40% 4%;
+    --sidebar-foreground: 210 22% 94%;
+    --sidebar-border: 220 18% 16%;
+    --sidebar-accent: 174 34% 14%;
+    --surface-tint: 174 26% 8%;
+    --scrollbar: 218 10% 30%;
   }
 
   * {
@@ -72,6 +72,12 @@
       linear-gradient(180deg, hsl(var(--surface-tint) / 0.45), transparent 360px),
       linear-gradient(90deg, hsl(var(--background)), hsl(var(--background)));
     min-height: 100vh;
+  }
+
+  .dark body {
+    background-image:
+      linear-gradient(180deg, hsl(var(--surface-tint) / 0.18), transparent 280px),
+      linear-gradient(90deg, hsl(var(--background)), hsl(var(--background)));
   }
 
   ::selection {
