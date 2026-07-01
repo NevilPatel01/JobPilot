@@ -69,11 +69,17 @@ def render_resume_html(content: dict) -> str:
     proj_html = ""
     for proj in content.get("projects", []):
         name = _esc(proj.get("name", ""))
-        if proj.get("url"):
-            name = f'<a href="{_esc(proj.get("url", ""))}">{name}</a>'
+        url = (proj.get("url") or "").strip()
+        github = (proj.get("github_url") or "").strip()
+        primary = url or github
+        if primary:
+            name = f'<a href="{_esc(primary)}">{name}</a>'
+        extra = ""
+        if url and github:
+            extra = f' <a href="{_esc(github)}">GitHub</a>'
         proj_html += f"""
         <div class="entry">
-          <div class="entry-header"><strong>{name}</strong></div>
+          <div class="entry-header"><strong>{name}</strong>{extra}</div>
           {_bullets(proj.get("bullets", []))}
         </div>"""
 

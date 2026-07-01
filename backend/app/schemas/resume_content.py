@@ -43,7 +43,8 @@ class EducationEntry(BaseModel):
 class ProjectEntry(BaseModel):
     id: str = Field(default_factory=new_id)
     name: str = ""
-    url: str = ""
+    url: str = ""          # live / demo / portfolio URL
+    github_url: str = ""   # source repository URL
     bullets: list[str] = Field(default_factory=list)
 
 

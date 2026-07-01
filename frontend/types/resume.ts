@@ -35,6 +35,7 @@ export interface ProjectEntry {
   id: string;
   name: string;
   url: string;
+  github_url: string;
   bullets: string[];
 }
 

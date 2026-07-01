@@ -149,13 +149,20 @@ def _render_projects_section(projects: list[dict]) -> list[str]:
     for proj in projects:
         name = (proj.get("name") or "").strip()
         url = (proj.get("url") or "").strip()
-        if url and name:
-            heading = r"\textbf{\href{" + _latex_url(url) + r"}{" + _latex_esc(name) + r"}}"
+        github = (proj.get("github_url") or "").strip()
+        primary = url or github  # link the title to the live site, else the repo
+        if primary and name:
+            heading = r"\textbf{\href{" + _latex_url(primary) + r"}{" + _latex_esc(name) + r"}}"
         elif name:
             heading = r"\textbf{" + _latex_esc(name) + r"}"
         else:
             heading = r"\textbf{Project}"
-        lines.append(r"\resumeProjectHeading{" + heading + r"}{}")
+        # Right side of the heading: surface any remaining link(s).
+        right_parts: list[str] = []
+        if url and github:
+            right_parts.append(r"\href{" + _latex_url(github) + r"}{GitHub}")
+        right = r" $|$ ".join(right_parts)
+        lines.append(r"\resumeProjectHeading{" + heading + r"}{" + right + r"}")
         bullets = [b for b in proj.get("bullets", []) if b]
         if bullets:
             lines.append(r"\resumeItemListStart")

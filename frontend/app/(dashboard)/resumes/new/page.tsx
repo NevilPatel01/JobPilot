@@ -57,12 +57,12 @@ export default function CreateResumePage() {
   };
 
   const handleCreate = async () => {
-    if (!title || !jobDescription) return;
+    if (!effectiveTitle || !jobDescription.trim()) return;
     setCreating(true);
     setCreateError(null);
     try {
       const resume = await api.createResume({
-        title,
+        title: effectiveTitle,
         job_title: jobTitle || undefined,
         company_name: companyName || undefined,
         job_url: jobUrl || undefined,
@@ -83,6 +83,11 @@ export default function CreateResumePage() {
   };
 
   const suggestedTitle = [companyName, jobTitle].filter(Boolean).join(" - ");
+  // The Resume title field only shows suggestedTitle as a placeholder, so fall
+  // back to it (or a default) when the user leaves it blank — otherwise the
+  // Create button stays disabled even though all the real details are filled in.
+  const effectiveTitle = title.trim() || suggestedTitle.trim();
+  const canCreate = !creating && !!effectiveTitle && !!jobDescription.trim();
 
   return (
     <div>
@@ -257,9 +262,18 @@ export default function CreateResumePage() {
             )}
           </div>
 
-          <button onClick={handleCreate} disabled={creating || !title || !jobDescription} className="btn-primary w-full py-3">
+          <button onClick={handleCreate} disabled={!canCreate} className="btn-primary w-full py-3">
             {creating ? "Creating..." : createCoverLetter ? "Create Resume & Cover Letter" : "Create Resume"}
           </button>
+          {!canCreate && !creating && (
+            <p className="text-center text-xs text-muted-foreground">
+              {!jobDescription.trim()
+                ? "Paste the job description to continue."
+                : !effectiveTitle
+                ? "Add a job title, company, or resume title to continue."
+                : ""}
+            </p>
+          )}
           {createError && (
             <div className="flex gap-2 rounded-lg border border-destructive/25 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

@@ -23,14 +23,31 @@ const PROFILE_LINKS = [
   { label: "Portfolio", key: "portfolio", placeholder: "https://yoursite.com" },
 ] as const;
 
+// Domain hints let parsed links populate the right field even when the label
+// differs (e.g. "Website" instead of "Portfolio", "Personal GitHub", etc.).
+const LINK_DOMAINS: Record<string, string> = { linkedin: "linkedin.com", github: "github.com" };
+
+function matchesKey(link: ResumeContent["links"][number], key: string): boolean {
+  if (link.label.toLowerCase().includes(key)) return true;
+  const domain = LINK_DOMAINS[key];
+  if (domain && link.url.toLowerCase().includes(domain)) return true;
+  // Portfolio = a link that is neither LinkedIn nor GitHub.
+  if (key === "portfolio") {
+    const u = link.url.toLowerCase();
+    const l = link.label.toLowerCase();
+    return !u.includes("linkedin.com") && !u.includes("github.com") && !l.includes("linkedin") && !l.includes("github");
+  }
+  return false;
+}
+
 function getLinkUrl(links: ResumeContent["links"], key: string): string {
-  return links.find((l) => l.label.toLowerCase() === key)?.url ?? "";
+  return links.find((l) => matchesKey(l, key))?.url ?? "";
 }
 
 function setLinkUrl(links: ResumeContent["links"], key: string, label: string, url: string): ResumeContent["links"] {
-  const existing = links.find((l) => l.label.toLowerCase() === key);
-  if (!url.trim()) return links.filter((l) => l.label.toLowerCase() !== key);
-  if (existing) return links.map((l) => l.label.toLowerCase() === key ? { ...l, url } : l);
+  const existing = links.find((l) => matchesKey(l, key));
+  if (!url.trim()) return links.filter((l) => !matchesKey(l, key));
+  if (existing) return links.map((l) => l === existing ? { ...l, label, url } : l);
   return [...links, { id: newId(), label, url }];
 }
 
@@ -178,7 +195,7 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
         isEmpty={content.projects.length === 0}
         onAdd={() =>
           update({
-            projects: [...content.projects, { id: newId(), name: "", url: "", bullets: [""] }],
+            projects: [...content.projects, { id: newId(), name: "", url: "", github_url: "", bullets: [""] }],
           })
         }
       >
@@ -190,6 +207,20 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
                 projects[i] = { ...proj, name: e.target.value };
                 update({ projects });
               }} />
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <input className="input-field" type="url" placeholder="Live / demo URL (optional)" value={proj.url}
+                onChange={(e) => {
+                  const projects = [...content.projects];
+                  projects[i] = { ...proj, url: e.target.value };
+                  update({ projects });
+                }} />
+              <input className="input-field" type="url" placeholder="GitHub URL (optional)" value={proj.github_url ?? ""}
+                onChange={(e) => {
+                  const projects = [...content.projects];
+                  projects[i] = { ...proj, github_url: e.target.value };
+                  update({ projects });
+                }} />
+            </div>
             {proj.bullets.map((b, bi) => (
               <input key={bi} className="input-field mt-2" placeholder="Bullet" value={b}
                 onChange={(e) => {

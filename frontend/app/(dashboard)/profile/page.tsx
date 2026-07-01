@@ -151,6 +151,7 @@ export default function ProfilePage() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savePhase, setSavePhase] = useState<"saving" | "rendering" | "saved" | null>(null);
 
   // Parse overlay state
   const [parseStage, setParseStage]       = useState<number | null>(null); // null = hidden
@@ -238,15 +239,22 @@ export default function ProfilePage() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSavePhase("saving");
     try {
       await api.updateStructuredProfile(content);
       const p = await api.getProfile();
       setProfile(p);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      setSavePhase("rendering");
       await refreshPdf();
+      setSavePhase("saved");
+      setSaved(true);
+      setTimeout(() => {
+        setSaved(false);
+        setSavePhase(null);
+      }, 2500);
     } catch (e) {
       console.error(e);
+      setSavePhase(null);
     } finally {
       setSaving(false);
     }
@@ -295,7 +303,7 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <div>
           {isEmpty && (
             <div className="mb-4 rounded-lg border border-border bg-background/40 px-4 py-3 text-sm text-muted-foreground">
@@ -309,9 +317,26 @@ export default function ProfilePage() {
 
           <div className="mt-4 flex items-center gap-3">
             <button onClick={handleSave} disabled={saving || showingOverlay} className="btn-primary">
-              <Save className="h-4 w-4" />
-              {saving ? "Saving..." : saved ? "Saved" : "Save Profile"}
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : savePhase === "saved" || saved ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              {savePhase === "saving"
+                ? "Saving profile…"
+                : savePhase === "rendering"
+                ? "Rebuilding preview…"
+                : savePhase === "saved" || saved
+                ? "Saved"
+                : "Save Profile"}
             </button>
+            {savePhase === "rendering" && (
+              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" /> Compiling your PDF preview…
+              </span>
+            )}
             {saved && (
               <Link href="/resumes/new" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
                 Create a resume now <ExternalLink className="h-3.5 w-3.5" />
@@ -320,12 +345,12 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="glass-panel flex flex-col p-4">
+        <div className="glass-panel flex flex-col p-4 h-[75vh] lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
           <p className="text-xs font-medium uppercase tracking-widest text-primary">Live PDF preview</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Updates when you save. Compiled with your resume template.
           </p>
-          <div className="mt-3 flex-1 min-h-[600px]">
+          <div className="mt-3 flex-1 min-h-0">
             <PdfPreviewPane pdfUrl={pdfUrl} loading={pdfLoading} error={pdfError} />
           </div>
           {!pdfError && !pdfLoading && pdfUrl && (

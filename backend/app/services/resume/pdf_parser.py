@@ -33,6 +33,49 @@ def compute_section_counts(content: dict) -> dict[str, int]:
     }
 
 
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+_PHONE_RE = re.compile(r"(?<!\d)(\+?\d[\d\s().-]{7,}\d)")
+_URL_RE = re.compile(r"https?://[^\s)>\]]+|(?:www\.|linkedin\.com|github\.com)[^\s)>\]]+", re.IGNORECASE)
+
+
+def _normalize_url(url: str) -> str:
+    url = url.strip().rstrip(".,;)")
+    if not url.lower().startswith("http"):
+        url = "https://" + url
+    return url
+
+
+def extract_links_from_text(raw: str) -> list[dict]:
+    """Pull LinkedIn / GitHub / portfolio links out of raw resume text.
+
+    Works without an LLM so PDF import still captures the candidate's links even
+    when no (decryptable) API key is configured.
+    """
+    links: list[dict] = []
+    seen: set[str] = set()
+    linkedin = github = None
+    others: list[str] = []
+    for match in _URL_RE.findall(raw):
+        url = _normalize_url(match)
+        low = url.lower()
+        if low in seen:
+            continue
+        seen.add(low)
+        if "linkedin.com" in low and linkedin is None:
+            linkedin = url
+        elif "github.com" in low and github is None:
+            github = url
+        elif not any(s in low for s in ("linkedin.com", "github.com")):
+            others.append(url)
+    if linkedin:
+        links.append({"label": "LinkedIn", "url": linkedin})
+    if github:
+        links.append({"label": "GitHub", "url": github})
+    if others:
+        links.append({"label": "Portfolio", "url": others[0]})
+    return links
+
+
 def _parse_pdf_stub(raw: str) -> PdfParseResult:
     from app.schemas.resume_content import ResumeContent
 
@@ -40,7 +83,20 @@ def _parse_pdf_stub(raw: str) -> PdfParseResult:
     warnings: list[str] = []
     if raw.strip():
         content.summary = raw[:2000]
-        warnings.append("No API key — only summary text was extracted. Review all sections in your profile.")
+        # Best-effort contact + link extraction without an LLM.
+        email = _EMAIL_RE.search(raw)
+        if email:
+            content.contact.email = email.group(0)
+        phone = _PHONE_RE.search(raw)
+        if phone:
+            content.contact.phone = phone.group(0).strip()
+        from app.schemas.resume_content import LinkItem
+
+        content.links = [LinkItem(**link) for link in extract_links_from_text(raw)]
+        warnings.append(
+            "No API key — extracted contact details, links, and summary text only. "
+            "Review and complete all sections in your profile."
+        )
         confidence = 0.25
     else:
         warnings.append("Could not extract text from PDF.")
@@ -104,7 +160,8 @@ REQUIRED JSON STRUCTURE (use exact field names):
     "projects": [
       {{
         "name": "Project Name",
-        "url": "https://github.com/... or empty string",
+        "url": "https://live-demo-or-portfolio-link.com or empty string",
+        "github_url": "https://github.com/owner/repo or empty string",
         "bullets": ["What the project does or what you built"]
       }}
     ],
@@ -122,6 +179,9 @@ EXTRACTION RULES:
 - Include ALL jobs, ALL education entries, ALL projects, ALL skill groups found
 - Preserve bullet wording exactly — do not paraphrase or shorten
 - Extract LinkedIn / GitHub / portfolio URLs from the header or contact section into links[]
+  using exactly these labels: "LinkedIn", "GitHub", "Portfolio" (use "Portfolio" for any
+  personal website / portfolio / blog link)
+- For each project, put the live/demo/portfolio link in "url" and the source repo in "github_url"
 - Keep every numeric metric (%, $, x) exactly as written
 - Use empty string "" for any field not found — never omit a field
 - confidence: 0.9+ if all main sections present, 0.6-0.9 if some missing, below 0.6 if very sparse
