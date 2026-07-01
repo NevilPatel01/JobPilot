@@ -112,51 +112,54 @@ def _render_summary_section(summary: str) -> list[str]:
 
 
 def _render_skills_section(skills: list[dict]) -> list[str]:
-    if not skills:
-        return []
-    lines = [r"\section{Technical Skills}", r"\begin{itemize}"]
-    for cat in skills:
+    items: list[str] = []
+    for cat in skills or []:
         name = (cat.get("name") or "").strip()
-        items = [s for s in (cat.get("skills") or []) if s]
-        if not items:
+        skill_items = [s for s in (cat.get("skills") or []) if s and s.strip()]
+        if not skill_items:
             continue
-        skill_text = _latex_esc(", ".join(items))
+        skill_text = _latex_esc(", ".join(skill_items))
         if name:
-            lines.append(r"\item \textbf{" + _latex_esc(name) + r"}: " + skill_text)
+            items.append(r"\item \textbf{" + _latex_esc(name) + r"}: " + skill_text)
         else:
-            lines.append(r"\item " + skill_text)
-    lines.append(r"\end{itemize}")
-    return lines
+            items.append(r"\item " + skill_text)
+    if not items:  # never emit an empty itemize — it crashes Tectonic
+        return []
+    return [r"\section{Technical Skills}", r"\begin{itemize}", *items, r"\end{itemize}"]
 
 
 def _render_bullets(bullets: list[str]) -> list[str]:
-    items = [b for b in bullets if b]
+    items = [b for b in bullets if b and b.strip()]
     if not items:
         return []
     return [r"\begin{itemize}", *[r"\item " + _latex_esc(b) for b in items], r"\end{itemize}"]
 
 
 def _render_experience_section(experience: list[dict]) -> list[str]:
-    if not experience:
-        return []
-    lines = [r"\section{Work Experience}"]
-    for exp in experience:
+    entries: list[str] = []
+    for exp in experience or []:
         left = _bold_bullet_join([_latex_esc(exp.get("title", "")), _latex_esc(exp.get("company", ""))])
         dates = _latex_esc(_format_dates(exp.get("start_date", ""), exp.get("end_date", "")))
         right = _pipe_join([_latex_esc(exp.get("location", "")), dates])
-        lines.append(r"\entryrow{" + left + r"}{" + right + r"}")
-        lines += _render_bullets(exp.get("bullets", []))
-    return lines
+        bullets = _render_bullets(exp.get("bullets", []))
+        if not left and not right and not bullets:  # skip fully-empty entry
+            continue
+        entries.append(r"\entryrow{" + left + r"}{" + right + r"}")
+        entries += bullets
+    if not entries:
+        return []
+    return [r"\section{Work Experience}", *entries]
 
 
 def _render_projects_section(projects: list[dict]) -> list[str]:
-    if not projects:
-        return []
-    lines = [r"\section{Projects}"]
-    for proj in projects:
+    entries: list[str] = []
+    for proj in projects or []:
         name = (proj.get("name") or "").strip()
         url = (proj.get("url") or "").strip()
         github = (proj.get("github_url") or "").strip()
+        bullets = _render_bullets(proj.get("bullets", []))
+        if not name and not bullets:  # skip fully-empty project
+            continue
         primary = url or github  # link the title to the live site, else the repo
         if primary and name:
             left = r"\textbf{\href{" + _latex_url(primary) + r"}{" + _latex_esc(name) + r"}}"
@@ -166,16 +169,16 @@ def _render_projects_section(projects: list[dict]) -> list[str]:
             left = r"\textbf{Project}"
         # Right side: the GitHub link when a live URL already occupies the title.
         right = r"\href{" + _latex_url(github) + r"}{GitHub}" if (url and github) else ""
-        lines.append(r"\entryrow{" + left + r"}{" + right + r"}")
-        lines += _render_bullets(proj.get("bullets", []))
-    return lines
+        entries.append(r"\entryrow{" + left + r"}{" + right + r"}")
+        entries += bullets
+    if not entries:
+        return []
+    return [r"\section{Projects}", *entries]
 
 
 def _render_education_section(education: list[dict]) -> list[str]:
-    if not education:
-        return []
-    lines = [r"\section{Education}"]
-    for edu in education:
+    entries: list[str] = []
+    for edu in education or []:
         degree = edu.get("degree", "")
         gpa = (edu.get("gpa") or "").strip()
         if gpa:
@@ -183,8 +186,12 @@ def _render_education_section(education: list[dict]) -> list[str]:
         left = _bold_bullet_join([_latex_esc(degree), _latex_esc(edu.get("institution", ""))])
         dates = _latex_esc(_format_dates(edu.get("start_date", ""), edu.get("end_date", "")))
         right = _pipe_join([_latex_esc(edu.get("location", "")), dates])
-        lines.append(r"\entryrow{" + left + r"}{" + right + r"}")
-    return lines
+        if not left and not right:  # skip fully-empty entry
+            continue
+        entries.append(r"\entryrow{" + left + r"}{" + right + r"}")
+    if not entries:
+        return []
+    return [r"\section{Education}", *entries]
 
 
 def render_resume_latex(content: dict) -> str:
@@ -192,24 +199,34 @@ def render_resume_latex(content: dict) -> str:
 
     contact = content.get("contact", {})
     links = content.get("links", [])
+    name = _latex_esc(contact.get("full_name", "")).strip()
+    contact_line = _header_contact_line(contact, links)
 
-    lines = [
-        RESUME_LATEX_PREAMBLE.strip(),
-        r"\begin{document}",
-        r"\begin{center}",
-        r"{\LARGE\bfseries " + _latex_esc(contact.get("full_name", "")) + r"}\\[2pt]",
-        r"{\small " + _header_contact_line(contact, links) + r"}",
-        r"\end{center}",
-        r"\vspace{2pt}",
-    ]
+    # Use \par (not \\) so an empty name can't trigger "There's no line here to end".
+    header = [r"\begin{center}"]
+    if name:
+        header.append(r"{\LARGE\bfseries " + name + r"}\par\vspace{2pt}")
+    if contact_line:
+        header.append(r"{\small " + contact_line + r"}")
+    header.append(r"\end{center}")
+    if not name and not contact_line:
+        header = []  # nothing to show — skip the empty centered block entirely
 
     # Order matches the target design: Experience → Projects → Skills → Education.
-    lines += _render_summary_section(content.get("summary", ""))
-    lines += _render_experience_section(content.get("experience", []))
-    lines += _render_projects_section(content.get("projects", []))
-    lines += _render_skills_section(content.get("skills", []))
-    lines += _render_education_section(content.get("education", []))
+    body: list[str] = []
+    body += _render_summary_section(content.get("summary", ""))
+    body += _render_experience_section(content.get("experience", []))
+    body += _render_projects_section(content.get("projects", []))
+    body += _render_skills_section(content.get("skills", []))
+    body += _render_education_section(content.get("education", []))
 
+    lines = [RESUME_LATEX_PREAMBLE.strip(), r"\begin{document}", *header]
+    if body:
+        lines += [r"\vspace{2pt}", *body]
+    elif not header:
+        # Nothing to typeset — emit a blank page instead of a zero-page doc,
+        # which Tectonic rejects ("cannot open .xdv") and would fall back on.
+        lines.append(r"\null")
     lines.append(r"\end{document}")
     return "\n".join(lines)
 

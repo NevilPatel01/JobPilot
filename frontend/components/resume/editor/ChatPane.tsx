@@ -81,6 +81,7 @@ interface ChatPaneProps {
   chatInput: string;
   sending: boolean;
   pendingChanges: PendingChange[];
+  changeBusy: string | null;
   onChatInputChange: (val: string) => void;
   onSendChat: () => void;
   onHandleChange: (change: PendingChange, action: "accept" | "reject") => void;
@@ -96,12 +97,14 @@ export function ChatPane({
   chatInput,
   sending,
   pendingChanges,
+  changeBusy,
   onChatInputChange,
   onSendChat,
   onHandleChange,
   onHandleBatchChanges,
   onExportCoverLetterPdf,
 }: ChatPaneProps) {
+  const busy = changeBusy !== null;
   const insights = (resume.insights_json || {}) as {
     tailoring_insights?: string[];
     jd_analysis?: Record<string, unknown>;
@@ -109,7 +112,7 @@ export function ChatPane({
   };
 
   return (
-    <div className="flex min-h-[320px] flex-col border-b border-border xl:h-full xl:min-h-0 xl:w-[340px] xl:shrink-0 xl:border-b-0 xl:border-r">
+    <div className="flex min-h-[320px] w-full flex-col border-b border-border xl:h-full xl:min-h-0 xl:border-b-0">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="rounded-lg bg-primary/10 p-3 text-sm text-foreground">
           <MessageSquare className="mb-2 h-4 w-4 text-primary" />
@@ -244,11 +247,12 @@ export function ChatPane({
 
         {pendingChanges.length > 0 && (
           <div className="flex gap-2 rounded-lg border border-border bg-card/80 p-2">
-            <button onClick={() => onHandleBatchChanges("reject")} className="btn-secondary flex-1 text-xs">
+            <button onClick={() => onHandleBatchChanges("reject")} disabled={busy} className="btn-secondary flex-1 text-xs">
               <X className="h-3 w-3" /> Reject all ({pendingChanges.length})
             </button>
-            <button onClick={() => onHandleBatchChanges("accept")} className="btn-primary flex-1 text-xs">
-              <Check className="h-3 w-3" /> Accept all ({pendingChanges.length})
+            <button onClick={() => onHandleBatchChanges("accept")} disabled={busy} className="btn-primary flex-1 text-xs">
+              {changeBusy === "batch" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+              {changeBusy === "batch" ? "Applying…" : `Accept all (${pendingChanges.length})`}
             </button>
           </div>
         )}
@@ -265,8 +269,11 @@ export function ChatPane({
               <div key={ch.id} className="mt-3">
                 <DiffBlock label={ch.path_label || ch.path} oldValue={ch.old_value} newValue={ch.new_value} />
                 <div className="mt-2 flex gap-2">
-                  <button onClick={() => onHandleChange(ch, "reject")} className="btn-secondary flex-1 text-xs"><X className="h-3 w-3" /> Reject</button>
-                  <button onClick={() => onHandleChange(ch, "accept")} className="btn-primary flex-1 text-xs"><Check className="h-3 w-3" /> Accept</button>
+                  <button onClick={() => onHandleChange(ch, "reject")} disabled={busy} className="btn-secondary flex-1 text-xs"><X className="h-3 w-3" /> Reject</button>
+                  <button onClick={() => onHandleChange(ch, "accept")} disabled={busy} className="btn-primary flex-1 text-xs">
+                    {changeBusy === ch.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                    {changeBusy === ch.id ? "Applying…" : "Accept"}
+                  </button>
                 </div>
               </div>
             ))}

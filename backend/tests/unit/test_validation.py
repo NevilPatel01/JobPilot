@@ -47,9 +47,10 @@ def test_guard_removes_invented_institution(sample_resume):
     assert any("Removed invented institution" in w for w in warnings)
 
 
-def test_guard_removes_invented_skills_and_projects(sample_resume):
+def test_guard_keeps_added_skills_but_removes_invented_projects(sample_resume):
     tailored = {
         **sample_resume,
+        # Added skill "Kubernetes" is now ALLOWED (ATS keyword coverage).
         "skills": [{"id": "new", "name": "Cloud", "skills": ["Python", "Kubernetes"]}],
         "projects": [
             *sample_resume["projects"],
@@ -59,9 +60,9 @@ def test_guard_removes_invented_skills_and_projects(sample_resume):
 
     cleaned, warnings = guard_tailored_content(sample_resume, tailored)
 
-    assert "Kubernetes" not in {skill for group in cleaned["skills"] for skill in group["skills"]}
+    all_skills = {skill for group in cleaned["skills"] for skill in group["skills"]}
+    assert "Kubernetes" in all_skills  # added skills are kept
     assert "Global Banking Platform" not in {project["name"] for project in cleaned["projects"]}
-    assert any("Removed skills" in warning for warning in warnings)
     assert any("Removed invented project" in warning for warning in warnings)
 
 
@@ -80,5 +81,8 @@ def test_guard_reverts_invented_numeric_claims(sample_resume):
     cleaned, warnings = guard_tailored_content(sample_resume, tailored)
 
     assert cleaned["summary"] == sample_resume["summary"]
-    assert cleaned["experience"][0]["bullets"] == sample_resume["experience"][0]["bullets"]
-    assert any("numeric claims" in warning for warning in warnings)
+    # Fabricated numbers (500M users, 90%) must not survive.
+    bullets_text = " ".join(cleaned["experience"][0]["bullets"])
+    assert "500" not in bullets_text
+    assert "90%" not in bullets_text
+    assert any("unsupported number" in warning for warning in warnings)

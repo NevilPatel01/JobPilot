@@ -6,11 +6,14 @@ import { RefreshCw } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ATSScore, ChatMessage, CoverLetterDocument, PendingChange, ResumeContent, ResumeDocument } from "@/types/resume";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
-import { PipelineProgressBar, PIPELINE_STEPS, type PipelineStepStatus } from "@/components/resume/PipelineProgressBar";
+import { PIPELINE_STEPS, type PipelineStepStatus } from "@/components/resume/PipelineProgressBar";
 import { LatexEditor } from "@/components/resume/LatexEditor";
 import { PdfPreviewPane } from "@/components/resume/PdfPreviewPane";
 import { EditorHeader } from "@/components/resume/editor/EditorHeader";
 import { ChatPane } from "@/components/resume/editor/ChatPane";
+import { AtsReviewModal } from "@/components/resume/editor/AtsReviewModal";
+import { ProcessingView } from "@/components/resume/editor/ProcessingView";
+import { ResizeHandle } from "@/components/resume/editor/ResizeHandle";
 import { useSidebar } from "@/components/layout/SidebarContext";
 import { cn } from "@/lib/utils";
 import { io, Socket } from "socket.io-client";
@@ -31,6 +34,27 @@ function usePersistentToggle(key: string, initial = true): [boolean, () => void]
   return [value, toggle];
 }
 
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+function usePersistentNumber(key: string, initial: number): [number, (updater: number | ((v: number) => number)) => void] {
+  const [value, setValue] = useState(initial);
+  useEffect(() => {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      const n = Number(stored);
+      if (!Number.isNaN(n)) setValue(n);
+    }
+  }, [key]);
+  const update = useCallback((updater: number | ((v: number) => number)) => {
+    setValue((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      localStorage.setItem(key, String(next));
+      return next;
+    });
+  }, [key]);
+  return [value, update];
+}
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function initialPipelineSteps(): Record<string, PipelineStepStatus> {
@@ -47,6 +71,9 @@ export default function ResumeEditorPage() {
   const [showChat, toggleChat] = usePersistentToggle("jobpilot-editor-chat");
   const [showLatex, toggleLatex] = usePersistentToggle("jobpilot-editor-latex");
   const [showDetails, toggleDetails] = usePersistentToggle("jobpilot-editor-details");
+  const [chatWidth, setChatWidth] = usePersistentNumber("jobpilot-editor-chatw", 340);
+  const [detailsWidth, setDetailsWidth] = usePersistentNumber("jobpilot-editor-detailsw", 380);
+  const [isWide, setIsWide] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -59,6 +86,11 @@ export default function ResumeEditorPage() {
   const [latexSaved, setLatexSaved] = useState(true);
   const [regeneratingLatex, setRegeneratingLatex] = useState(false);
   const [pipelineBusy, setPipelineBusy] = useState(false);
+  const [changeBusy, setChangeBusy] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [showAts, setShowAts] = useState(false);
+  const [atsRerunning, setAtsRerunning] = useState(false);
+  const [atsFixing, setAtsFixing] = useState(false);
   const [pipelineSteps, setPipelineSteps] = useState<Record<string, PipelineStepStatus>>(initialPipelineSteps);
   const contentSaveTimer = useRef<ReturnType<typeof setTimeout>>();
   const latexSaveTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -95,6 +127,14 @@ export default function ResumeEditorPage() {
   }, [id]);
 
   useEffect(() => { load().catch(console.error); }, [load]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const update = () => setIsWide(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     const chat = searchParams.get("chat");
@@ -191,34 +231,91 @@ export default function ResumeEditorPage() {
     }
   };
 
-  const handleChange = async (change: PendingChange, action: "accept" | "reject") => {
-    const result = await api.handleResumeChange(id, change.id, action);
-    if (action === "accept") setContent(result.content_json);
+  const setChangeStatus = (ids: Set<string>, status: PendingChange["status"]) => {
     setMessages((prev) =>
       prev.map((m) => ({
         ...m,
-        pending_changes: m.pending_changes.map((c) =>
-          c.id === change.id ? { ...c, status: action === "accept" ? "accepted" : "rejected" } : c
-        ),
+        pending_changes: m.pending_changes.map((c) => (ids.has(c.id) ? { ...c, status } : c)),
       }))
     );
-    load();
+  };
+
+  const applyChangeResult = (result: { content_json: ResumeContent; latex_source?: string | null; ats_score?: ATSScore | null }) => {
+    setContent(result.content_json);
+    if (result.latex_source != null) {
+      skipLatexSave.current = true;
+      setLatex(result.latex_source);
+      setLatexSaved(true);
+      // Backend already persisted the latex; skip the auto-save that this triggers.
+      setTimeout(() => { skipLatexSave.current = false; }, 0);
+    }
+    if (result.ats_score) setAtsScore(result.ats_score);
+  };
+
+  const handleChange = async (change: PendingChange, action: "accept" | "reject") => {
+    const ids = new Set([change.id]);
+    setChangeBusy(change.id);
+    setChangeStatus(ids, action === "accept" ? "accepted" : "rejected"); // optimistic
+    try {
+      const result = await api.handleResumeChange(id, change.id, action);
+      if (action === "accept") {
+        applyChangeResult(result);
+        await refreshPdfPreview();
+      }
+    } catch (e: unknown) {
+      setChangeStatus(ids, "pending"); // revert on failure
+      alert(e instanceof Error ? e.message : "Could not apply change");
+    } finally {
+      setChangeBusy(null);
+    }
   };
 
   const handleBatchChanges = async (action: "accept" | "reject") => {
     if (pendingChanges.length === 0) return;
-    const result = await api.handleResumeChangesBatch(id, pendingChanges.map((c) => c.id), action);
-    if (action === "accept") setContent(result.content_json);
     const ids = new Set(pendingChanges.map((c) => c.id));
-    setMessages((prev) =>
-      prev.map((m) => ({
-        ...m,
-        pending_changes: m.pending_changes.map((c) =>
-          ids.has(c.id) ? { ...c, status: action === "accept" ? "accepted" : "rejected" } : c
-        ),
-      }))
-    );
-    load();
+    setChangeBusy("batch");
+    setChangeStatus(ids, action === "accept" ? "accepted" : "rejected"); // optimistic
+    try {
+      const result = await api.handleResumeChangesBatch(id, Array.from(ids), action);
+      if (action === "accept") {
+        applyChangeResult(result);
+        await refreshPdfPreview();
+      }
+    } catch (e: unknown) {
+      setChangeStatus(ids, "pending"); // revert on failure
+      alert(e instanceof Error ? e.message : "Could not apply changes");
+    } finally {
+      setChangeBusy(null);
+    }
+  };
+
+  const rerunAts = useCallback(async () => {
+    setAtsRerunning(true);
+    try {
+      const result = await api.runATSScore(id);
+      setAtsScore(result);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "ATS scoring failed");
+    } finally {
+      setAtsRerunning(false);
+    }
+  }, [id]);
+
+  const openAts = () => {
+    setShowAts(true);
+    if (!atsScore) rerunAts();
+  };
+
+  const deleteResume = async () => {
+    if (!confirm("Delete this resume permanently? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      await api.deleteResume(id);
+      window.location.href = "/resumes";
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Delete failed");
+      setDeleting(false);
+    }
   };
 
   const regenerateLatexFromContent = async () => {
@@ -266,16 +363,30 @@ export default function ResumeEditorPage() {
     }
   };
 
-  const runPipeline = async (mode: "full" | "tailor") => {
+  const runPipeline = async (mode: "full" | "tailor", aggressive = false) => {
     setPipelineBusy(true);
     try {
       if (mode === "full") await api.regenerateResume(id);
-      else await api.regenerateTailoredResume(id);
+      else await api.regenerateTailoredResume(id, aggressive);
       await load();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Pipeline failed to start");
     } finally {
       setPipelineBusy(false);
+    }
+  };
+
+  const runAtsFix = async () => {
+    setAtsFixing(true);
+    try {
+      const exchange = await api.atsFixResume(id);
+      setMessages((prev) => [...prev, exchange.user_message, exchange.assistant_message]);
+      setShowAts(false);
+      if (!showChat) toggleChat(); // make sure the chat is visible to review the diffs
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Could not generate ATS fixes");
+    } finally {
+      setAtsFixing(false);
     }
   };
 
@@ -306,7 +417,6 @@ export default function ResumeEditorPage() {
   return (
     <div className="flex h-full flex-col bg-background">
       <EditorHeader
-        id={id}
         resume={resume}
         contentSaved={contentSaved}
         latexSaved={latexSaved}
@@ -321,37 +431,60 @@ export default function ResumeEditorPage() {
         onRunPipeline={runPipeline}
         onExportPdf={exportPdf}
         onApplyWithResume={applyWithResume}
+        onOpenAts={openAts}
+        onDelete={deleteResume}
+        deleting={deleting}
       />
 
+      {showAts && (
+        <AtsReviewModal
+          atsScore={atsScore}
+          rerunning={atsRerunning}
+          fixing={atsFixing}
+          onRerun={rerunAts}
+          onFixAll={runAtsFix}
+          onClose={() => setShowAts(false)}
+        />
+      )}
+
       {resume.status === "failed" && resume.pipeline_error && (
-        <div className="border-b border-red-500/30 bg-red-950/30 px-4 py-2 text-sm text-red-300">
+        <div className="border-b border-destructive/25 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           Pipeline failed{resume.last_step ? ` at ${resume.last_step}` : ""}: {resume.pipeline_error}
         </div>
       )}
 
-      {resume.status === "processing" && (
-        <div className="border-b border-amber-500/30 bg-amber-950/20 px-4 py-3 text-sm text-amber-200">
-          <p>AI pipeline is running — tailoring resume, scoring ATS, and generating documents.</p>
-          <PipelineProgressBar className="mt-3" steps={pipelineSteps} includeCoverLetter={resume.create_cover_letter} />
-        </div>
-      )}
-
+      {resume.status === "processing" ? (
+        <ProcessingView
+          steps={pipelineSteps}
+          includeCoverLetter={resume.create_cover_letter}
+          title={resume.title}
+        />
+      ) : (
       <div className="flex flex-1 flex-col overflow-y-auto xl:flex-row xl:overflow-hidden">
         {showChat && (
-          <ChatPane
-            resume={resume}
-            messages={messages}
-            atsScore={atsScore}
-            coverLetter={coverLetter}
-            chatInput={chatInput}
-            sending={sending}
-            pendingChanges={pendingChanges}
-            onChatInputChange={setChatInput}
-            onSendChat={sendChat}
-            onHandleChange={handleChange}
-            onHandleBatchChanges={handleBatchChanges}
-            onExportCoverLetterPdf={exportCoverLetterPdf}
-          />
+          <>
+            <div
+              className="flex min-h-[320px] flex-col xl:h-full xl:shrink-0"
+              style={isWide ? { width: chatWidth } : undefined}
+            >
+              <ChatPane
+                resume={resume}
+                messages={messages}
+                atsScore={atsScore}
+                coverLetter={coverLetter}
+                chatInput={chatInput}
+                sending={sending}
+                pendingChanges={pendingChanges}
+                changeBusy={changeBusy}
+                onChatInputChange={setChatInput}
+                onSendChat={sendChat}
+                onHandleChange={handleChange}
+                onHandleBatchChanges={handleBatchChanges}
+                onExportCoverLetterPdf={exportCoverLetterPdf}
+              />
+            </div>
+            <ResizeHandle onResize={(dx) => setChatWidth((w) => clamp(w + dx, 260, 560))} />
+          </>
         )}
 
         <div className="flex min-h-[520px] min-w-0 flex-1 flex-col overflow-hidden bg-card p-4 xl:min-h-0">
@@ -383,11 +516,18 @@ export default function ResumeEditorPage() {
         </div>
 
         {showDetails && (
-          <div className="min-h-[420px] overflow-y-auto border-t border-border p-4 xl:h-full xl:w-[380px] xl:min-h-0 xl:shrink-0 xl:border-l xl:border-t-0">
-            <StructuredProfileEditor content={content} onChange={setContent} />
-          </div>
+          <>
+            <ResizeHandle onResize={(dx) => setDetailsWidth((w) => clamp(w - dx, 280, 640))} />
+            <div
+              className="min-h-[420px] overflow-y-auto border-t border-border p-4 xl:h-full xl:min-h-0 xl:shrink-0 xl:border-t-0"
+              style={isWide ? { width: detailsWidth } : undefined}
+            >
+              <StructuredProfileEditor content={content} onChange={setContent} />
+            </div>
+          </>
         )}
       </div>
+      )}
     </div>
   );
 }

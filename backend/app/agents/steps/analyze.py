@@ -1,9 +1,9 @@
-import json
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.json_utils import extract_json_object
 from app.agents.pipeline_helpers import PipelineState, emit, run_step
 from app.agents.retry import invoke_llm
 from app.services.llm.client import create_chat_model, get_user_llm_config
@@ -44,7 +44,7 @@ Job Description:
                 llm,
                 [SystemMessage(content="Return valid JSON only."), HumanMessage(content=prompt)],
             )
-            parsed = json.loads(res.content if isinstance(res.content, str) else str(res.content))
+            parsed = extract_json_object(res.content if isinstance(res.content, str) else str(res.content))
             state["jd_analysis"] = parsed
         except Exception as e:
             logger.warning("JD analysis failed: %s", e)

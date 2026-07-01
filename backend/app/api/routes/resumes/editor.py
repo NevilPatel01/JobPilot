@@ -21,7 +21,7 @@ from app.api.schemas import (
 )
 from app.core.auth import get_current_user
 from app.core.database import get_db
-from app.models.resume import ChatMessage, PendingChange, ResumeDocument
+from app.models.resume import ATSScore, ChatMessage, PendingChange, ResumeDocument
 from app.models.user import User
 from app.services.ats.persist import save_ats_score
 from app.services.resume.renderer import render_resume_latex
@@ -71,15 +71,7 @@ async def get_messages(
     return [_chat_message_response(m, resume.content_json) for m in messages]
 
 
-@router.post("/{resume_id}/chat", response_model=ChatExchangeResponse)
-async def chat_edit(
-    resume_id: UUID,
-    body: ChatRequest,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    resume = await _get_resume(db, resume_id, user.id)
-
+async def _require_no_pending(db: AsyncSession, resume_id: UUID) -> None:
     pending = await db.execute(
         select(PendingChange)
         .join(ChatMessage)
@@ -88,11 +80,21 @@ async def chat_edit(
     if pending.scalars().first():
         raise HTTPException(status_code=409, detail="Approve or reject pending changes first")
 
-    user_msg = ChatMessage(resume_id=resume.id, role="user", content=body.message)
+
+async def _generate_exchange(
+    db: AsyncSession,
+    resume: ResumeDocument,
+    user_id: UUID,
+    user_text: str,
+    instruction: str,
+) -> ChatExchangeResponse:
+    """Run the editor agent and persist the user + assistant messages with any
+    proposed changes as pending diffs. Shared by chat and the ATS fixer."""
+    user_msg = ChatMessage(resume_id=resume.id, role="user", content=user_text)
     db.add(user_msg)
     await db.flush()
 
-    reply, changes = await run_editor_agent(db, user.id, resume.content_json, body.message, resume.job_description or "")
+    reply, changes = await run_editor_agent(db, user_id, resume.content_json, instruction, resume.job_description or "")
 
     msg = ChatMessage(resume_id=resume.id, role="assistant", content=reply)
     db.add(msg)
@@ -124,6 +126,47 @@ async def chat_edit(
     )
 
 
+@router.post("/{resume_id}/chat", response_model=ChatExchangeResponse)
+async def chat_edit(
+    resume_id: UUID,
+    body: ChatRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    resume = await _get_resume(db, resume_id, user.id)
+    await _require_no_pending(db, resume_id)
+    return await _generate_exchange(db, resume, user.id, body.message, body.message)
+
+
+@router.post("/{resume_id}/ats-fix", response_model=ChatExchangeResponse)
+async def ats_fix(
+    resume_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate targeted, review-as-diffs fixes for the resume's current ATS gaps."""
+    resume = await _get_resume(db, resume_id, user.id)
+    await _require_no_pending(db, resume_id)
+
+    ats = (
+        await db.execute(
+            select(ATSScore).where(ATSScore.resume_id == resume_id).order_by(ATSScore.created_at.desc()).limit(1)
+        )
+    ).scalar_one_or_none()
+    missing = ", ".join((ats.missing_keywords or [])[:20]) if ats else ""
+    suggestion_texts = (ats.suggestions_json or {}).get("suggestions", []) if ats else []
+    suggestions = "; ".join(suggestion_texts[:5])
+
+    instruction = (
+        "Improve this resume's ATS score with targeted, truthful edits. "
+        f"Naturally incorporate these MISSING keywords where the candidate's experience supports them: {missing or '(none flagged)'}. "
+        f"Also address these issues: {suggestions or 'strengthen alignment with the job description'}. "
+        "Rework existing bullets, the summary, and skills. Do NOT remove experience entries or invent employers, "
+        "job titles, dates, or numeric metrics."
+    )
+    return await _generate_exchange(db, resume, user.id, "Fix all ATS issues", instruction)
+
+
 @router.post("/{resume_id}/changes")
 async def handle_change(
     resume_id: UUID,
@@ -142,7 +185,12 @@ async def handle_change(
         raise HTTPException(status_code=404, detail="Change not found")
 
     ats_score = await _apply_pending_changes(db, resume, user.id, [change], body.action)
-    return {"ok": True, "content_json": resume.content_json, "ats_score": ats_score}
+    return {
+        "ok": True,
+        "content_json": resume.content_json,
+        "latex_source": resume.latex_source,
+        "ats_score": ats_score,
+    }
 
 
 @router.post("/{resume_id}/changes/batch")
@@ -170,4 +218,9 @@ async def handle_changes_batch(
         raise HTTPException(status_code=404, detail="One or more pending changes were not found")
 
     ats_score = await _apply_pending_changes(db, resume, user.id, changes, body.action)
-    return {"ok": True, "content_json": resume.content_json, "ats_score": ats_score}
+    return {
+        "ok": True,
+        "content_json": resume.content_json,
+        "latex_source": resume.latex_source,
+        "ats_score": ats_score,
+    }

@@ -51,8 +51,8 @@ export const resumesApi = {
   regenerateResume: (id: string) =>
     request<ResumeDocument>(`/api/v1/resumes/${id}/regenerate`, { method: "POST" }),
 
-  regenerateTailoredResume: (id: string) =>
-    request<ResumeDocument>(`/api/v1/resumes/${id}/regenerate/resume`, { method: "POST" }),
+  regenerateTailoredResume: (id: string, aggressive = false) =>
+    request<ResumeDocument>(`/api/v1/resumes/${id}/regenerate/resume${aggressive ? "?aggressive=true" : ""}`, { method: "POST" }),
 
   getResumeLatex: (id: string) =>
     request<{ latex: string }>(`/api/v1/resumes/${id}/preview`),
@@ -82,10 +82,14 @@ export const resumesApi = {
       body: JSON.stringify({ message }),
     }),
 
+  atsFixResume: (id: string) =>
+    request<ChatExchange>(`/api/v1/resumes/${id}/ats-fix`, { method: "POST" }),
+
   handleResumeChange: (id: string, change_id: string, action: "accept" | "reject") =>
     request<{
       ok: boolean;
       content_json: ResumeContent;
+      latex_source?: string | null;
       ats_score?: ATSScore | null;
     }>(`/api/v1/resumes/${id}/changes`, { method: "POST", body: JSON.stringify({ change_id, action }) }),
 
@@ -93,6 +97,7 @@ export const resumesApi = {
     request<{
       ok: boolean;
       content_json: ResumeContent;
+      latex_source?: string | null;
       ats_score?: ATSScore | null;
     }>(`/api/v1/resumes/${id}/changes/batch`, {
       method: "POST",

@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Download, RefreshCw, Loader2, FileCode, MessageSquare, PanelRight } from "lucide-react";
+import { Download, RefreshCw, Loader2, FileCode, MessageSquare, PanelRight, Trash2, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ResumeDocument } from "@/types/resume";
 
 interface EditorHeaderProps {
-  id: string;
   resume: ResumeDocument;
   contentSaved: boolean;
   latexSaved: boolean;
@@ -18,9 +17,12 @@ interface EditorHeaderProps {
   onToggleChat: () => void;
   onToggleLatex: () => void;
   onToggleDetails: () => void;
-  onRunPipeline: (mode: "full" | "tailor") => void;
+  onRunPipeline: (mode: "full" | "tailor", aggressive?: boolean) => void;
   onExportPdf: () => void;
   onApplyWithResume: () => void;
+  onOpenAts: () => void;
+  onDelete: () => void;
+  deleting: boolean;
 }
 
 function PanelToggle({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
@@ -41,7 +43,6 @@ function PanelToggle({ active, onClick, icon, label }: { active: boolean; onClic
 }
 
 export function EditorHeader({
-  id,
   resume,
   contentSaved,
   latexSaved,
@@ -56,6 +57,9 @@ export function EditorHeader({
   onRunPipeline,
   onExportPdf,
   onApplyWithResume,
+  onOpenAts,
+  onDelete,
+  deleting,
 }: EditorHeaderProps) {
   const saveLabel = !contentSaved || !latexSaved ? "Saving..." : "Saved";
 
@@ -84,6 +88,15 @@ export function EditorHeader({
             >
               <RefreshCw className={cn("h-3 w-3", pipelineBusy && "animate-spin")} /> Re-tailor
             </button>
+            <button
+              type="button"
+              disabled={pipelineBusy}
+              onClick={() => onRunPipeline("tailor", true)}
+              title="Aggressively rewrite bullets to match the job description and add role-standard keywords (never invents employers)"
+              className="btn-secondary text-xs text-primary"
+            >
+              <Zap className="h-3 w-3" /> Aggressive
+            </button>
             {resume.status === "failed" && (
               <button
                 type="button"
@@ -96,7 +109,7 @@ export function EditorHeader({
             )}
           </>
         )}
-        <Link href={`/resumes/${id}/review`} className="btn-secondary text-xs">ATS Review</Link>
+        <button type="button" onClick={onOpenAts} className="btn-secondary text-xs">ATS Review</button>
         <button onClick={onApplyWithResume} className="btn-secondary text-xs">Apply with Resume</button>
         <div className="mx-1 flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-1.5 py-1">
           <PanelToggle active={showChat} onClick={onToggleChat} icon={<MessageSquare className="h-3 w-3" />} label="Chat" />
@@ -105,6 +118,15 @@ export function EditorHeader({
         </div>
         <button onClick={onExportPdf} className="btn-primary text-xs">
           <Download className="h-3 w-3" /> PDF
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={deleting}
+          title="Delete resume"
+          className="btn-secondary text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
+        >
+          {deleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
         </button>
       </div>
     </header>

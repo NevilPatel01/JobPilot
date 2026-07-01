@@ -90,13 +90,14 @@ async def regenerate_resume(
 async def regenerate_tailored_resume(
     resume_id: UUID,
     background_tasks: BackgroundTasks,
+    aggressive: bool = Query(False, description="Aggressively rewrite bullets to match the JD and add role-standard keywords"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await _require_llm_config(db, user.id)
     resume = await _get_resume(db, resume_id, user.id)
     await _ensure_not_processing(resume)
-    background_tasks.add_task(_pipeline_task(resume.id, "tailor_only"))
+    background_tasks.add_task(_pipeline_task(resume.id, "tailor_only", aggressive=aggressive))
     resume.status = "processing"
     await db.commit()
     await db.refresh(resume)

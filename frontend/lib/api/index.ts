@@ -75,6 +75,7 @@ export const api = {
   downloadResumePdf: resumesApi.downloadResumePdf,
   getResumeMessages: resumesApi.getResumeMessages,
   sendResumeChat: resumesApi.sendResumeChat,
+  atsFixResume: resumesApi.atsFixResume,
   handleResumeChange: resumesApi.handleResumeChange,
   handleResumeChangesBatch: resumesApi.handleResumeChangesBatch,
   runATSScore: resumesApi.runATSScore,

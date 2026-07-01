@@ -122,7 +122,7 @@ async def _resume_response_with_status(
     )
 
 
-def _pipeline_task(resume_id: UUID, mode: str = "full"):
+def _pipeline_task(resume_id: UUID, mode: str = "full", aggressive: bool = False):
     async def _run():
         from app.core.database import async_session
         from app.agents.graph import run_generation_pipeline
@@ -130,7 +130,7 @@ def _pipeline_task(resume_id: UUID, mode: str = "full"):
         async with async_session() as session:
             result = await session.execute(select(ResumeDocument).where(ResumeDocument.id == resume_id))
             doc = result.scalar_one()
-            await run_generation_pipeline(session, doc, mode=mode)  # type: ignore[arg-type]
+            await run_generation_pipeline(session, doc, mode=mode, aggressive=aggressive)  # type: ignore[arg-type]
 
     return _run
 

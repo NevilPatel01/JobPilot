@@ -1,48 +1,16 @@
 import json
-import re
 from copy import deepcopy
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.json_utils import extract_json_object
 from app.agents.retry import invoke_llm
 from app.services.llm.client import create_chat_model, get_user_llm_config
 from app.services.rag.ingest import search_chunks
 
-
-def extract_json_object(raw: str) -> dict:
-    """Best-effort parse of a JSON object out of an LLM response.
-
-    Models frequently wrap JSON in ```json code fences or add a sentence of
-    prose. Naive json.loads on that raises "Expecting value: line 1 column 1".
-    This strips fences and falls back to the first balanced {...} block.
-    """
-    text = (raw or "").strip()
-    if not text:
-        raise ValueError("The AI returned an empty response. Please try again.")
-
-    fenced = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
-    if fenced:
-        text = fenced.group(1).strip()
-
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # Fall back to the first balanced top-level object.
-    start = text.find("{")
-    if start != -1:
-        depth = 0
-        for i in range(start, len(text)):
-            if text[i] == "{":
-                depth += 1
-            elif text[i] == "}":
-                depth -= 1
-                if depth == 0:
-                    return json.loads(text[start : i + 1])
-    raise ValueError("The AI response was not valid JSON. Please rephrase your request.")
+__all__ = ["extract_json_object", "run_editor_agent", "apply_change"]
 
 
 _SECTION_LABELS = {
@@ -228,17 +196,28 @@ async def run_editor_agent(
     rag = "\n".join(c.chunk_text for c in chunks[:4])
     llm = create_chat_model(llm_config)
 
-    prompt = f"""User wants to edit their resume. Current content JSON:
+    prompt = f"""You are editing a resume. Make ONLY the changes the user asked for — precise, surgical edits.
+
+RULES:
+- Change the minimum needed to satisfy the request. Do NOT rewrite unrelated sections or restructure the resume.
+- NEVER delete an experience entry, education entry, or project. NEVER remove existing bullets unless the user explicitly asks.
+- Keep every employer, job title, institution, degree, date, and existing numeric metric exactly as written. Never invent numbers.
+- You MAY reword bullets and add skills/keywords the candidate's experience truthfully supports (this improves ATS).
+- Each change targets ONE JSON path. Prefer editing individual bullets/fields over replacing whole arrays.
+- Return at most 6 changes.
+
+Each change: {{"path": "experience[0].bullets[1]" | "skills[0].skills" | "summary", "new_value": <string or array>}}.
+Use array values only for list fields (bullets, skills). Set new_value to the full updated value for that path.
+
+Current resume JSON:
 {json.dumps(content)[:8000]}
 
-Job context: {job_description[:2000]}
-RAG: {rag[:2000]}
+Job description context: {job_description[:2000]}
+Supporting evidence (RAG): {rag[:2000]}
+
 User request: {message}
 
-Return JSON with:
-- reply: string (brief explanation)
-- changes: list of {{path, old_value, new_value}} using dot/bracket paths like experience[0].bullets[1]
-Only suggest changes needed. Max 3 changes."""
+Return JSON: {{"reply": "<one-sentence summary of what you changed>", "changes": [ ... ]}}"""
 
     try:
         res = await invoke_llm(

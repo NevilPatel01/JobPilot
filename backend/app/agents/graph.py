@@ -12,7 +12,7 @@ from app.agents.steps.ats import score_ats
 from app.agents.steps.cover_letter import generate_cover_letter
 from app.agents.steps.ingest import ingest_context
 from app.agents.steps.research import research_company_step
-from app.agents.steps.tailor import tailor_resume
+from app.agents.steps.tailor import refine_for_ats, tailor_resume
 from app.core.pipeline_logging import log_pipeline_event
 from app.models.cover_letter import CoverLetterDocument
 from app.models.job_intelligence import InboxJob
@@ -23,6 +23,37 @@ from app.services.webhook import dispatch_pipeline_webhook, get_stored_webhook_u
 
 logger = logging.getLogger(__name__)
 PipelineMode = Literal["full", "tailor_only", "cover_letter_only"]
+
+ATS_TARGET = 85
+MAX_ATS_REFINES = 3
+
+
+async def _iterate_to_target_ats(state: PipelineState, db: AsyncSession, resume_id: str) -> PipelineState:
+    """Score-guided refinement loop: while below target, weave in the missing
+    keywords the scorer flagged and re-score. Stop at the target, when it stops
+    improving, or after MAX_ATS_REFINES attempts."""
+    from app.services.ats.scorer import score_resume
+
+    result = state.get("ats_result") or {}
+    for attempt in range(1, MAX_ATS_REFINES + 1):
+        score = result.get("overall_score", 0)
+        if score >= ATS_TARGET:
+            break
+        try:
+            improved = await refine_for_ats(state, db, result)
+        except Exception as e:  # no key / LLM error — keep the best result so far
+            logger.warning("ATS refine attempt %s failed: %s", attempt, e)
+            break
+        new_result = score_resume(
+            improved, state.get("job_description", ""), state.get("jd_analysis") or {}
+        ).to_dict()
+        if new_result.get("overall_score", 0) <= score:
+            break  # no improvement — don't churn the content further
+        state["content"] = improved
+        state["ats_result"] = new_result
+        result = new_result
+        await emit(resume_id, "agent_step", {"step": "ats_score", "status": "completed", "data": new_result})
+    return state
 
 
 def _cache_key_jd(jd: str) -> str:
@@ -75,6 +106,7 @@ async def run_generation_pipeline(
     db: AsyncSession,
     resume: ResumeDocument,
     mode: PipelineMode = "full",
+    aggressive: bool = False,
 ) -> None:
     insights = dict(resume.insights_json or {})
     source_content = insights.get("source_content") or resume.content_json or {}
@@ -93,6 +125,7 @@ async def run_generation_pipeline(
         source_content=source_content,
         source_type=resume.source_type,
         mode=mode,
+        aggressive=aggressive,
         jd_analysis=insights.get("jd_analysis", {}) if reuse_analysis else {},
         company_research=insights.get("company_research", {}) if reuse_analysis else {},
     )
@@ -146,6 +179,11 @@ async def run_generation_pipeline(
 
             current_step = "ats_score"
             state = await run_timed_step(resume_id, current_step, lambda: score_ats(state, db))
+
+        # Iterate toward the ATS target by weaving in missing keywords, then re-scoring.
+        if mode in ("full", "tailor_only") and state.get("ats_result"):
+            current_step = "ats_refine"
+            state = await _iterate_to_target_ats(state, db, resume_id)
 
         resume.content_json = state.get("content") or resume.content_json
         resume.latex_source = render_resume_latex(resume.content_json)

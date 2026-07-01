@@ -1,9 +1,9 @@
-import json
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.agents.json_utils import extract_json_object
 from app.agents.pipeline_helpers import PipelineState, emit, run_step
 from app.agents.retry import invoke_llm
 from app.schemas.resume_content import CoverLetterContent, ResumeContent, resume_to_text
@@ -46,7 +46,7 @@ async def generate_cover_letter(state: PipelineState, db: AsyncSession) -> Pipel
                 llm,
                 [SystemMessage(content="Return valid JSON only."), HumanMessage(content=prompt)],
             )
-            parsed = json.loads(res.content if isinstance(res.content, str) else str(res.content))
+            parsed = extract_json_object(res.content if isinstance(res.content, str) else str(res.content))
             content.paragraphs, content.closing = parse_cover_letter_response(parsed)
         except Exception as e:
             logger.warning("Cover letter generation failed: %s", e)
