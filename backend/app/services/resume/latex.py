@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 
 def _latex_esc(text: str) -> str:
     if not text:
@@ -23,6 +25,19 @@ def _latex_esc(text: str) -> str:
 
 def _latex_url(url: str) -> str:
     return _latex_esc(url or "")
+
+
+def _display_url(url: str) -> str:
+    """Human-readable URL for the header: no scheme, no www., no trailing slash."""
+    text = (url or "").strip()
+    text = re.sub(r"^https?://", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^www\.", "", text, flags=re.IGNORECASE)
+    return text.rstrip("/")
+
+
+def _href_visible(url: str) -> str:
+    """Hyperlink that shows the actual URL as its text (recruiter-friendly)."""
+    return r"\href{" + _latex_url(url) + r"}{" + _latex_esc(_display_url(url)) + "}"
 
 
 def _format_dates(start: str, end: str) -> str:
@@ -55,26 +70,20 @@ def _header_contact_line(contact: dict, links: list[dict]) -> str:
 
     email = (contact.get("email") or "").strip()
     if email:
-        # Show a labeled "Email" link (matches the target design) instead of the raw address.
-        parts.append(r"\href{mailto:" + _latex_url(email) + r"}{Email}")
+        # Show the real address as the link text — ATS parsers and recruiters need it visible.
+        parts.append(r"\href{mailto:" + _latex_url(email) + r"}{" + _latex_esc(email) + "}")
 
     linkedin = _link_by_kind(links, "linkedin", "linked.in")
     if linkedin:
-        url = linkedin["url"].strip()
-        label = (linkedin.get("label") or "LinkedIn").strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
+        parts.append(_href_visible(linkedin["url"].strip()))
 
     github = _link_by_kind(links, "github")
     if github:
-        url = github["url"].strip()
-        label = (github.get("label") or "GitHub").strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
+        parts.append(_href_visible(github["url"].strip()))
 
     portfolio = _link_by_kind(links, "portfolio", "website", "personal", "blog")
     if portfolio:
-        url = portfolio["url"].strip()
-        label = (portfolio.get("label") or "Portfolio").strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
+        parts.append(_href_visible(portfolio["url"].strip()))
 
     used_urls = {
         (linkedin or {}).get("url", ""),
@@ -85,8 +94,7 @@ def _header_contact_line(contact: dict, links: list[dict]) -> str:
         url = (link.get("url") or "").strip()
         if not url or url in used_urls:
             continue
-        label = (link.get("label") or url).strip()
-        parts.append(r"\href{" + _latex_url(url) + r"}{" + _latex_esc(label) + "}")
+        parts.append(_href_visible(url))
 
     return r" $|$ ".join(parts)
 

@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import html
+import re
 
 
 def _esc(text: str) -> str:
     return html.escape(text or "")
+
+
+def _display_url(url: str) -> str:
+    """Human-readable URL for the header: no scheme, no www., no trailing slash."""
+    text = (url or "").strip()
+    text = re.sub(r"^https?://", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"^www\.", "", text, flags=re.IGNORECASE)
+    return text.rstrip("/")
 
 
 def _bullets(items: list[str]) -> str:
@@ -24,7 +33,7 @@ def _html_contact_line(contact: dict, links: list[dict]) -> str:
         parts.append(f'<a href="mailto:{email}">{email}</a>')
     for link in links:
         if link.get("url"):
-            parts.append(f'<a href="{_esc(link["url"])}">{_esc(link.get("label") or link["url"])}</a>')
+            parts.append(f'<a href="{_esc(link["url"])}">{_esc(_display_url(link["url"]))}</a>')
     return " &nbsp;|&nbsp; ".join(parts)
 
 
