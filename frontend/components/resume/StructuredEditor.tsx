@@ -136,15 +136,48 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
                   update({ experience });
                 }} />
             </div>
-            {exp.bullets.map((b, bi) => (
-              <input key={bi} className="input-field mt-2" placeholder="Bullet point" value={b}
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <input className="input-field" placeholder="Location (e.g. Remote)" value={exp.location}
                 onChange={(e) => {
                   const experience = [...content.experience];
-                  const bullets = [...exp.bullets];
-                  bullets[bi] = e.target.value;
-                  experience[i] = { ...exp, bullets };
+                  experience[i] = { ...exp, location: e.target.value };
                   update({ experience });
                 }} />
+              <input className="input-field" placeholder="Start (e.g. May 2025)" value={exp.start_date}
+                onChange={(e) => {
+                  const experience = [...content.experience];
+                  experience[i] = { ...exp, start_date: e.target.value };
+                  update({ experience });
+                }} />
+              <input className="input-field" placeholder="End (e.g. Present)" value={exp.end_date}
+                onChange={(e) => {
+                  const experience = [...content.experience];
+                  experience[i] = { ...exp, end_date: e.target.value };
+                  update({ experience });
+                }} />
+            </div>
+            {exp.bullets.map((b, bi) => (
+              <div key={bi} className="mt-2 flex items-center gap-2">
+                <input className="input-field flex-1" placeholder="Bullet point" value={b}
+                  onChange={(e) => {
+                    const experience = [...content.experience];
+                    const bullets = [...exp.bullets];
+                    bullets[bi] = e.target.value;
+                    experience[i] = { ...exp, bullets };
+                    update({ experience });
+                  }} />
+                <button
+                  onClick={() => {
+                    const experience = [...content.experience];
+                    experience[i] = { ...exp, bullets: exp.bullets.filter((_, idx) => idx !== bi) };
+                    update({ experience });
+                  }}
+                  className="text-muted-foreground hover:text-red-400"
+                  aria-label="Remove bullet"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             ))}
             <button
               className="btn-secondary mt-2 text-xs"
@@ -173,19 +206,59 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
         }
       >
         {content.education.map((edu, i) => (
-          <div key={edu.id} className="mb-3 grid gap-2 sm:grid-cols-2">
-            <input className="input-field" placeholder="Institution" value={edu.institution}
-              onChange={(e) => {
-                const education = [...content.education];
-                education[i] = { ...edu, institution: e.target.value };
-                update({ education });
-              }} />
-            <input className="input-field" placeholder="Degree" value={edu.degree}
-              onChange={(e) => {
-                const education = [...content.education];
-                education[i] = { ...edu, degree: e.target.value };
-                update({ education });
-              }} />
+          <div key={edu.id} className="mb-3 rounded-lg border border-border p-3">
+            <div className="flex justify-between">
+              <span className="text-xs text-muted-foreground">Education {i + 1}</span>
+              <button
+                onClick={() => update({ education: content.education.filter((e) => e.id !== edu.id) })}
+                className="text-muted-foreground hover:text-red-400"
+                aria-label="Remove education"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <input className="input-field" placeholder="Institution" value={edu.institution}
+                onChange={(e) => {
+                  const education = [...content.education];
+                  education[i] = { ...edu, institution: e.target.value };
+                  update({ education });
+                }} />
+              <input className="input-field" placeholder="Degree" value={edu.degree}
+                onChange={(e) => {
+                  const education = [...content.education];
+                  education[i] = { ...edu, degree: e.target.value };
+                  update({ education });
+                }} />
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <input className="input-field" placeholder="Location" value={edu.location}
+                onChange={(e) => {
+                  const education = [...content.education];
+                  education[i] = { ...edu, location: e.target.value };
+                  update({ education });
+                }} />
+              <input className="input-field" placeholder="GPA (optional)" value={edu.gpa ?? ""}
+                onChange={(e) => {
+                  const education = [...content.education];
+                  education[i] = { ...edu, gpa: e.target.value };
+                  update({ education });
+                }} />
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <input className="input-field" placeholder="Start (e.g. Jan 2023)" value={edu.start_date}
+                onChange={(e) => {
+                  const education = [...content.education];
+                  education[i] = { ...edu, start_date: e.target.value };
+                  update({ education });
+                }} />
+              <input className="input-field" placeholder="End (e.g. Dec 2025)" value={edu.end_date}
+                onChange={(e) => {
+                  const education = [...content.education];
+                  education[i] = { ...edu, end_date: e.target.value };
+                  update({ education });
+                }} />
+            </div>
           </div>
         ))}
       </SectionList>
@@ -201,7 +274,17 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
       >
         {content.projects.map((proj, i) => (
           <div key={proj.id} className="mb-3 rounded-lg border border-border p-3">
-            <input className="input-field" placeholder="Project name" value={proj.name}
+            <div className="flex justify-between">
+              <span className="text-xs text-muted-foreground">Project {i + 1}</span>
+              <button
+                onClick={() => update({ projects: content.projects.filter((p) => p.id !== proj.id) })}
+                className="text-muted-foreground hover:text-red-400"
+                aria-label="Remove project"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <input className="input-field mt-2" placeholder="Project name" value={proj.name}
               onChange={(e) => {
                 const projects = [...content.projects];
                 projects[i] = { ...proj, name: e.target.value };
@@ -222,15 +305,38 @@ export function StructuredProfileEditor({ content, onChange }: Props) {
                 }} />
             </div>
             {proj.bullets.map((b, bi) => (
-              <input key={bi} className="input-field mt-2" placeholder="Bullet" value={b}
-                onChange={(e) => {
-                  const projects = [...content.projects];
-                  const bullets = [...proj.bullets];
-                  bullets[bi] = e.target.value;
-                  projects[i] = { ...proj, bullets };
-                  update({ projects });
-                }} />
+              <div key={bi} className="mt-2 flex items-center gap-2">
+                <input className="input-field flex-1" placeholder="Bullet" value={b}
+                  onChange={(e) => {
+                    const projects = [...content.projects];
+                    const bullets = [...proj.bullets];
+                    bullets[bi] = e.target.value;
+                    projects[i] = { ...proj, bullets };
+                    update({ projects });
+                  }} />
+                <button
+                  onClick={() => {
+                    const projects = [...content.projects];
+                    projects[i] = { ...proj, bullets: proj.bullets.filter((_, idx) => idx !== bi) };
+                    update({ projects });
+                  }}
+                  className="text-muted-foreground hover:text-red-400"
+                  aria-label="Remove bullet"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             ))}
+            <button
+              className="btn-secondary mt-2 text-xs"
+              onClick={() => {
+                const projects = [...content.projects];
+                projects[i] = { ...proj, bullets: [...proj.bullets, ""] };
+                update({ projects });
+              }}
+            >
+              + Bullet
+            </button>
           </div>
         ))}
       </SectionList>

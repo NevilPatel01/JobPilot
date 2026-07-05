@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +27,48 @@ _COMMON_RULES = """GROUND TRUTH — never violate:
 - Do not remove experience entries, education, or projects. Do not drop bullets unless merging duplicates.
 - Preserve the candidate's real career — only the WORDING and emphasis change, plus added skills/keywords."""
 
+_WRITING_RULES = """PROFESSIONAL WRITING STANDARDS — apply to everything you write:
+
+SUMMARY (hard limits):
+- Exactly 2-3 sentences, 60 words MAXIMUM. Cut ruthlessly — every word must earn its place.
+- Sentence 1: professional identity + strongest matching qualification for THIS role. Sentence 2-3: the 2-3 most relevant proof points (real skills/domains from the candidate's history). No first person ("I"), no filler ("seeking to apply...", "passionate about"), no listing more than 4 technologies.
+
+BULLETS (STAR/XYZ style):
+- Formula: strong action verb + what was done + tool/method + real outcome. If the source bullet has a real number, keep it and make it prominent; if not, end with the qualitative result — do NOT bolt on vague outcome phrases like "ensuring scalability and reliability".
+- One idea per bullet, 15-24 words, no bullet longer than 2 printed lines.
+- Start every bullet with a different action verb within the same entry (Built, Designed, Led, Automated, Reduced, Shipped...). Never start with "Responsible for" or a weak verb.
+- Order bullets within each entry by relevance to the target job — most relevant first.
+
+KEYWORD DISCIPLINE (anti-stuffing):
+- Each ATS keyword should appear 1-2 times across the WHOLE resume, in the bullet or skill where it is most natural. NEVER append the same phrase (e.g. "distributed systems", "production-grade") to multiple bullets — that reads as stuffing and gets resumes rejected by human reviewers.
+- If a keyword doesn't fit naturally in any bullet, put it in the skills section instead of forcing it into prose.
+
+PROJECT & EXPERIENCE RELEVANCE:
+- Reorder projects so the ones most relevant to the job description come FIRST, and rewrite their bullets to emphasize the JD-relevant technology and outcomes.
+- Reorder skill categories so the most JD-relevant category comes first."""
+
 _SYSTEM = "You are an expert technical resume writer and ATS optimizer. Return ONLY a raw JSON object matching the input schema — no markdown, no prose."
+
+_SUMMARY_MAX_WORDS = 70  # hard backstop — the prompt asks for <=60
+
+
+def _enforce_summary_limit(content: dict) -> dict:
+    """Backstop for when the LLM ignores the length rule: keep whole sentences
+    until the word budget is spent."""
+    summary = (content.get("summary") or "").strip()
+    if len(summary.split()) <= _SUMMARY_MAX_WORDS:
+        return content
+    sentences = re.split(r"(?<=[.!?])\s+", summary)
+    kept: list[str] = []
+    words = 0
+    for sentence in sentences:
+        n = len(sentence.split())
+        if kept and words + n > _SUMMARY_MAX_WORDS:
+            break
+        kept.append(sentence)
+        words += n
+    content["summary"] = " ".join(kept)
+    return content
 
 
 def _tailor_prompt(content: ResumeContent, jd_analysis: dict, *, job_title: str, company: str, rag: str, aggressive: bool) -> str:
@@ -37,17 +79,19 @@ def _tailor_prompt(content: ResumeContent, jd_analysis: dict, *, job_title: str,
         strategy = f"""AGGRESSIVE MODE — maximize ATS match for the role "{job_title or 'the target role'}":
 - Rewrite EVERY experience and project bullet to mirror the job description's language; lead each with a strong action verb and a relevant JD keyword.
 - Add the JD's required skills and tools that are standard for this role and consistent with the candidate's background, grouped into clear skill categories. Do NOT add tools the candidate clearly never used, and NEVER invent employers, titles, dates, or numbers.
-- Ensure every ATS keyword below appears at least once somewhere in the resume where it is truthful.
-- Rewrite the summary as a 2-3 line pitch for this exact role using the candidate's real experience."""
+- Ensure every ATS keyword below appears at least once somewhere in the resume where it is truthful — but respect the keyword-discipline rules: prefer the skills section over repeating phrases in bullets.
+- Rewrite the summary as a pitch for this exact role using the candidate's real experience."""
     else:
         strategy = """STANDARD MODE — meaningful, truthful optimization:
 - Reword bullets to naturally include the JD keywords and required skills the candidate has clearly demonstrated.
 - You MAY add skills the candidate's experience clearly implies (e.g. "REST APIs" if bullets describe building APIs), even if not explicitly listed. Do not add unrelated tools.
 - Reorder bullets so the most job-relevant ones come first. Rewrite the summary to address the role's core requirements."""
 
-    return f"""Tailor this resume for the target job so it passes ATS keyword screening while staying truthful.
+    return f"""Tailor this resume for the target job so it passes ATS keyword screening while staying truthful, and reads like it was written by a top-tier professional resume writer.
 
 {_COMMON_RULES}
+
+{_WRITING_RULES}
 
 {strategy}
 
@@ -71,7 +115,8 @@ async def _run_tailor(state: PipelineState, db: AsyncSession, prompt: str, sourc
     raw = res.content if isinstance(res.content, str) else str(res.content)
     tailored = extract_json_object(raw)
     validated = ResumeContent.model_validate(tailored).model_dump()
-    return guard_tailored_content(source_content, validated)
+    cleaned, warnings = guard_tailored_content(source_content, validated)
+    return _enforce_summary_limit(cleaned), warnings
 
 
 async def tailor_resume(state: PipelineState, db: AsyncSession) -> PipelineState:
@@ -128,8 +173,13 @@ async def refine_for_ats(state: PipelineState, db: AsyncSession, ats_result: dic
 
 {_COMMON_RULES}
 
-Raise the score by naturally incorporating these MISSING keywords wherever they are truthful for this candidate
-(rework existing bullets, the summary, and the skills section). You MAY add skills the candidate's experience implies.
+{_WRITING_RULES}
+
+Raise the score by incorporating these MISSING keywords wherever they are truthful for this candidate:
+- FIRST CHOICE: add each missing keyword to the most fitting skills category. You MAY add skills the candidate's experience implies.
+- Only rework a bullet when the keyword genuinely describes what that bullet already says — and then replace weaker wording rather than appending the keyword to the end.
+- Do NOT touch bullets that already read well and contain no missing keyword. Do NOT re-add or repeat keywords the resume already contains — repetition lowers quality without raising the score.
+- Keep the summary within its 60-word limit even after edits.
 
 MISSING KEYWORDS (add truthfully): {missing or "(none flagged — strengthen alignment with the JD)"}
 JD analysis: {json.dumps(jd_analysis)}
