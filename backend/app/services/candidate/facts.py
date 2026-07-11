@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app.models.candidate import CandidateFact
 from app.schemas.candidate import CandidateFactCreate, CandidateFactUpdate
+from app.services.audit import record_audit_event
 
 # Verification-status transition adjacency, per docs/product/PHASE_1_IMPLEMENTATION_SPEC.md §9.
 _ALLOWED_VERIFICATION_TRANSITIONS: dict[str, set[str]] = {
@@ -28,6 +29,14 @@ async def create_fact(db, user_id: UUID, data: CandidateFactCreate) -> Candidate
     )
     db.add(fact)
     await db.flush()
+    await record_audit_event(
+        db,
+        user_id=user_id,
+        action="candidate_fact.created",
+        entity_type="candidate_facts",
+        entity_id=str(fact.id),
+        after=data.payload,
+    )
     return fact
 
 
@@ -77,6 +86,15 @@ async def supersede_fact(db, user_id: UUID, fact_id: UUID, new_payload: dict) ->
     await db.flush()
     old.superseded_by_id = new_fact.id
     await db.flush()
+    await record_audit_event(
+        db,
+        user_id=user_id,
+        action="candidate_fact.superseded",
+        entity_type="candidate_facts",
+        entity_id=str(new_fact.id),
+        before=old.payload,
+        after=new_fact.payload,
+    )
     return new_fact
 
 
@@ -86,6 +104,16 @@ async def set_verification_status(db, user_id: UUID, fact_id: UUID, new_status: 
         return None
     if not is_valid_verification_transition(fact.verification_status, new_status):
         raise ValueError(f"invalid verification transition: {fact.verification_status} -> {new_status}")
+    old_status = fact.verification_status
     fact.verification_status = new_status
     await db.flush()
+    await record_audit_event(
+        db,
+        user_id=user_id,
+        action="candidate_fact.verification_changed",
+        entity_type="candidate_facts",
+        entity_id=str(fact.id),
+        before={"verification_status": old_status},
+        after={"verification_status": new_status},
+    )
     return fact

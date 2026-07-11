@@ -92,3 +92,44 @@ async def test_supersede_fact_creates_new_row_and_links_old_row():
     assert new in db.added
     assert new.payload == {"name": "New"}
     assert old.superseded_by_id == new.id
+
+
+@pytest.mark.asyncio
+async def test_create_fact_records_audit_event():
+    from app.models.audit import AuditLog
+
+    db = FakeSession()
+    user_id = uuid.uuid4()
+    await create_fact(db, user_id, CandidateFactCreate(fact_type="skill", payload={"name": "Python"}))
+    audit_rows = [obj for obj in db.added if isinstance(obj, AuditLog)]
+    assert len(audit_rows) == 1
+    assert audit_rows[0].action == "candidate_fact.created"
+
+
+@pytest.mark.asyncio
+async def test_supersede_fact_records_audit_event():
+    from app.models.audit import AuditLog
+
+    user_id = uuid.uuid4()
+    old = CandidateFact(id=uuid.uuid4(), user_id=user_id, fact_type="skill", payload={"name": "Old"}, superseded_by_id=None)
+    db = FakeSession(existing=[old])
+    await supersede_fact(db, user_id, old.id, {"name": "New"})
+    audit_rows = [obj for obj in db.added if isinstance(obj, AuditLog)]
+    assert len(audit_rows) == 1
+    assert audit_rows[0].action == "candidate_fact.superseded"
+
+
+@pytest.mark.asyncio
+async def test_set_verification_status_records_audit_event():
+    from app.models.audit import AuditLog
+
+    user_id = uuid.uuid4()
+    fact = CandidateFact(
+        id=uuid.uuid4(), user_id=user_id, fact_type="skill", payload={"name": "Python"},
+        verification_status="unverified", superseded_by_id=None,
+    )
+    db = FakeSession(existing=[fact])
+    await set_verification_status(db, user_id, fact.id, "user_confirmed")
+    audit_rows = [obj for obj in db.added if isinstance(obj, AuditLog)]
+    assert len(audit_rows) == 1
+    assert audit_rows[0].action == "candidate_fact.verification_changed"
