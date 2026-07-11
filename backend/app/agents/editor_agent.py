@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.json_utils import extract_json_object
 from app.agents.retry import invoke_llm
+from app.services.evidence.guard import extract_guard_context, guard_proposed_change
 from app.services.llm.client import create_chat_model, get_user_llm_config
 from app.services.rag.ingest import search_chunks
 
@@ -228,6 +229,7 @@ Return JSON: {{"reply": "<one-sentence summary of what you changed>", "changes":
             ],
         )
         parsed = extract_json_object(res.content if isinstance(res.content, str) else str(res.content))
+        guard_ctx = extract_guard_context(content)
         changes = []
         for ch in parsed.get("changes", []):
             path = ch.get("path", "")
@@ -235,10 +237,17 @@ Return JSON: {{"reply": "<one-sentence summary of what you changed>", "changes":
             raw_new = ch.get("new_value", "")
             if raw_old is None:
                 raw_old = _get_by_path(content, path)
+            coerced_new = coerce_change_value(raw_new)
+            guarded_new, guard_warning = guard_proposed_change(path, coerced_new, **guard_ctx)
+            if guard_warning:
+                # Reverted proposals fall back to the current value at that path —
+                # i.e. no-op the change rather than silently apply a fabricated one.
+                guarded_new = raw_old if guard_warning else guarded_new
             old = serialize_diff_value(raw_old)
-            new = serialize_diff_value(coerce_change_value(raw_new))
+            new = serialize_diff_value(guarded_new if guarded_new is not None else raw_old)
             changes.append({"path": path, "old_value": old, "new_value": new, "status": "pending"})
-        return parsed.get("reply", "Here are my suggested changes."), changes
+        reply = parsed.get("reply", "Here are my suggested changes.")
+        return reply, changes
     except Exception as e:
         return f"I couldn't process that request: {e}", []
 
