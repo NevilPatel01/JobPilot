@@ -6,12 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import MatchScoreResponse, ProfileUpdate, ScoringStatusResponse, StructuredProfileResponse, StructuredProfileUpdate, UserResponse
 from app.core.auth import get_current_user
+from app.core.config import settings
 from app.core.database import get_db
 from app.models.job import Job
 from app.models.profile_structured import UserProfileStructured
 from app.models.user import User
 from app.jobs.scoring.service import build_candidate_profile, rescore_user_inbox
 from app.schemas.resume_content import ResumeContent, empty_resume_content, resume_to_text
+from app.services.candidate.facts import list_active_facts
+from app.services.candidate.rendering import render_content_json
 from app.services.job_filters import apply_canada_filter
 from app.services.llm.client import get_user_llm_config
 from app.services.match_scorer import extract_skills, tfidf_score
@@ -63,6 +66,18 @@ async def update_structured_profile(
     db: AsyncSession = Depends(get_db),
 ):
     content = ResumeContent.model_validate(body.content)
+    if settings.feature_candidate_intelligence:
+        # When candidate intelligence is enabled, content_json becomes a
+        # generated cache — re-render it from candidate_facts instead of
+        # trusting the client's raw payload, per TARGET_DATA_MODEL.md §9b.
+        # (Writing individual facts happens via /api/v1/candidate/facts;
+        # this route still accepts a full-document PUT for the legacy UI,
+        # which is out of scope to change in this backend-only plan — the
+        # rendering below only takes effect if facts already exist.)
+        facts = await list_active_facts(db, user.id)
+        if facts:
+            content = render_content_json(facts)
+
     result = await db.execute(select(UserProfileStructured).where(UserProfileStructured.user_id == user.id))
     row = result.scalar_one_or_none()
     if row:
