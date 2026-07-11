@@ -27,8 +27,20 @@ async def run_step(
     status: str,
     steps: dict | None = None,
     error: str | None = None,
+    model_name: str | None = None,
+    prompt_version: str | None = None,
+    confidence: float | None = None,
 ) -> None:
-    run = AgentRun(resume_id=resume_id, agent_type=agent_type, status=status, steps_json=steps, error=error)
+    run = AgentRun(
+        resume_id=resume_id,
+        agent_type=agent_type,
+        status=status,
+        steps_json=steps,
+        error=error,
+        model_name=model_name,
+        prompt_version=prompt_version,
+        confidence=confidence,
+    )
     db.add(run)
     await db.flush()
 

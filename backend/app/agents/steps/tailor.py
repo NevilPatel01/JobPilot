@@ -155,7 +155,7 @@ async def tailor_resume(state: PipelineState, db: AsyncSession) -> PipelineState
         state["content"] = content.model_dump()
         state["tailoring_insights"] = [f"Tailoring skipped: {e}"]
 
-    await run_step(db, resume_id, "tailor_resume", "completed")
+    await run_step(db, resume_id, "tailor_resume", "completed", model_name=getattr(llm_config, "model_name", None))
     await emit(resume_id, "agent_step", {"step": "tailor_resume", "status": "completed"})
     return state
 
