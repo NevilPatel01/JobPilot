@@ -1,4 +1,4 @@
-export { getAuthToken, setAuthToken } from "./_client";
+export { getAuthToken, markAuthReady, setAuthToken } from "./_client";
 
 import { analyticsApi, inboxApi, jobsApi, scraperApi } from "./jobs";
 import { applicationsApi } from "./applications";

@@ -3,6 +3,21 @@ const AUTH_DISABLED =
   process.env.AUTH_DISABLED === "true" || process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
 
 let authToken: string | null = null;
+let authReadyResolver: (() => void) | null = null;
+const authReadyPromise: Promise<void> = AUTH_DISABLED
+  ? Promise.resolve()
+  : new Promise<void>((resolve) => {
+      authReadyResolver = resolve;
+    });
+
+export function markAuthReady() {
+  authReadyResolver?.();
+  authReadyResolver = null;
+}
+
+export async function waitForAuthReady() {
+  await authReadyPromise;
+}
 
 export function setAuthToken(token: string | null) {
   if (AUTH_DISABLED) {
@@ -38,6 +53,7 @@ export function isInvalidToken(detail: string): boolean {
 }
 
 export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  await waitForAuthReady();
   const token = getAuthToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -48,7 +64,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!res.ok) {
     const detail = await readErrorDetail(res);
-    if (isInvalidToken(detail)) setAuthToken(null);
+    if (res.status === 401 || isInvalidToken(detail)) setAuthToken(null);
     throw new Error(detail);
   }
   return res.json();

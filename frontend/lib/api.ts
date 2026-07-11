@@ -1,1 +1,1 @@
-export { api, getAuthToken, setAuthToken } from "./api/index";
+export { api, getAuthToken, markAuthReady, setAuthToken } from "./api/index";
