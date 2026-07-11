@@ -24,7 +24,7 @@ class InboxJob(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "job_id", name="uq_inbox_jobs_user_job"),
         CheckConstraint(
-            "status IN ('new', 'ai_reviewed', 'shortlisted', 'resume_ready', 'applied', 'archived', 'duplicate')",
+            "status IN (" + ", ".join(f"'{s}'" for s in INBOX_STATUSES) + ")",
             name="ck_inbox_jobs_status",
         ),
     )

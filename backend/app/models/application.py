@@ -1,15 +1,23 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, Date, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
+USER_APPLICATION_STATUSES = ("to_apply", "applied", "interviewing", "offer", "rejected")
+
 
 class UserApplication(Base):
     __tablename__ = "user_applications"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('to_apply', 'applied', 'interviewing', 'offer', 'rejected')",
+            name="ck_user_applications_status",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"))
