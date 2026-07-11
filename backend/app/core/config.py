@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     public_api_rate_limit_default: str = "60/minute"
     rate_limit_storage_uri: str = "memory://"
     job_intelligence_enabled: bool = True
+    feature_candidate_intelligence: bool = False
     target_provinces: str = "AB,BC,ON,SK"
     adzuna_app_id: str = ""
     adzuna_app_key: str = ""
