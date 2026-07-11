@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 
 from app.api.schemas import JobSourceUpdate, ScraperRunResponse, ScraperTriggerResponse
-from app.core.auth import get_current_user
+from app.core.auth import get_current_user, require_moderator
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.user import User
@@ -24,7 +24,7 @@ router = APIRouter()
 async def trigger_scraper(
     source: str | None = None,
     dry_run: bool | None = None,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_moderator),
 ):
     if not can_trigger_manual(settings.scraper_debounce_minutes):
         raise HTTPException(
@@ -55,7 +55,7 @@ async def list_sources(
 async def update_source(
     source_name: str,
     body: JobSourceUpdate,
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_moderator),
     db: AsyncSession = Depends(get_db),
 ):
     if source_name not in SOURCE_DEFINITIONS:
