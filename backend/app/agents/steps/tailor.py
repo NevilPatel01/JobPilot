@@ -117,7 +117,7 @@ async def _run_tailor(state: PipelineState, db: AsyncSession, prompt: str, sourc
     raw = res.content if isinstance(res.content, str) else str(res.content)
     tailored = extract_json_object(raw)
     validated = ResumeContent.model_validate(tailored).model_dump()
-    cleaned, warnings = guard_tailored_content(source_content, validated)
+    cleaned, warnings = guard_tailored_content(source_content, validated, facts_guard=state.get("facts_guard"))
     return _enforce_summary_limit(cleaned), warnings
 
 

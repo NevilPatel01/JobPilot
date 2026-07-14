@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.pipeline_helpers import PipelineState, emit, run_step
 from app.core.config import settings
-from app.services.candidate.resume_source import build_resume_content_from_facts
+from app.services.candidate.resume_source import build_facts_guard, build_resume_content_from_facts
 from app.services.llm.client import get_user_llm_config
 from app.services.rag.ingest import ingest_resume_content, ingest_text
 
@@ -19,6 +19,7 @@ async def ingest_context(state: PipelineState, db: AsyncSession) -> PipelineStat
         if facts_content is not None:
             state["source_content"] = facts_content
             state["project_facts"] = project_facts
+            state["facts_guard"] = await build_facts_guard(db, state["user_id"])
             state["profile_source"] = "facts"
 
     if llm_config and state.get("job_description"):

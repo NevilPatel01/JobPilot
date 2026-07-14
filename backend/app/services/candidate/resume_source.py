@@ -95,6 +95,23 @@ def project_fact_to_entry(project: dict) -> dict:
     }
 
 
+async def build_facts_guard(db, user_id: UUID) -> dict:
+    """Context for validation.guard_tailored_content in facts mode."""
+    all_facts = await list_active_facts(db, user_id, exclude_prohibited=False)
+    confirmed_project_ids = [
+        str(f.id) for f in all_facts if f.fact_type == "project" and _confirmed(f) and not f.is_prohibited
+    ]
+    prohibited_terms: list[str] = []
+    for fact in all_facts:
+        if not fact.is_prohibited:
+            continue
+        payload = fact.payload or {}
+        prohibited_terms.extend(
+            str(payload.get(key)) for key in ("name", "employer", "title") if payload.get(key)
+        )
+    return {"confirmed_project_fact_ids": confirmed_project_ids, "prohibited_terms": prohibited_terms}
+
+
 async def build_resume_content_from_facts(db, user_id: UUID) -> tuple[dict | None, list[dict]]:
     """ResumeContent-shaped dict from user-confirmed facts, plus the compact
     project-fact dicts the tailor step re-selects per job."""

@@ -62,11 +62,27 @@ def _guard_bullets(tailored: list[str], source: list[str]) -> tuple[list[str], b
     return out, reverted
 
 
-def guard_tailored_content(source: dict, tailored: dict) -> tuple[dict, list[str]]:
+def _prohibited_hit(value: str, prohibited_terms: set[str]) -> bool:
+    norm = _normalize(value)
+    return bool(norm) and any(term and term in norm for term in prohibited_terms)
+
+
+def guard_tailored_content(
+    source: dict, tailored: dict, facts_guard: dict | None = None,
+) -> tuple[dict, list[str]]:
     """Strip invented employers/institutions/projects and fabricated metrics;
-    keep reworded bullets and added skills. Returns cleaned content + warnings."""
+    keep reworded bullets and added skills. Returns cleaned content + warnings.
+
+    facts_guard (facts-based resumes only):
+      {"confirmed_project_fact_ids": [...], "prohibited_terms": [...]}
+    Projects must carry an evidence_fact_id from the confirmed set; content
+    matching a prohibited term is removed even if it exists in the source."""
     source_model = ResumeContent.model_validate(source or {})
     tailored_model = ResumeContent.model_validate(tailored or {})
+
+    confirmed_project_ids = set((facts_guard or {}).get("confirmed_project_fact_ids") or [])
+    prohibited_terms = {_normalize(t) for t in (facts_guard or {}).get("prohibited_terms") or [] if _normalize(t)}
+    facts_mode = facts_guard is not None
 
     allowed_companies = {_normalize(e.company) for e in source_model.experience if e.company}
     allowed_institutions = {_normalize(e.institution) for e in source_model.education if e.institution}
@@ -80,6 +96,11 @@ def guard_tailored_content(source: dict, tailored: dict) -> tuple[dict, list[str
         source_entry = source_by_id.get(exp.id) or source_by_company.get(_normalize(exp.company))
         if not source_entry or (exp.company and not _fuzzy_match(exp.company, allowed_companies)):
             warnings.append(f"Removed invented employer '{exp.company}' not found in your profile.")
+            continue
+        if prohibited_terms and (
+            _prohibited_hit(exp.company, prohibited_terms) or _prohibited_hit(exp.title, prohibited_terms)
+        ):
+            warnings.append(f"Removed experience at '{exp.company}' — matches a prohibited claim.")
             continue
         bullets, reverted = _guard_bullets(exp.bullets, source_entry.bullets)
         if reverted:
@@ -103,6 +124,9 @@ def guard_tailored_content(source: dict, tailored: dict) -> tuple[dict, list[str
         deduped: list[str] = []
         for skill in category.skills:
             key = _normalize(skill)
+            if prohibited_terms and _prohibited_hit(skill, prohibited_terms):
+                warnings.append(f"Removed prohibited skill claim '{skill.strip()}'.")
+                continue
             if key and key not in seen:
                 seen.add(key)
                 deduped.append(skill.strip())
@@ -117,15 +141,31 @@ def guard_tailored_content(source: dict, tailored: dict) -> tuple[dict, list[str
         if not source_project:
             warnings.append(f"Removed invented project '{project.name}' not found in your profile.")
             continue
+        if facts_mode:
+            evidence_id = project.evidence_fact_id or source_project.evidence_fact_id
+            if evidence_id not in confirmed_project_ids:
+                warnings.append(f"Removed project '{project.name}' — not backed by a confirmed candidate fact.")
+                continue
+            if prohibited_terms and _prohibited_hit(project.name, prohibited_terms):
+                warnings.append(f"Removed project '{project.name}' — matches a prohibited claim.")
+                continue
         bullets, reverted = _guard_bullets(project.bullets, source_project.bullets)
         if reverted:
             warnings.append(f"Removed an unsupported number in project '{source_project.name}'.")
         cleaned_projects.append(source_project.model_copy(update={"bullets": bullets}))
 
-    tailored_model.experience = cleaned_experience or list(source_model.experience)
-    tailored_model.education = cleaned_education or list(source_model.education)
-    tailored_model.projects = cleaned_projects or list(source_model.projects)
-    tailored_model.skills = cleaned_skills or list(source_model.skills)
+    if facts_mode:
+        # facts mode: an empty section is a legitimate guard outcome — restoring
+        # the source here would resurrect exactly what was removed
+        tailored_model.experience = cleaned_experience
+        tailored_model.education = cleaned_education or list(source_model.education)
+        tailored_model.projects = cleaned_projects
+        tailored_model.skills = cleaned_skills
+    else:
+        tailored_model.experience = cleaned_experience or list(source_model.experience)
+        tailored_model.education = cleaned_education or list(source_model.education)
+        tailored_model.projects = cleaned_projects or list(source_model.projects)
+        tailored_model.skills = cleaned_skills or list(source_model.skills)
     tailored_model.contact = source_model.contact
     tailored_model.links = list(source_model.links)
     if not _numbers(tailored_model.summary).issubset(_numbers(source_model.summary)):
