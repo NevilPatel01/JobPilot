@@ -46,6 +46,7 @@ class ProjectEntry(BaseModel):
     url: str = ""          # live / demo / portfolio URL
     github_url: str = ""   # source repository URL
     bullets: list[str] = Field(default_factory=list)
+    evidence_fact_id: str = ""  # candidate_facts.id backing this project (facts-based resumes)
 
 
 class SkillCategory(BaseModel):

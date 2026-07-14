@@ -6,7 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import settings
 from app.jobs.scoring.engine import CandidateProfile, JobFacts, score_job
+from app.services.candidate.resume_source import facts_candidate_inputs
 from app.models.job import Job
 from app.models.job_intelligence import InboxJob, JobFitScore, UserScoringPrefs
 from app.models.profile_structured import UserProfileStructured
@@ -61,8 +63,45 @@ async def build_candidate_profile(
     user: User,
     prefs: UserScoringPrefs | None = None,
 ) -> CandidateProfile | None:
+    profile, _ = await build_candidate_profile_with_source(session, user, prefs)
+    return profile
+
+
+async def build_candidate_profile_with_source(
+    session: AsyncSession,
+    user: User,
+    prefs: UserScoringPrefs | None = None,
+) -> tuple[CandidateProfile | None, str]:
+    """Candidate profile plus which source produced it ('facts' | 'legacy').
+
+    With feature_candidate_intelligence on, verified candidate facts win;
+    users without facts fall back to the legacy profile fields unchanged."""
     if prefs is None:
         prefs = await session.get(UserScoringPrefs, user.id)
+
+    if settings.feature_candidate_intelligence:
+        inputs = await facts_candidate_inputs(session, user.id)
+        if inputs is not None:
+            return (
+                CandidateProfile(
+                    skills=inputs.skills,
+                    years_experience=inputs.years_experience,
+                    work_authorization=inputs.work_authorization
+                    or (prefs.work_authorization if prefs else "work_permit"),
+                    target_provinces=tuple(prefs.target_provinces) if prefs else ("AB", "BC", "ON", "SK"),
+                    relocation_open=prefs.relocation_open if prefs else True,
+                ),
+                "facts",
+            )
+
+    return await _legacy_candidate_profile(session, user, prefs), "legacy"
+
+
+async def _legacy_candidate_profile(
+    session: AsyncSession,
+    user: User,
+    prefs: UserScoringPrefs | None,
+) -> CandidateProfile | None:
     profile_result = await session.execute(
         select(UserProfileStructured).where(UserProfileStructured.user_id == user.id)
     )
@@ -113,8 +152,9 @@ async def score_inbox_job(
 ) -> JobFitScore | None:
     if prefs is None:
         prefs = await session.get(UserScoringPrefs, user.id)
+    profile_source = "caller"
     if candidate is None:
-        candidate = await build_candidate_profile(session, user, prefs)
+        candidate, profile_source = await build_candidate_profile_with_source(session, user, prefs)
     if candidate is None:
         inbox_job.fit_score_id = None
         inbox_job.fit_score = None
@@ -137,7 +177,7 @@ async def score_inbox_job(
         session.add(fit_score)
     fit_score.score = result.score
     fit_score.label = result.label
-    fit_score.signals = result.signals
+    fit_score.signals = {**result.signals, "_meta": {"profile_source": profile_source}}
     fit_score.matched_skills = list(result.matched_skills)
     fit_score.missing_skills = list(result.missing_skills)
     fit_score.risk_flags = list(result.risk_flags)

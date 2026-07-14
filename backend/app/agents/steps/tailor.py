@@ -9,7 +9,9 @@ from app.agents.json_utils import extract_json_object
 from app.agents.pipeline_helpers import PipelineState, emit, run_step
 from app.agents.retry import invoke_llm
 from app.agents.validation import guard_tailored_content
-from app.schemas.resume_content import ResumeContent
+from app.schemas.resume_content import ProjectEntry, ResumeContent
+from app.services.candidate.project_selection import classify_job_seniority, select_projects
+from app.services.candidate.resume_source import project_fact_to_entry
 from app.services.llm.client import create_chat_model, get_user_llm_config
 from app.services.rag.ingest import search_chunks
 
@@ -119,12 +121,44 @@ async def _run_tailor(state: PipelineState, db: AsyncSession, prompt: str, sourc
     return _enforce_summary_limit(cleaned), warnings
 
 
+def _apply_project_selection(state: PipelineState, content: ResumeContent, jd_analysis: dict) -> str | None:
+    """Seniority-adaptive project selection for facts-based resumes.
+    Deterministic rule, not LLM judgment: senior roles lean on experience,
+    junior roles may show up to two relevant projects."""
+    project_facts = state.get("project_facts")
+    if not project_facts:
+        return None
+    job_title = state.get("job_title") or ""
+    seniority = classify_job_seniority(job_title, jd_analysis.get("seniority"))
+    job_skills = [
+        str(s) for s in (jd_analysis.get("required_skills") or []) + (jd_analysis.get("keywords") or [])
+    ]
+    selected = select_projects(
+        project_facts,
+        job_skills=job_skills,
+        seniority=seniority,
+        experience_count=len(content.experience),
+    )
+    content.projects = [ProjectEntry.model_validate(project_fact_to_entry(p)) for p in selected]
+    names = ", ".join(p["name"] for p in selected) or "(none — omit the projects section)"
+    return (
+        f"PROJECT SELECTION (deterministic, {seniority} role): include exactly these projects and no others: "
+        f"{names}. Do not add, invent, or restore other projects. Only condense or reword the provided bullets."
+    )
+
+
 async def tailor_resume(state: PipelineState, db: AsyncSession) -> PipelineState:
     resume_id = state["resume_id"]
     await emit(resume_id, "agent_step", {"step": "tailor_resume", "status": "running"})
     llm_config = await get_user_llm_config(db, state["user_id"])
     source_content = state.get("source_content") or state.get("content") or {}
     content = ResumeContent.model_validate(source_content)
+    jd_analysis = state.get("jd_analysis") or {}
+    project_note = _apply_project_selection(state, content, jd_analysis)
+    if project_note:
+        # keep the fallback/source in sync so the guard treats the selection as ground truth
+        source_content = content.model_dump()
+        state["source_content"] = source_content
 
     if not llm_config:
         state["content"] = content.model_dump()
@@ -135,7 +169,6 @@ async def tailor_resume(state: PipelineState, db: AsyncSession) -> PipelineState
 
     chunks = await search_chunks(db, state["user_id"], state.get("job_description", ""), llm_config)
     rag_context = "\n---\n".join(c.chunk_text for c in chunks[:6])
-    jd_analysis = state.get("jd_analysis") or {}
     company = state.get("company_research", {}).get("summary", "")
     prompt = _tailor_prompt(
         content,
@@ -145,6 +178,8 @@ async def tailor_resume(state: PipelineState, db: AsyncSession) -> PipelineState
         rag=rag_context,
         aggressive=bool(state.get("aggressive")),
     )
+    if project_note:
+        prompt += f"\n\n{project_note}"
 
     try:
         cleaned, guard_warnings = await _run_tailor(state, db, prompt, source_content)

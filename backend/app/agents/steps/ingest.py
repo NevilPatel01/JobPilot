@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.pipeline_helpers import PipelineState, emit, run_step
+from app.core.config import settings
+from app.services.candidate.resume_source import build_resume_content_from_facts
 from app.services.llm.client import get_user_llm_config
 from app.services.rag.ingest import ingest_resume_content, ingest_text
 
@@ -9,6 +11,15 @@ async def ingest_context(state: PipelineState, db: AsyncSession) -> PipelineStat
     resume_id = state["resume_id"]
     await emit(resume_id, "agent_step", {"step": "ingest_context", "status": "running"})
     llm_config = await get_user_llm_config(db, state["user_id"])
+
+    # Candidate Intelligence: profile-sourced resumes build from verified facts
+    # when the flag is on and the user has confirmed facts; legacy blob otherwise.
+    if settings.feature_candidate_intelligence and state.get("source_type") != "upload":
+        facts_content, project_facts = await build_resume_content_from_facts(db, state["user_id"])
+        if facts_content is not None:
+            state["source_content"] = facts_content
+            state["project_facts"] = project_facts
+            state["profile_source"] = "facts"
 
     if llm_config and state.get("job_description"):
         await ingest_text(db, state["user_id"], "job_description", resume_id, state["job_description"], llm_config)
