@@ -23,6 +23,7 @@ from app.schemas.candidate import (
     CareerProfileUpdate,
     SupersedeFactRequest,
 )
+from app.services.candidate.backfill import run_legacy_backfill
 from app.services.candidate.achievements import (
     create_achievement,
     delete_achievement,
@@ -343,3 +344,17 @@ async def delete_answer_route(
         raise HTTPException(status_code=404, detail="Answer not found")
     await db.commit()
     return {"deleted": True}
+
+
+# --- imports/backfill ---
+
+
+@router.post("/import/legacy-profile")
+async def import_legacy_profile_route(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_flag()
+    result = await run_legacy_backfill(db, user.id)
+    await db.commit()
+    return result

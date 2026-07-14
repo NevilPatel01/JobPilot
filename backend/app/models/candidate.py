@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -12,7 +12,7 @@ FACT_TYPES = (
     "target_industry", "employment", "education", "certification",
     "project", "skill", "achievement", "metric",
 )
-FACT_SOURCES = ("user_entered", "resume_upload", "linkedin_import", "inferred")
+FACT_SOURCES = ("user_entered", "resume_upload", "linkedin_import", "inferred", "github_import")
 VERIFICATION_STATUSES = ("unverified", "user_confirmed", "contradicted")
 ANSWER_CATEGORIES = (
     "behavioral", "logistics", "salary", "work_authorization",
@@ -52,6 +52,29 @@ class CandidateFact(Base):
     is_prohibited: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class CandidateDigest(Base):
+    """Derived, regenerable prompt artifact (e.g. the GitHub projects brief).
+    Never a source of truth — always rebuildable from candidate_facts."""
+
+    __tablename__ = "candidate_digests"
+    __table_args__ = (UniqueConstraint("user_id", "kind", name="uq_candidate_digests_user_kind"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    content_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    source_fact_ids: Mapped[list[uuid.UUID]] = mapped_column(
+        ARRAY(UUID(as_uuid=True)), nullable=False, default=list
+    )
+    sync_state_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    token_estimate: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    generated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
