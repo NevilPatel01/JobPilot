@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import get_current_user
@@ -89,7 +90,10 @@ async def update_fact_route(
     db: AsyncSession = Depends(get_db),
 ):
     _require_flag()
-    fact = await update_fact(db, user.id, fact_id, body)
+    try:
+        fact = await update_fact(db, user.id, fact_id, body)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
     if not fact:
         raise HTTPException(status_code=404, detail="Fact not found")
     await db.commit()
@@ -138,7 +142,10 @@ async def supersede_fact_route(
     db: AsyncSession = Depends(get_db),
 ):
     _require_flag()
-    fact = await supersede_fact(db, user.id, fact_id, body.payload)
+    try:
+        fact = await supersede_fact(db, user.id, fact_id, body.payload)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
     if not fact:
         raise HTTPException(status_code=404, detail="Fact not found")
     await db.commit()

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -19,14 +19,96 @@ AnswerCategory = Literal[
 ]
 
 
+# --- typed fact payloads (PHASE_1_IMPLEMENTATION_SPEC §Schema changes) ---
+# extra="allow": payloads may carry additional user keys beyond the typed core.
+
+
+class _FactPayload(BaseModel):
+    model_config = {"extra": "allow"}
+
+
+class EmploymentPayload(_FactPayload):
+    employer: str = Field(..., min_length=1, max_length=255)
+    title: str = Field(..., min_length=1, max_length=255)
+    start_date: date | None = None
+    end_date: date | None = None
+    location: str | None = Field(None, max_length=255)
+    summary: str = Field("", max_length=2000)
+
+
+class EducationPayload(_FactPayload):
+    institution: str = Field(..., min_length=1, max_length=255)
+    credential: str = Field("", max_length=255)
+    field_of_study: str = Field("", max_length=255)
+    start_date: date | None = None
+    end_date: date | None = None
+
+
+class CertificationPayload(_FactPayload):
+    name: str = Field(..., min_length=1, max_length=255)
+    issuer: str = Field("", max_length=255)
+    issued_date: date | None = None
+    expires_date: date | None = None
+
+
+class SkillPayload(_FactPayload):
+    name: str = Field(..., min_length=1, max_length=120)
+    level: str | None = Field(None, max_length=40)
+    years: float | None = Field(None, ge=0, le=60)
+
+
+class WorkAuthorizationPayload(_FactPayload):
+    status: str = Field(..., min_length=1, max_length=80)  # e.g. citizen, permanent_resident, work_permit
+    country: str = Field("CA", min_length=2, max_length=2)
+
+
+class ProjectPayload(_FactPayload):
+    name: str = Field(..., min_length=1, max_length=255)
+    url: str = Field("", max_length=500)  # provenance: repo html_url for github origin
+    one_liner: str = Field("", max_length=300)
+    description: str = Field("", max_length=2000)
+    tech_stack: list[str] = Field(default_factory=list, max_length=30)
+    highlights: list[str] = Field(default_factory=list, max_length=10)
+    stars: int = Field(0, ge=0)
+    last_pushed: date | None = None
+    origin: Literal["github", "manual", "resume_upload"] = "manual"
+    pinned: bool = False
+
+
+PAYLOAD_MODELS: dict[str, type[BaseModel]] = {
+    "employment": EmploymentPayload,
+    "education": EducationPayload,
+    "certification": CertificationPayload,
+    "skill": SkillPayload,
+    "work_authorization": WorkAuthorizationPayload,
+    "project": ProjectPayload,
+}
+
+
+def validate_fact_payload(fact_type: str, payload: dict) -> dict:
+    """Validate + normalize a fact payload for its type (dates → ISO strings).
+    Fact types without a typed model pass through unchanged."""
+    model = PAYLOAD_MODELS.get(fact_type)
+    if model is None:
+        return payload
+    return model.model_validate(payload).model_dump(mode="json", exclude_none=True)
+
+
 class CandidateFactCreate(BaseModel):
     fact_type: FactType
     payload: dict = Field(..., max_length=50)
     source: FactSource = "user_entered"
     is_prohibited: bool = False
 
+    @model_validator(mode="after")
+    def _validate_typed_payload(self) -> "CandidateFactCreate":
+        self.payload = validate_fact_payload(self.fact_type, self.payload)
+        return self
+
 
 class CandidateFactUpdate(BaseModel):
+    # payload is validated against the existing fact's type in the service layer,
+    # since fact_type is not part of the update body
     payload: dict | None = Field(None, max_length=50)
     is_prohibited: bool | None = None
 

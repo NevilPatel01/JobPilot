@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import select
 
 from app.models.candidate import CandidateFact
-from app.schemas.candidate import CandidateFactCreate, CandidateFactUpdate
+from app.schemas.candidate import CandidateFactCreate, CandidateFactUpdate, validate_fact_payload
 from app.services.audit import record_audit_event
 
 # Verification-status transition adjacency, per docs/product/PHASE_1_IMPLEMENTATION_SPEC.md §9.
@@ -67,7 +67,7 @@ async def update_fact(db, user_id: UUID, fact_id: UUID, data: CandidateFactUpdat
     if not fact:
         return None
     if data.payload is not None:
-        fact.payload = data.payload
+        fact.payload = validate_fact_payload(fact.fact_type, data.payload)
     if data.is_prohibited is not None:
         fact.is_prohibited = data.is_prohibited
     await db.flush()
@@ -79,7 +79,7 @@ async def supersede_fact(db, user_id: UUID, fact_id: UUID, new_payload: dict) ->
     if not old:
         return None
     new_fact = CandidateFact(
-        user_id=user_id, fact_type=old.fact_type, payload=new_payload,
+        user_id=user_id, fact_type=old.fact_type, payload=validate_fact_payload(old.fact_type, new_payload),
         source=old.source, verification_status="user_confirmed",
     )
     db.add(new_fact)
