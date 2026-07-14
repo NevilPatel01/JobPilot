@@ -31,6 +31,10 @@ class CandidateFactUpdate(BaseModel):
     is_prohibited: bool | None = None
 
 
+class SupersedeFactRequest(BaseModel):
+    payload: dict = Field(..., max_length=50)
+
+
 class CandidateFactResponse(BaseModel):
     id: UUID
     user_id: UUID
@@ -56,6 +60,16 @@ class AchievementCreate(BaseModel):
     tags: list[str] = Field(default_factory=list, max_length=20)
 
 
+class AchievementUpdate(BaseModel):
+    related_fact_id: UUID | None = None
+    situation: str | None = Field(None, max_length=2000)
+    task: str | None = Field(None, max_length=2000)
+    action: str | None = Field(None, max_length=2000)
+    result: str | None = Field(None, max_length=2000)
+    metrics: dict | None = Field(None, max_length=50)
+    tags: list[str] | None = Field(None, max_length=20)
+
+
 class AchievementResponse(BaseModel):
     id: UUID
     user_id: UUID
@@ -79,6 +93,13 @@ class CareerProfileCreate(BaseModel):
     emphasis_fact_ids: list[UUID] = Field(default_factory=list)
     positioning_statement: str = Field("", max_length=1000)
     is_default: bool = False
+
+
+class CareerProfileUpdate(BaseModel):
+    name: str | None = Field(None, max_length=100)
+    description: str | None = Field(None, max_length=2000)
+    emphasis_fact_ids: list[UUID] | None = None
+    positioning_statement: str | None = Field(None, max_length=1000)
 
 
 class CareerProfileResponse(BaseModel):
@@ -109,6 +130,14 @@ class AnswerBankEntryCreate(BaseModel):
     @property
     def is_sensitive(self) -> bool:
         return self.question_category in SENSITIVE_ANSWER_CATEGORIES
+
+
+class AnswerBankEntryUpdate(BaseModel):
+    question_text: str | None = Field(None, max_length=1000)
+    question_category: AnswerCategory | None = None
+    answer_text: str | None = Field(None, max_length=5000)
+    related_fact_ids: list[UUID] | None = None
+    # no is_sensitive field on purpose: sensitivity is always derived server-side from category
 
 
 class AnswerBankEntryResponse(BaseModel):
