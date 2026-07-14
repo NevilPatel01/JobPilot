@@ -71,32 +71,9 @@
 - [x] Extension setup page (`/extension`)
 - [x] Tests: extension capture endpoint
 
-### Phase 6 — Company Watchlist + Boards
+### Phases 6–9 (original plan) — re-scoped into v0.5
 
-- [ ] Greenhouse + Lever + custom career page adapters
-- [ ] Watchlist UI + seed companies (banks, Shopify, HHS, universities, etc.)
-- [ ] Ashby if straightforward
-
-### Phase 7 — Gmail Forward Import
-
-- [ ] Inbound email parser (`jobs+token@…`)
-- [ ] MVP: LinkedIn, Indeed, Job Bank, recruiter emails
-- [ ] Gmail import setup page (`/gmail-import`)
-
-### Phase 8 — Weekly Analytics Report
-
-- [ ] Application events timeline
-- [ ] Job analytics: response rate, best sources/cities/resume categories
-- [ ] Weekly report page + in-app follow-up reminders (5d / 10d business days)
-- [ ] Tracker sync summary on inbox items
-
-### Phase 9 — Production Hardening + Gmail OAuth
-
-- [ ] GitHub Actions scrape workflow (backup to APScheduler)
-- [ ] Data retention jobs (180d catalog, 45d inbox archive, raw_payload prune)
-- [ ] Per-user API keys (BYOK for Adzuna/JSearch)
-- [ ] Gmail OAuth label import (later)
-- [ ] Deprecate legacy `app/scrapers/` layout
+Company watchlist, Gmail import, weekly analytics, and hardening are absorbed into the v0.5 phases below (Gmail import → v0.5 Phase 7, analytics/follow-ups → v0.5 Phase 8, hardening/retention → v0.5 Phase 9, watchlist deferred).
 
 ### New UI Pages
 
@@ -117,6 +94,28 @@
 - Aggressive LinkedIn/Indeed scraping
 - Removing existing resume builder or Kanban
 - Separate Streamlit app
+
+---
+
+## v0.5.0 — Human-in-the-Loop Job-Search OS (In Planning)
+
+Goal: optimize **interview conversion**, not application volume. Every consequential action (submit, outreach, sensitive answers) goes through human approval; every generated claim traces to a verified candidate fact. Detailed specs: `docs/product/` (local planning docs — gitignored).
+
+- [x] Phase 0 (partial) — audit logging + AI provenance (`audit_logs`, `agent_runs` model/prompt/confidence — migration 007)
+- [x] Phase 1 (partial) — candidate facts, achievements, career profiles, answer bank tables + facts CRUD behind `FEATURE_CANDIDATE_INTELLIGENCE` (migration 008)
+- [ ] Phase 0 (finish) — `application_events` stream + validated lifecycle transitions owned by `user_applications`
+- [ ] Phase 1 (finish) — achievements/profiles/answer-bank routes + UI, legacy-profile + resume-text backfill, scorer & resume pipeline read verified facts, prohibited-claim enforcement
+- [ ] Phase 1 — GitHub projects import: sync public repos (manual + first-login prompt), per-repo README summaries cached by content hash → confirmed `project` facts → compact projects digest; resume tailor picks 0–2 projects seniority-adaptively (senior roles lean on experience, not side projects)
+- [ ] Phase 2 — explainable qualification: `job_requirements` extraction (cached per catalog job), hard blockers, evidence mapping, Tier A/B/C/Reject
+- [ ] Phase 3 — application packages: strategy, immutable `document_versions` snapshots, factuality quality gates, `application_answers`
+- [ ] Phase 4 — Approval Centre: unified `approval_items` queue, approve/edit/reject/defer, risk-tiered `automation_rules`, daily command centre
+- [ ] Phase 5 — application copilot: extension reads form fields on user click, suggests verified answers, flags sensitive fields, human submits
+- [ ] Phase 6 — contacts & outreach: manual/extension-captured contacts, drafted messages, follow-up chains with limits + suppression (manual send)
+- [ ] Phase 7 — inbox & interview intelligence: forward-address email classification → timeline events, interview workspace with STAR prep
+- [ ] Phase 8 — outcome analytics: funnel from events, conversion by source/role-family/strategy, token cost per package
+- [ ] Phase 9 — multi-user SaaS hardening (Redis rate limits, retention jobs, monitoring, budget caps)
+
+Non-negotiables: no auto-submission, no CAPTCHA bypass, no unauthorized LinkedIn automation, no fabricated experience, LLM calls gated + cached + structured (token frugality).
 
 ---
 

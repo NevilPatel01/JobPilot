@@ -315,17 +315,21 @@ JobPilot/
 
 ---
 
-## Job Intelligence + Capture (v0.4 — Ready to Build)
+## Job Intelligence + Capture (v0.4 — Shipped)
 
-JobPilot is evolving into a **Canadian job acquisition engine** focused on AB, BC, ON, and SK: inbox-first workflow, weighted fit scoring for work-permit holders targeting PR, multi-source ingestion, Chrome extension capture, and application analytics tied to the AI resume builder.
+Phases 1–5 of the [Job Intelligence plan](JOB_INTELLIGENCE_PLAN.md) are live: Job Inbox, explainable fit scoring, resume-from-inbox, Canadian source adapters (Job Bank, Adzuna, JSearch), and the Chrome capture extension. Remaining v0.4 items (watchlist, Gmail import, weekly analytics) are absorbed into the v0.5 direction below.
 
-| Document | Purpose |
-|----------|---------|
-| [JOB_INTELLIGENCE_PLAN.md](JOB_INTELLIGENCE_PLAN.md) | Architecture, data models, phases |
-| [JOB_INTELLIGENCE_QUESTIONS.md](JOB_INTELLIGENCE_QUESTIONS.md) | Confirmed decisions record |
-| [ROADMAP.md](ROADMAP.md) | Version milestones |
+## v0.5 — Human-in-the-Loop Job-Search OS (In Planning)
 
-**Database:** PostgreSQL + pgvector only. **Ship order:** Inbox → Fit scoring → Resume from inbox → Canadian APIs → Extension → Watchlist → Gmail → Analytics.
+JobPilot is evolving from a resume generator into a **human-in-the-loop job-search operating system** that optimizes for interview conversion, not application volume:
+
+- **Candidate Intelligence** — verified candidate facts with provenance, verification status, and confidence; STAR achievements; answer bank; career profiles (foundations shipped behind `FEATURE_CANDIDATE_INTELLIGENCE`).
+- **Explainable qualification** — hard blockers + weighted scoring + per-requirement evidence mapping; Tier A/B/C/Reject decisions with stored breakdowns.
+- **Application packages** — strategy, immutable submitted-document snapshots, factuality quality gates.
+- **Approval Centre** — every consequential action (submit, outreach, sensitive answers) requires explicit human approval; drafts are automated, decisions are not.
+- **Outreach CRM, inbox classification, interview workspace, and outcome analytics** in later phases.
+
+The system never auto-submits applications, never bypasses bot detection, and never invents experience — the factuality guard traces every generated claim to a verified fact. Detailed specs live in `docs/product/` (local planning docs); the phase list is in [ROADMAP.md](ROADMAP.md).
 
 ---
 
