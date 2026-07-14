@@ -201,6 +201,7 @@ Set `GITHUB_ID` and `GITHUB_SECRET` in `frontend/.env.local`. Use a single HTTPS
 | `NEON_CONNECTION_STRING` or `DATABASE_URL` | PostgreSQL + pgvector (e.g. [Neon](https://neon.tech)) |
 | `CRON_SECRET` | Random secret for external scraper cron (optional) |
 | `DISABLE_APSCHEDULER` | `true` if scrapers run via GitHub Actions only |
+| `FEATURE_CANDIDATE_INTELLIGENCE` | `true` to enable candidate facts, GitHub project import, and facts-based resume generation (default `false`) |
 
 Users bring their own LLM API keys via Settings — no provider keys in server env.
 
@@ -323,7 +324,7 @@ Phases 1–5 of the [Job Intelligence plan](JOB_INTELLIGENCE_PLAN.md) are live: 
 
 JobPilot is evolving from a resume generator into a **human-in-the-loop job-search operating system** that optimizes for interview conversion, not application volume:
 
-- **Candidate Intelligence** — verified candidate facts with provenance, verification status, and confidence; STAR achievements; answer bank; career profiles (foundations shipped behind `FEATURE_CANDIDATE_INTELLIGENCE`).
+- **Candidate Intelligence** — verified candidate facts with provenance, verification status, and confidence; STAR achievements; answer bank; career profiles; GitHub public-repo project import with a cached projects digest; seniority-adaptive project selection and fact-backed claim enforcement in the resume pipeline (Phase 1 shipped behind `FEATURE_CANDIDATE_INTELLIGENCE`).
 - **Explainable qualification** — hard blockers + weighted scoring + per-requirement evidence mapping; Tier A/B/C/Reject decisions with stored breakdowns.
 - **Application packages** — strategy, immutable submitted-document snapshots, factuality quality gates.
 - **Approval Centre** — every consequential action (submit, outreach, sensitive answers) requires explicit human approval; drafts are automated, decisions are not.

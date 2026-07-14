@@ -150,6 +150,7 @@ Schema is managed by Alembic (`backend/alembic/`) but `main.py` also runs `CREAT
 | `AUTH_DISABLED` | `true` for local dev (no OAuth) |
 | `TECTONIC_PATH` | Optional path to tectonic binary; auto-detected from `backend/.bin/tectonic` |
 | `ALLOWED_ORIGINS` | CORS origins (comma-separated) |
+| `FEATURE_CANDIDATE_INTELLIGENCE` | `true` enables `/api/v1/candidate/*` and facts-based scoring/resume generation; default `false` (all candidate routes 404 when off) |
 
 Users configure their own LLM keys in Settings UI — no provider key needed in server env.
 
@@ -169,7 +170,15 @@ Users configure their own LLM keys in Settings UI — no provider key needed in 
 - The guard (`agents/validation.py`) prevents the LLM from adding fabricated data — it compares source vs tailored content and strips any added employers, metrics, or dates.
 - Tectonic must be installed for real PDF compilation. Run `./scripts/ensure-tectonic.sh` once. The fallback PDF is plain-text only.
 - ATS scoring uses multi-dimensional scoring: keyword match (TF-IDF), formatting score, semantic score (via LLM), skills coverage.
-yes 
+
+## Candidate Intelligence (v0.5 Phase 1, behind `FEATURE_CANDIDATE_INTELLIGENCE`)
+
+- Source of truth: `candidate_facts` (typed payloads validated via `PAYLOAD_MODELS` in `backend/app/schemas/candidate.py`), plus `achievements`, `career_profiles`, `answer_bank_entries`, and the derived `candidate_digests` cache (migrations 008–009).
+- Services in `backend/app/services/candidate/` (facts, achievements, career_profiles, answer_bank, backfill, extraction, imports, github_import, digest, resume_source, project_selection); routes in `backend/app/api/routes/candidate.py`.
+- Imports return **drafts** for review; only `POST /candidate/import/confirm` persists (as unverified). GitHub sync caches per-repo README summaries by sha in `candidate_digests.sync_state_json` — unchanged repos cost zero LLM tokens on re-sync.
+- With the flag on: the fit scorer prefers verified facts (`build_candidate_profile_with_source`; source logged in `job_fit_scores.signals._meta`), the resume pipeline builds content from **user-confirmed** facts only, projects are selected seniority-adaptively (`project_selection.py`: junior ≤2, mid gap-fill only, senior ≤1), and `agents/validation.py` strips project bullets lacking a confirmed `evidence_fact_id` plus any prohibited-claim content.
+- Answer-bank sensitivity (`salary`, `work_authorization`, `demographic`, `legal_declaration`) is derived server-side and cannot be unset by clients.
+
 ## Do Not Commit
 
 - `backend/.env`, `frontend/.env.local`, `docs/` folder (per `.cursor/rules/jobpilot-core.mdc`)

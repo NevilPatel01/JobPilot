@@ -5,6 +5,7 @@ import { Briefcase, Send, TrendingUp, ArrowRight, CheckCircle2, Circle, Key, Use
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { GitHubPromptCard } from "@/components/profile/GitHubPromptCard";
 import { StatCard } from "@/components/ui/StatCard";
 import { cn } from "@/lib/utils";
 
@@ -83,6 +84,7 @@ export default function DashboardPage() {
   return (
     <div>
       <PageHeader title="Home" description="A focused view of your active job search." />
+      <GitHubPromptCard />
 
       {showSetup && (
         <div className="mb-6 glass-panel p-5 relative">

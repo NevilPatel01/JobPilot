@@ -10,6 +10,7 @@ import { emptyResumeContent } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StructuredProfileEditor } from "@/components/resume/StructuredEditor";
 import { PdfPreviewPane } from "@/components/resume/PdfPreviewPane";
+import { CandidateTabs } from "@/components/profile/CandidateTabs";
 import { cn } from "@/lib/utils";
 
 // ─── PDF parsing overlay ──────────────────────────────────────────────────────
@@ -279,6 +280,7 @@ export default function ProfilePage() {
         description="Your experience, skills, and education — the AI tailors every resume from this."
       />
 
+      <CandidateTabs>
       {/* PDF import shortcut */}
       <div className={cn("mb-6 rounded-xl border p-4 transition-all", isEmpty ? "border-primary/30 bg-primary/5" : "border-border bg-card/40")}>
         <div className="flex flex-wrap items-center gap-4">
@@ -362,6 +364,7 @@ export default function ProfilePage() {
       {profile && (
         <p className="mt-6 text-xs text-muted-foreground">{profile.name} · {profile.email}</p>
       )}
+      </CandidateTabs>
     </div>
   );
 }
