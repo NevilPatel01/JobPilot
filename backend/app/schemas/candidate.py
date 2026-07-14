@@ -11,7 +11,7 @@ FactType = Literal[
     "target_industry", "employment", "education", "certification",
     "project", "skill", "achievement", "metric",
 ]
-FactSource = Literal["user_entered", "resume_upload", "linkedin_import", "inferred"]
+FactSource = Literal["user_entered", "resume_upload", "linkedin_import", "inferred", "github_import"]
 VerificationStatus = Literal["unverified", "user_confirmed", "contradicted"]
 AnswerCategory = Literal[
     "behavioral", "logistics", "salary", "work_authorization",
@@ -115,6 +115,14 @@ class CandidateFactUpdate(BaseModel):
 
 class SupersedeFactRequest(BaseModel):
     payload: dict = Field(..., max_length=50)
+
+
+class ResumeTextImportRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=50000)
+
+
+class ConfirmImportRequest(BaseModel):
+    facts: list[dict] = Field(..., max_length=200)  # items validated as CandidateFactCreate in the service
 
 
 class CandidateFactResponse(BaseModel):

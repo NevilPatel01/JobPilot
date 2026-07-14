@@ -74,13 +74,15 @@ async def update_fact(db, user_id: UUID, fact_id: UUID, data: CandidateFactUpdat
     return fact
 
 
-async def supersede_fact(db, user_id: UUID, fact_id: UUID, new_payload: dict) -> CandidateFact | None:
+async def supersede_fact(
+    db, user_id: UUID, fact_id: UUID, new_payload: dict, verification_status: str = "user_confirmed",
+) -> CandidateFact | None:
     old = await get_owned_fact(db, user_id, fact_id)
     if not old:
         return None
     new_fact = CandidateFact(
         user_id=user_id, fact_type=old.fact_type, payload=validate_fact_payload(old.fact_type, new_payload),
-        source=old.source, verification_status="user_confirmed",
+        source=old.source, verification_status=verification_status,
     )
     db.add(new_fact)
     await db.flush()

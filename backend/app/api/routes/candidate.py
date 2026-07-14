@@ -21,9 +21,13 @@ from app.schemas.candidate import (
     CareerProfileCreate,
     CareerProfileResponse,
     CareerProfileUpdate,
+    ConfirmImportRequest,
+    ResumeTextImportRequest,
     SupersedeFactRequest,
 )
 from app.services.candidate.backfill import run_legacy_backfill
+from app.services.candidate.extraction import extract_facts_from_resume_text
+from app.services.candidate.imports import confirm_draft_facts
 from app.services.candidate.achievements import (
     create_achievement,
     delete_achievement,
@@ -356,5 +360,36 @@ async def import_legacy_profile_route(
 ):
     _require_flag()
     result = await run_legacy_backfill(db, user.id)
+    await db.commit()
+    return result
+
+
+@router.post("/import/resume-text")
+async def import_resume_text_route(
+    body: ResumeTextImportRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_flag()
+    result = await extract_facts_from_resume_text(db, user.id, body.text)
+    await db.commit()  # persists the audit/extraction log only; drafts are not saved
+    return {
+        "draft_facts": [d.model_dump(mode="json") for d in result.draft_facts],
+        "rejected": result.rejected,
+        "warning": result.warning,
+    }
+
+
+@router.post("/import/confirm")
+async def confirm_import_route(
+    body: ConfirmImportRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_flag()
+    try:
+        result = await confirm_draft_facts(db, user.id, body.facts)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=exc.errors()) from exc
     await db.commit()
     return result
