@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 236 48" role="img" aria-label="JobPilot">
+  <!-- JobPilot logo lockup. Wordmark color adapts via the "logo-fg" CSS variable (defaults to ink). -->
+  <style>
+    .wordmark { font: 600 26px/1 Inter, "SF Pro Display", "Segoe UI", ui-sans-serif, system-ui, sans-serif; letter-spacing: -0.02em; }
+  </style>
+  <g>
+    <rect x="2" y="4" width="40" height="40" rx="10" fill="#0E7266"/>
+    <path d="M37 10.9 L12.25 25.1 L21.25 28.1 Z" fill="#FBF8EF"/>
+    <path d="M37 10.9 L21.25 28.1 L24.4 36.85 Z" fill="#5CD6C9"/>
+    <circle cx="10.25" cy="38" r="1.5" fill="#FBF8EF" opacity="0.55"/>
+    <circle cx="15" cy="33.5" r="2" fill="#FBF8EF" opacity="0.8"/>
+  </g>
+  <!-- wordmark: "Job" in ink, "Pilot" in brand teal -->
+  <text x="54" y="33" class="wordmark">
+    <tspan fill="var(--logo-fg, #0B1220)">Job</tspan><tspan fill="#0E7266">Pilot</tspan>
+  </text>
+</svg>

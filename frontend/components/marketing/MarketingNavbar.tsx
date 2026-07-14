@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Navigation } from "lucide-react";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 export function MarketingNavbar() {
@@ -7,9 +7,7 @@ export function MarketingNavbar() {
     <header className="sticky top-0 z-40 border-b border-border/70 bg-background/75 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-primary text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.2)]">
-            <Navigation className="h-4 w-4 fill-current" />
-          </div>
+          <BrandMark className="h-8 w-8 rounded-[10px] shadow-[0_8px_20px_hsl(var(--primary)/0.2)]" />
           <span className="text-base font-semibold tracking-[-0.025em] text-foreground">JobPilot</span>
         </Link>
         <nav className="flex items-center gap-3">

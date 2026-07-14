@@ -14,7 +14,6 @@ import {
   BarChart3,
   MessageSquare,
   LogOut,
-  Navigation,
   FileText,
   Mail,
   Plus,
@@ -23,6 +22,7 @@ import {
   ChevronDown,
   Settings,
 } from "lucide-react";
+import { BrandMark } from "@/components/ui/BrandMark";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/components/layout/SidebarContext";
 
@@ -81,9 +81,7 @@ export function Sidebar() {
       <div className="border-b border-sidebar-border px-5 py-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-primary text-primary-foreground shadow-[0_8px_20px_hsl(var(--primary)/0.2)]">
-              <Navigation className="h-4 w-4 fill-current" />
-            </div>
+            <BrandMark className="h-8 w-8 shrink-0 rounded-[10px] shadow-[0_8px_20px_hsl(var(--primary)/0.2)]" />
             <div className="min-w-0">
               <span className="text-base font-semibold tracking-[-0.025em] text-sidebar-foreground">JobPilot</span>
               <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-muted-foreground">Career workspace</p>
