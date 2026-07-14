@@ -1,5 +1,6 @@
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,11 +23,14 @@ from app.schemas.candidate import (
     CareerProfileResponse,
     CareerProfileUpdate,
     ConfirmImportRequest,
+    GitHubImportRequest,
     ResumeTextImportRequest,
     SupersedeFactRequest,
 )
 from app.services.candidate.backfill import run_legacy_backfill
+from app.services.candidate.digest import regenerate_github_projects_digest
 from app.services.candidate.extraction import extract_facts_from_resume_text
+from app.services.candidate.github_import import resolve_github_username, sync_github_projects
 from app.services.candidate.imports import confirm_draft_facts
 from app.services.candidate.achievements import (
     create_achievement,
@@ -50,6 +54,7 @@ from app.services.candidate.career_profiles import (
 )
 from app.services.candidate.facts import (
     create_fact,
+    get_owned_fact,
     list_active_facts,
     set_verification_status,
     supersede_fact,
@@ -393,3 +398,72 @@ async def confirm_import_route(
         raise HTTPException(status_code=422, detail=exc.errors()) from exc
     await db.commit()
     return result
+
+
+@router.post("/import/github")
+async def import_github_route(
+    body: GitHubImportRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_flag()
+    username = (body.username or "").strip()
+    if not username:
+        async with httpx.AsyncClient(timeout=20, headers={"Accept": "application/vnd.github+json"}) as http:
+            username = await resolve_github_username(user, http) or ""
+    if not username:
+        raise HTTPException(status_code=422, detail="GitHub username required")
+    result = await sync_github_projects(db, user.id, username)
+    await db.commit()
+    return {
+        "draft_facts": [d.model_dump(mode="json") for d in result.draft_facts],
+        "skipped_unchanged": result.skipped_unchanged,
+        "rate_limited": result.rate_limited,
+        "warning": result.warning,
+    }
+
+
+@router.get("/digest/github_projects")
+async def github_projects_digest_route(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_flag()
+    # deterministic and cheap — regenerate on read so it always reflects current facts
+    row = await regenerate_github_projects_digest(db, user.id)
+    await db.commit()
+    return {
+        "content_text": row.content_text,
+        "token_estimate": row.token_estimate,
+        "generated_at": row.generated_at,
+    }
+
+
+async def _set_project_pin(db, user: User, fact_id: UUID, pinned: bool) -> CandidateFactResponse:
+    fact = await get_owned_fact(db, user.id, fact_id)
+    if not fact or fact.fact_type != "project":
+        raise HTTPException(status_code=404, detail="Project fact not found")
+    fact.payload = {**(fact.payload or {}), "pinned": pinned}
+    await db.flush()
+    await db.commit()
+    return CandidateFactResponse.model_validate(fact)
+
+
+@router.post("/facts/{fact_id}/pin", response_model=CandidateFactResponse)
+async def pin_project_route(
+    fact_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_flag()
+    return await _set_project_pin(db, user, fact_id, True)
+
+
+@router.post("/facts/{fact_id}/unpin", response_model=CandidateFactResponse)
+async def unpin_project_route(
+    fact_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _require_flag()
+    return await _set_project_pin(db, user, fact_id, False)

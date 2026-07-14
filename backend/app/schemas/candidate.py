@@ -121,6 +121,10 @@ class ResumeTextImportRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=50000)
 
 
+class GitHubImportRequest(BaseModel):
+    username: str | None = Field(None, max_length=100)
+
+
 class ConfirmImportRequest(BaseModel):
     facts: list[dict] = Field(..., max_length=200)  # items validated as CandidateFactCreate in the service
 
