@@ -1,8 +1,11 @@
-import pytest
+from unittest.mock import AsyncMock
+
 from fastapi.testclient import TestClient
 
 from app.core.auth import get_current_user
+from app.core.database import get_db
 from app.main import app
+from app.models.job_intelligence import JobSourceConfig
 from app.models.user import User
 
 
@@ -11,6 +14,12 @@ def _user(role: str) -> User:
         id="00000000-0000-0000-0000-000000000001",
         oauth_provider="dev", oauth_id="x", email="u@example.com", role=role,
     )
+
+
+async def _fake_db():
+    session = AsyncMock()
+    session.commit = AsyncMock()
+    yield session
 
 
 def test_non_admin_cannot_trigger_scraper():
@@ -24,16 +33,25 @@ def test_non_admin_cannot_trigger_scraper():
         app.dependency_overrides.pop(get_current_user, None)
 
 
-def test_authenticated_user_can_update_scraper_source_auth():
-    """Any authenticated user may toggle scraper sources (403 is not returned for auth)."""
+def test_authenticated_user_can_update_scraper_source(monkeypatch):
+    """Any authenticated user may toggle scraper sources (no moderator gate)."""
+    config = JobSourceConfig(name="remoteok", enabled=True, rate_limit=None)
+
+    async def fake_ensure(_session):
+        return {"remoteok": config}
+
+    monkeypatch.setattr("app.api.routes.scraper.ensure_source_configs", fake_ensure)
     app.dependency_overrides[get_current_user] = lambda: _user("user")
+    app.dependency_overrides[get_db] = _fake_db
     client = TestClient(app)
     try:
         resp = client.patch("/api/v1/scraper/sources/remoteok", json={"enabled": False})
-        # May fail on DB in unit context, but must not be an auth 403
-        assert resp.status_code != 403
+        assert resp.status_code == 200, resp.text
+        assert resp.json() == {"source": "remoteok", "enabled": False}
+        assert config.enabled is False
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+        app.dependency_overrides.pop(get_db, None)
 
 
 def test_admin_can_trigger_scraper_debounce_or_success():
