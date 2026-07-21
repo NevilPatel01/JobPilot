@@ -29,6 +29,7 @@ async def mark_inbox_applied(
             company=inbox_job.job.company,
             job_url=inbox_job.job.apply_url or inbox_job.job.url,
             salary_range=salary,
+            job_description=inbox_job.job.description,
             date_applied=date.today(),
         )
         session.add(application)
@@ -37,6 +38,8 @@ async def mark_inbox_applied(
     else:
         application.status = "applied"
         application.date_applied = application.date_applied or date.today()
+        if not application.job_description and inbox_job.job.description:
+            application.job_description = inbox_job.job.description
 
     inbox_job.status = "applied"
     inbox_job.tracker_summary = "Applied"
@@ -44,4 +47,7 @@ async def mark_inbox_applied(
         resume = await session.get(ResumeDocument, inbox_job.resume_id)
         if resume:
             resume.application_id = application.id
+            application.resume_id = resume.id
+            if not application.job_description and resume.job_description:
+                application.job_description = resume.job_description
     return application

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Save, Key, Trash2, Copy, Sparkles, MapPinned } from "lucide-react";
+import { Save, Key, Trash2, Copy, Sparkles, MapPinned, Radar } from "lucide-react";
 import { api } from "@/lib/api";
 import type { ApiKeyConfig, ApiToken } from "@/types/resume";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -34,6 +34,8 @@ export default function SettingsPage() {
   const [scoringPrefs, setScoringPrefs] = useState<ScoringPreferences | null>(null);
   const [savingPrefs, setSavingPrefs] = useState(false);
   const [prefsSaved, setPrefsSaved] = useState(false);
+  const [jobBankEnabled, setJobBankEnabled] = useState<boolean | null>(null);
+  const [togglingJobBank, setTogglingJobBank] = useState(false);
 
   const preset = getProviderPreset(provider);
 
@@ -41,6 +43,13 @@ export default function SettingsPage() {
     api.getApiKeys().then(setKeys).catch(console.error);
     api.getApiTokens().then(setTokens).catch(console.error);
     api.getScoringPreferences().then(setScoringPrefs).catch(console.error);
+    api
+      .getScraperSources()
+      .then((data) => {
+        const jobBank = data.sources.find((s) => s.source === "job_bank");
+        setJobBankEnabled(jobBank ? jobBank.enabled : true);
+      })
+      .catch(console.error);
   };
 
   useEffect(() => { load(); }, []);
@@ -173,6 +182,18 @@ export default function SettingsPage() {
     }
   };
 
+  const toggleJobBank = async (enabled: boolean) => {
+    setTogglingJobBank(true);
+    try {
+      const result = await api.updateScraperSource("job_bank", enabled);
+      setJobBankEnabled(result.enabled);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not update Job Bank source");
+    } finally {
+      setTogglingJobBank(false);
+    }
+  };
+
   const thresholdValue = (key: string, fallback: number) => scoringPrefs?.threshold_overrides?.[key] ?? fallback;
 
   const updateThreshold = (key: string, value: number) => {
@@ -258,6 +279,36 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : <p className="mt-5 text-sm text-muted-foreground">Loading preferences...</p>}
+        </div>
+
+        <div className="glass-panel p-6 lg:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                <Radar className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-foreground">Job sources</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Disable Job Bank Canada scraping if those postings rarely lead to interviews.
+                </p>
+              </div>
+            </div>
+            <label className="flex items-center gap-3 rounded-lg border border-border bg-background/50 px-4 py-2.5 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={jobBankEnabled === true}
+                disabled={jobBankEnabled === null || togglingJobBank}
+                onChange={(event) => toggleJobBank(event.target.checked)}
+                className="h-4 w-4 accent-primary"
+              />
+              {togglingJobBank
+                ? "Updating…"
+                : jobBankEnabled
+                  ? "Job Bank scraping on"
+                  : "Job Bank scraping off"}
+            </label>
+          </div>
         </div>
 
         <div className="glass-panel p-6">

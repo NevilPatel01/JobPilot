@@ -74,7 +74,23 @@ export const scraperApi = {
     request<{ new_jobs: number; message: string }>("/api/v1/scraper/trigger", { method: "POST" }),
 
   getScraperSources: () =>
-    request<{ sources: { source: string; job_count: number }[] }>("/api/v1/scraper/sources"),
+    request<{
+      sources: {
+        source: string;
+        display_name: string;
+        enabled: boolean;
+        job_count: number;
+        credential_status?: string;
+        last_error?: string | null;
+      }[];
+      last_run?: string | null;
+    }>("/api/v1/scraper/sources"),
+
+  updateScraperSource: (source: string, enabled: boolean) =>
+    request<{ source: string; enabled: boolean }>(`/api/v1/scraper/sources/${source}`, {
+      method: "PATCH",
+      body: JSON.stringify({ enabled }),
+    }),
 };
 
 export const analyticsApi = {

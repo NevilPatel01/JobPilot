@@ -11,6 +11,8 @@ class ApplicationCreate(BaseModel):
     job_url: str | None = None
     salary_range: str | None = None
     notes: str | None = None
+    job_description: str | None = None
+    resume_id: UUID | None = None
     date_applied: date | None = None
     job_id: UUID | None = None
 
@@ -22,6 +24,8 @@ class ApplicationUpdate(BaseModel):
     job_url: str | None = None
     salary_range: str | None = None
     notes: str | None = None
+    job_description: str | None = None
+    resume_id: UUID | None = None
     date_applied: date | None = None
     kanban_order: int | None = None
 
@@ -36,6 +40,11 @@ class ApplicationResponse(BaseModel):
     job_url: str | None
     salary_range: str | None
     notes: str | None
+    job_description: str | None = None
+    resume_id: UUID | None = None
+    resume_title: str | None = None
+    uploaded_resume_filename: str | None = None
+    has_uploaded_resume: bool = False
     date_applied: date | None
     kanban_order: int
     created_at: datetime

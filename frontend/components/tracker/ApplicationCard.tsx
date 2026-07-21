@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { ArrowUpRight, GripVertical, Trash2 } from "lucide-react";
@@ -36,20 +37,13 @@ export function ApplicationCard({ app, onUpdate, onDelete, isDragging }: Applica
           <GripVertical className="h-4 w-4" />
         </button>
         <div className="min-w-0 flex-1">
-          {app.job_url ? (
-            <a
-              href={app.job_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex min-w-0 items-center gap-1 font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
-              title="Open original job listing"
-            >
-              <span className="truncate">{app.job_title}</span>
-              <ArrowUpRight className="h-3.5 w-3.5 shrink-0" />
-            </a>
-          ) : (
-            <p className="truncate font-medium text-foreground">{app.job_title}</p>
-          )}
+          <Link
+            href={`/tracker/${app.id}`}
+            className="block truncate font-medium text-foreground underline-offset-4 transition-colors hover:text-primary hover:underline"
+            title="Open application details"
+          >
+            {app.job_title}
+          </Link>
           <p className="truncate text-sm text-muted-foreground">{app.company}</p>
           {app.salary_range && (
             <span className="mt-1.5 inline-block rounded-md bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400 ring-1 ring-amber-500/20">
@@ -57,17 +51,32 @@ export function ApplicationCard({ app, onUpdate, onDelete, isDragging }: Applica
             </span>
           )}
           {app.notes && <p className="mt-1.5 truncate text-xs text-muted-foreground">{app.notes}</p>}
-          <select
-            value={app.status}
-            onChange={(e) => onUpdate(app.id, { status: e.target.value })}
-            className="mt-2 w-full rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:border-primary/50 focus:outline-none"
-          >
-            {KANBAN_COLUMNS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+          <div className="mt-2 flex items-center gap-2">
+            <select
+              value={app.status}
+              onChange={(e) => onUpdate(app.id, { status: e.target.value })}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground focus:border-primary/50 focus:outline-none"
+            >
+              {KANBAN_COLUMNS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+            {app.job_url && (
+              <a
+                href={app.job_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 rounded p-1 text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground"
+                title="Open original job listing"
+              >
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </a>
+            )}
+          </div>
         </div>
         <button
           onClick={() => onDelete(app.id)}

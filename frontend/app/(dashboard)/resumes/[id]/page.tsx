@@ -399,10 +399,15 @@ export default function ResumeEditorPage() {
           job_title: resume?.title,
           company: resume?.company_name || "Unknown",
           job_url: resume?.company_url || undefined,
-          status: "to_apply",
-          notes: `Resume: ${resume?.id}`,
+          status: "applied",
+          date_applied: new Date().toISOString().slice(0, 10),
+          notes: undefined,
+          job_description: resume?.job_description || undefined,
+          resume_id: resume?.id || null,
         });
         await api.updateResume(id, { application_id: app.id });
+        window.location.href = `/tracker/${app.id}`;
+        return;
       }
       window.location.href = "/tracker";
     } catch (error) {

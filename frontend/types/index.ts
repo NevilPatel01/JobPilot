@@ -102,6 +102,11 @@ export interface Application {
   job_url: string | null;
   salary_range: string | null;
   notes: string | null;
+  job_description: string | null;
+  resume_id: string | null;
+  resume_title: string | null;
+  uploaded_resume_filename: string | null;
+  has_uploaded_resume: boolean;
   date_applied: string | null;
   kanban_order: number;
   created_at: string;

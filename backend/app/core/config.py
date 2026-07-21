@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     allowed_origins: str = "http://localhost:3000"
     auth_disabled: bool = False
     tectonic_path: str = ""
+    application_uploads_dir: str = "data/application_resumes"
     public_api_rate_limit_create: str = "10/minute"
     public_api_rate_limit_default: str = "60/minute"
     rate_limit_storage_uri: str = "memory://"

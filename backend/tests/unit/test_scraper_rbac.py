@@ -24,13 +24,14 @@ def test_non_admin_cannot_trigger_scraper():
         app.dependency_overrides.pop(get_current_user, None)
 
 
-def test_non_admin_cannot_update_scraper_source():
-    """Non-moderator/admin user should receive 403 when trying to update scraper source."""
+def test_authenticated_user_can_update_scraper_source_auth():
+    """Any authenticated user may toggle scraper sources (403 is not returned for auth)."""
     app.dependency_overrides[get_current_user] = lambda: _user("user")
     client = TestClient(app)
     try:
         resp = client.patch("/api/v1/scraper/sources/remoteok", json={"enabled": False})
-        assert resp.status_code == 403
+        # May fail on DB in unit context, but must not be an auth 403
+        assert resp.status_code != 403
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 

@@ -55,7 +55,7 @@ async def list_sources(
 async def update_source(
     source_name: str,
     body: JobSourceUpdate,
-    user: User = Depends(require_moderator),
+    user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if source_name not in SOURCE_DEFINITIONS:

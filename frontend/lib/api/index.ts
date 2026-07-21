@@ -32,13 +32,18 @@ export const api = {
   // Scraper
   triggerScraper: scraperApi.triggerScraper,
   getScraperSources: scraperApi.getScraperSources,
+  updateScraperSource: scraperApi.updateScraperSource,
 
   // Applications
   getApplications: applicationsApi.getApplications,
+  getApplication: applicationsApi.getApplication,
   createApplication: applicationsApi.createApplication,
   updateApplication: applicationsApi.updateApplication,
   deleteApplication: applicationsApi.deleteApplication,
   quickSaveJob: applicationsApi.quickSaveJob,
+  uploadApplicationResume: applicationsApi.uploadApplicationResume,
+  deleteApplicationUploadedResume: applicationsApi.deleteApplicationUploadedResume,
+  downloadApplicationResumePdf: applicationsApi.downloadApplicationResumePdf,
 
   // Profile
   getProfile: profileApi.getProfile,

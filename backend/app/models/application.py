@@ -28,6 +28,11 @@ class UserApplication(Base):
     job_url: Mapped[str | None] = mapped_column(Text)
     salary_range: Mapped[str | None] = mapped_column(String(100))
     notes: Mapped[str | None] = mapped_column(Text)
+    job_description: Mapped[str | None] = mapped_column(Text)
+    resume_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("resume_documents.id", ondelete="SET NULL")
+    )
+    uploaded_resume_filename: Mapped[str | None] = mapped_column(String(255))
     date_applied: Mapped[date | None] = mapped_column(Date)
     kanban_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

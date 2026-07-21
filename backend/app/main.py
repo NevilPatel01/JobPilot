@@ -35,6 +35,21 @@ async def init_db() -> None:
         await conn.execute(text("ALTER TABLE jobs ADD COLUMN IF NOT EXISTS country VARCHAR(2)"))
         await conn.execute(text("CREATE INDEX IF NOT EXISTS ix_jobs_country ON jobs (country)"))
 
+        await conn.execute(
+            text("ALTER TABLE user_applications ADD COLUMN IF NOT EXISTS job_description TEXT")
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_applications ADD COLUMN IF NOT EXISTS resume_id UUID "
+                "REFERENCES resume_documents(id) ON DELETE SET NULL"
+            )
+        )
+        await conn.execute(
+            text(
+                "ALTER TABLE user_applications ADD COLUMN IF NOT EXISTS uploaded_resume_filename VARCHAR(255)"
+            )
+        )
+
         for col, col_type in (
             ("semantic_score", "INTEGER DEFAULT 0"),
             ("skills_coverage", "INTEGER DEFAULT 0"),

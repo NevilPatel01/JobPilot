@@ -16,12 +16,12 @@ import type { Application } from "@/types";
 import { KANBAN_COLUMNS } from "@/types";
 import { KanbanColumn } from "./KanbanColumn";
 import { ApplicationCard } from "./ApplicationCard";
-import { AddJobModal } from "./AddJobModal";
+import { AddJobModal, type CreateApplicationPayload } from "./AddJobModal";
 
 interface KanbanBoardProps {
   applications: Application[];
   onUpdate: (id: string, data: Partial<Application>) => Promise<void>;
-  onCreate: (data: Partial<Application>) => Promise<void>;
+  onCreate: (data: CreateApplicationPayload) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }
 
