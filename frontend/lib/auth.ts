@@ -4,6 +4,7 @@ import GitHubProvider from "next-auth/providers/github";
 import GoogleProvider from "next-auth/providers/google";
 import { authDisabled, hasGithub, hasGoogle } from "@/lib/authFlags";
 import { needsBackendExchange } from "@/lib/authRecovery";
+import { nextAuthSecret } from "@/lib/authSecret";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -82,5 +83,5 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: nextAuthSecret,
 };

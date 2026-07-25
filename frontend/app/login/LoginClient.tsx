@@ -1,7 +1,7 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { Sparkles } from "lucide-react";
 import Link from "next/link";
@@ -14,14 +14,26 @@ type LoginClientProps = {
 
 export function LoginClient({ authDisabled, hasGithub, hasGoogle }: LoginClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const noProviders = !hasGoogle && !hasGithub;
 
+  // Honor a safe relative callbackUrl so users return to the page they were
+  // gated from; fall back to /dashboard and reject non-relative (open-redirect) URLs.
+  const rawCallback = searchParams.get("callbackUrl") || "/dashboard";
+  const callbackUrl = rawCallback.startsWith("/") ? rawCallback : "/dashboard";
+
+  // NextAuth redirects back here with ?error=... when sign-in couldn't complete.
+  const error = searchParams.get("error");
+  const errorMessage = error
+    ? "Sign-in couldn't complete. Make sure the backend API is running, then try again."
+    : null;
+
   useEffect(() => {
     if (status === "authenticated" && session) {
-      router.replace("/dashboard");
+      router.replace(callbackUrl);
     }
-  }, [status, session, router]);
+  }, [status, session, router, callbackUrl]);
 
   if (authDisabled) {
     return (
@@ -51,6 +63,12 @@ export function LoginClient({ authDisabled, hasGithub, hasGoogle }: LoginClientP
           <p className="mt-2 text-sm text-muted-foreground">Sign in to track applications and save jobs</p>
         </div>
 
+        {errorMessage && (
+          <div className="mt-6 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            {errorMessage}
+          </div>
+        )}
+
         {noProviders ? (
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Configure GitHub OAuth in <code className="text-muted-foreground">.env.local</code> to enable sign-in.
@@ -58,12 +76,12 @@ export function LoginClient({ authDisabled, hasGithub, hasGoogle }: LoginClientP
         ) : (
           <div className="mt-8 space-y-3">
             {hasGithub && (
-              <button onClick={() => signIn("github", { callbackUrl: "/dashboard" })} className="btn-primary w-full">
+              <button onClick={() => signIn("github", { callbackUrl })} className="btn-primary w-full">
                 Sign in with GitHub
               </button>
             )}
             {hasGoogle && (
-              <button onClick={() => signIn("google", { callbackUrl: "/dashboard" })} className="btn-secondary w-full">
+              <button onClick={() => signIn("google", { callbackUrl })} className="btn-secondary w-full">
                 Sign in with Google
               </button>
             )}

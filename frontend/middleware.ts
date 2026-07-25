@@ -1,6 +1,7 @@
 import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { nextAuthSecret } from "@/lib/authSecret";
 
 const authDisabled =
   process.env.AUTH_DISABLED === "true" || process.env.NEXT_PUBLIC_AUTH_DISABLED === "true";
@@ -29,7 +30,7 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getToken({ req, secret: nextAuthSecret });
   if (token) {
     return NextResponse.next();
   }
