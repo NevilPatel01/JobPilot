@@ -30,3 +30,25 @@ export interface ExchangeableToken {
 export function needsBackendExchange(token: ExchangeableToken): boolean {
   return Boolean(!token.accessToken && token.oauthProvider && token.oauthId);
 }
+
+/** What the API client should do when a request comes back unauthorized.
+ *  - "ignore":          not an auth problem — surface the error, touch nothing.
+ *  - "clear-token":     no Bearer was sent (AuthInit hasn't populated it yet, a
+ *                       startup race). Drop any stale stored token and let the
+ *                       self-heal + a retry recover; do NOT tear down the session.
+ *  - "reauthenticate":  a token WAS sent and the backend rejected it (rotated
+ *                       SECRET_KEY, deleted user). The NextAuth session has
+ *                       drifted out of sync and can't self-heal, so the session
+ *                       must be cleared and the user sent through sign-in again.
+ *                       Redirecting to /login WITHOUT clearing the session is the
+ *                       infinite-loop bug this replaces. */
+export type AuthFailureAction = "ignore" | "clear-token" | "reauthenticate";
+
+export function authFailureAction(
+  status: number,
+  detail: string,
+  hadToken: boolean,
+): AuthFailureAction {
+  if (status !== 401 || !isAuthFailureDetail(detail)) return "ignore";
+  return hadToken ? "reauthenticate" : "clear-token";
+}
